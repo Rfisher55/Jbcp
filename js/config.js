@@ -1,8 +1,8 @@
 // ── Supabase ──────────────────────────────────────────────
 // Replace with your project values from:
 // https://supabase.com/dashboard/project/_/settings/api
-const SUPABASE_URL      = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL      = 'https://khkxtuckpymteomlvpbf.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_qc84MYvDncLXTAPlbDpAlQ_N0cRfgVb';
 
 // ── Default AO: Camp Grayling, MI ────────────────────────
 const AO = {
