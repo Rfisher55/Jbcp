@@ -32,7 +32,12 @@ const DB = {
     const { data, error } = await _client.auth.signInAnonymously({
       options: { data: { callsign } }
     });
-    if (error) throw error;
+    if (error) {
+      // Anonymous auth not yet enabled in Supabase dashboard — degrade to local-only
+      console.warn('[DB] Anon auth unavailable, using local mode:', error.message);
+      _client = null;
+      return { user: { id: 'local-' + crypto.randomUUID(), user_metadata: { callsign } } };
+    }
     return data;
   },
 
