@@ -84,9 +84,6 @@
     </button>
   </nav>
 
-  <!-- ── SHEETS ────────────────────────────────────── -->
-
-  <!-- Auth sheet (no close btn — must sign in) -->
   <div id="sheet-auth" class="sheet" role="dialog" aria-modal="true">
     <div class="sheet-inner">
       <div class="sheet-handle"></div>
@@ -94,8 +91,7 @@
       <p class="sheet-sub">Training &amp; Exercise Use Only — Unclassified</p>
       <div class="field-group">
         <label for="auth-callsign">Callsign <span class="req">*</span></label>
-        <input id="auth-callsign" type="text" placeholder="e.g. ALPHA-6" maxlength="20"
-               autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <input id="auth-callsign" type="text" placeholder="e.g. ALPHA-6" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="auth-email">Email <span class="opt">(optional — for persistent identity)</span></label>
@@ -106,7 +102,6 @@
     </div>
   </div>
 
-  <!-- Mission sheet -->
   <div id="sheet-mission" class="sheet hidden" role="dialog" aria-modal="true">
     <div class="sheet-inner">
       <div class="sheet-handle"></div>
@@ -115,7 +110,6 @@
     </div>
   </div>
 
-  <!-- Symbol picker sheet -->
   <div id="sheet-symbols" class="sheet hidden" role="dialog" aria-modal="true">
     <div class="sheet-inner">
       <div class="sheet-handle"></div>
@@ -140,7 +134,6 @@
     </div>
   </div>
 
-  <!-- Unit detail sheet -->
   <div id="sheet-unit" class="sheet hidden" role="dialog" aria-modal="true">
     <div class="sheet-inner">
       <div class="sheet-handle"></div>
@@ -149,7 +142,6 @@
     </div>
   </div>
 
-  <!-- Plot grid sheet -->
   <div id="sheet-plot-grid" class="sheet hidden" role="dialog" aria-modal="true">
     <div class="sheet-inner">
       <div class="sheet-handle"></div>
@@ -157,8 +149,7 @@
       <h3>Plot Grid Reference</h3>
       <div class="field-group">
         <label for="plot-input">MGRS / Grid</label>
-        <input id="plot-input" type="text" placeholder="16TDL 123 456 or just 123456"
-               autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <input id="plot-input" type="text" placeholder="16TDL 123 456 or just 123456" autocomplete="off" autocapitalize="characters" spellcheck="false">
         <span class="field-hint">Accepts full MGRS or 4–10 digit local grid (assumes Camp Grayling GZD)</span>
       </div>
       <div class="field-group">
@@ -175,7 +166,6 @@
     </div>
   </div>
 
-  <!-- Layers sheet -->
   <div id="sheet-layers" class="sheet hidden" role="dialog" aria-modal="true">
     <div class="sheet-inner">
       <div class="sheet-handle"></div>
@@ -192,7 +182,6 @@
     </div>
   </div>
 
-  <!-- Measure sheet -->
   <div id="sheet-measure" class="sheet hidden" role="dialog" aria-modal="true">
     <div class="sheet-inner">
       <div class="sheet-handle"></div>
@@ -209,10 +198,8 @@
     </div>
   </div>
 
-  <!-- Toast container -->
   <div id="toasts" aria-live="polite"></div>
 
-  <!-- ── SCRIPTS ────────────────────────────────── -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
   <script src="https://unpkg.com/mgrs/mgrs.js"></script>

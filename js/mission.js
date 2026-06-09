@@ -41,15 +41,12 @@ const Mission = {
   _activate(m, { silent = false } = {}) {
     this.current = m;
     localStorage.setItem('cop_mission', JSON.stringify({ id: m.id }));
-
-    // Subscribe to live changes
     if (this._unsub) this._unsub();
     this._unsub = DB.subscribeMission(m.id, {
       onUnit:    p => MapCtrl.handleRemoteUnit(p),
       onGraphic: p => MapCtrl.handleRemoteGraphic(p),
       onPresence: s => UI.updateRoster(s),
     });
-
     if (!silent) App.onMissionActivated(m);
     return m;
   }
