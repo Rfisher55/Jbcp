@@ -76,9 +76,12 @@ const MGRSGrid = L.Layer.extend({
     const map = this._map;
     const sz  = map.getSize();
     const c   = this._canvas;
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+
     c.style.display = '';
-    c.width  = sz.x;
-    c.height = sz.y;
+    // Physical pixel dimensions — prevents blurry upscaled lines on Retina/HiDPI
+    c.width  = Math.round(sz.x * dpr);
+    c.height = Math.round(sz.y * dpr);
     c.style.width  = sz.x + 'px';
     c.style.height = sz.y + 'px';
 
@@ -87,6 +90,7 @@ const MGRSGrid = L.Layer.extend({
     L.DomUtil.setPosition(c, tl);
 
     const ctx = c.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // scale once; canvas reset clears old transform
     ctx.clearRect(0, 0, sz.x, sz.y);
 
     const zoom   = map.getZoom();
@@ -136,10 +140,10 @@ const MGRSGrid = L.Layer.extend({
     const nMax = Math.ceil( nNE / interval) * interval;
 
     const zoom = this._map.getZoom();
-    ctx.strokeStyle = 'rgba(70,190,255,0.45)';
-    ctx.lineWidth   = zoom >= 13 ? 0.5 : 0.7;
+    ctx.strokeStyle = 'rgba(0,160,220,0.35)';
+    ctx.lineWidth   = zoom >= 13 ? 0.4 : 0.6;
     ctx.font        = `${zoom >= 12 ? 9 : 8}px 'SF Mono',monospace`;
-    ctx.fillStyle   = 'rgba(70,210,255,0.8)';
+    ctx.fillStyle   = 'rgba(0,170,230,0.7)';
 
     for (let e = eMin; e <= eMax; e += interval) {
       if (e < 100000 || e > 900000) continue;
