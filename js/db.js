@@ -1,5 +1,3 @@
-// Supabase wrapper — degrades gracefully to local-only when unconfigured
-
 let _client = null;
 
 (function () {
@@ -21,7 +19,6 @@ const DB = {
   get client() { return _client; },
   get online()  { return _client !== null; },
 
-  // ── Auth ───────────────────────────────────────────────
   async getSession() {
     if (!this.online) return null;
     const { data } = await _client.auth.getSession();
@@ -55,7 +52,6 @@ const DB = {
     return () => subscription.unsubscribe();
   },
 
-  // ── Missions ───────────────────────────────────────────
   async createMission(name, userId) {
     if (!this.online) {
       return { id: crypto.randomUUID(), name, created_by: userId, status: 'active', created_at: new Date().toISOString() };
@@ -94,7 +90,6 @@ const DB = {
     return data;
   },
 
-  // ── Units ──────────────────────────────────────────────
   async getUnits(missionId) {
     if (!this.online) return [];
     const { data, error } = await _client.from('units').select().eq('mission_id', missionId);
@@ -115,7 +110,6 @@ const DB = {
     if (error) throw error;
   },
 
-  // ── Graphics ───────────────────────────────────────────
   async getGraphics(missionId) {
     if (!this.online) return [];
     const { data, error } = await _client.from('graphics').select().eq('mission_id', missionId);
@@ -136,31 +130,22 @@ const DB = {
     if (error) throw error;
   },
 
-  // ── Realtime ───────────────────────────────────────────
   subscribeMission(missionId, { onUnit, onGraphic, onPresence } = {}) {
     if (!this.online) return () => {};
     const ch = _client.channel(`mission:${missionId}`, {
       config: { presence: { key: missionId } }
     });
-
     if (onUnit) {
-      ch.on('postgres_changes', {
-        event: '*', schema: 'public', table: 'units',
-        filter: `mission_id=eq.${missionId}`
-      }, onUnit);
+      ch.on('postgres_changes', { event: '*', schema: 'public', table: 'units', filter: `mission_id=eq.${missionId}` }, onUnit);
     }
     if (onGraphic) {
-      ch.on('postgres_changes', {
-        event: '*', schema: 'public', table: 'graphics',
-        filter: `mission_id=eq.${missionId}`
-      }, onGraphic);
+      ch.on('postgres_changes', { event: '*', schema: 'public', table: 'graphics', filter: `mission_id=eq.${missionId}` }, onGraphic);
     }
     if (onPresence) {
       ch.on('presence', { event: 'sync' }, () => onPresence(ch.presenceState()));
       ch.on('presence', { event: 'join' }, () => onPresence(ch.presenceState()));
       ch.on('presence', { event: 'leave' }, () => onPresence(ch.presenceState()));
     }
-
     ch.subscribe();
     return () => _client.removeChannel(ch);
   },
