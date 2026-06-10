@@ -98,7 +98,7 @@ const Chat = {
       this._refreshBadge();
     }
     if (msg.callsign !== Auth.callsign) {
-      UI.toast(`${_escH(msg.callsign)}: ${msg.text.slice(0, 60)}`, 'info', 3500);
+      UI.toast(`${msg.callsign}: ${msg.text.slice(0, 60)}`, 'info', 3500);
     }
   },
 
