@@ -568,17 +568,31 @@ const MapCtrl = {
     const { eventType, new: row, old } = payload;
     if (eventType === 'DELETE') {
       const entry = this._units[old.id];
-      if (entry) { this._unitLayer.removeLayer(entry.marker); delete this._units[old.id]; this.updateUnitCount(); }
+      if (entry) {
+        this._unitLayer.removeLayer(entry.marker);
+        if (this._rangeRings[old.id]) {
+          this._rangeRings[old.id].forEach(l => this._measureLayer.removeLayer(l));
+          delete this._rangeRings[old.id];
+        }
+        delete this._units[old.id];
+        this.updateUnitCount();
+      }
       LocalStore.deleteUnit(old.id);
     } else {
       const existing = this._units[row.id];
       if (existing) {
+        const posChanged = existing.data.lat !== row.lat || existing.data.lng !== row.lng;
         existing.data = row;
         existing.marker.setLatLng([row.lat, row.lng]);
         existing.marker.setIcon(makeMilIcon(row.sidc, this._getIconSize()));
         existing.marker.unbindTooltip();
         this._bindUnitTooltip(existing.marker, row);
         this._applyStaleStyle(existing.marker, row);
+        if (posChanged && this._rangeRings[row.id]) {
+          this._rangeRings[row.id].forEach(l => this._measureLayer.removeLayer(l));
+          delete this._rangeRings[row.id];
+          this.toggleRangeRings(row.id, row.lat, row.lng);
+        }
       } else {
         this._addUnitMarker(row);
       }
