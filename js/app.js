@@ -1641,8 +1641,7 @@ const App = {
     const now   = new Date().toISOString();
     const stale = new Date(Date.now() + 5 * 60000).toISOString();
 
-    const typeMap = { 'H': 'a-h-G-U-C', 'N': 'a-n-G', 'U': 'a-u-G' };
-    const events  = units.map(({ data: u }) => {
+    const events = units.map(({ data: u }) => {
       const s = u.sidc || '';
       let aff;
       if (s.length <= 15) {
@@ -1651,13 +1650,16 @@ const App = {
         aff = s[3] === '6' ? 'h' : s[3] === '4' ? 'n' : s[3] === '1' ? 'u' : 'f';
       }
       const type = `a-${aff}-G-U-C`;
-      const cs   = (u.callsign || 'UNKNOWN').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
-      return `<event version="2.0" uid="${u.id}" type="${type}" time="${u.updated_at || now}" start="${u.updated_at || now}" stale="${stale}" how="h-g-i-g-o">` +
+      if (!isFinite(u.lat) || !isFinite(u.lng)) return null;
+      const xmlEsc = v => String(v).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+      const cs   = xmlEsc(u.callsign || 'UNKNOWN');
+      const sidc = xmlEsc(u.sidc || '');
+      return `<event version="2.0" uid="${xmlEsc(u.id)}" type="${type}" time="${u.updated_at || now}" start="${u.updated_at || now}" stale="${stale}" how="h-g-i-g-o">` +
         `<point lat="${u.lat.toFixed(6)}" lon="${u.lng.toFixed(6)}" hae="0" ce="9999" le="9999"/>` +
-        `<detail sidc="${u.sidc || ''}"><contact callsign="${cs}"/><uid Droid="${cs}"/>` +
+        `<detail sidc="${sidc}"><contact callsign="${cs}"/><uid Droid="${cs}"/>` +
         `<remarks>REDCON:${u.redcon||5} OPSTAT:${u.opstat||'FMC'}${u.lace ? ` LACE:${u.lace.l}/${u.lace.a}/${u.lace.c}/${u.lace.e}` : ''}</remarks>` +
         `</detail></event>`;
-    }).join('\n');
+    }).filter(Boolean).join('\n');
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<events>\n${events}\n</events>`;
     try {
