@@ -107,6 +107,8 @@ const MapCtrl = {
 
   _getIconSize() {
     const z = this._map ? this._map.getZoom() : 13;
+    if (z <= 5)  return 10;
+    if (z <= 7)  return 14;
     if (z <= 9)  return 20;
     if (z <= 11) return 26;
     if (z <= 13) return 32;
