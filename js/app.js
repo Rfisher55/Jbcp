@@ -969,9 +969,21 @@ const App = {
       UI.showSheet('sheet-layers');
     });
 
-    // Roster toggle
-    document.getElementById('btn-roster-toggle').addEventListener('click', () =>
-      document.getElementById('panel-roster').classList.toggle('collapsed'));
+    // Roster toggle — tap button or tap backdrop (map area) to close
+    const _rosterPanel   = document.getElementById('panel-roster');
+    const _rosterBackdrop = document.getElementById('roster-backdrop');
+    const _closeRoster = () => {
+      _rosterPanel.classList.add('collapsed');
+      _rosterBackdrop.classList.remove('active');
+    };
+    document.getElementById('btn-roster-toggle').addEventListener('click', () => {
+      const nowOpen = !_rosterPanel.classList.toggle('collapsed');
+      _rosterBackdrop.classList.toggle('active', nowOpen);
+    });
+    _rosterBackdrop.addEventListener('click', _closeRoster);
+    _rosterBackdrop.addEventListener('touchend', e => {
+      e.preventDefault(); _closeRoster();
+    }, { passive: false });
 
     // Measure clear
     document.getElementById('btn-measure-clear').addEventListener('click', () => MapCtrl.clearMeasure());

@@ -161,7 +161,7 @@ body.ui-night #disclaimer { opacity: 0.3; }
   position: fixed; right: 0;
   top: calc(22px + var(--safe-t) + var(--bar-h));
   bottom: calc(var(--bot-h) + var(--safe-b));
-  z-index: 200; width: 260px;
+  z-index: 300; width: 220px;
   background: var(--bg-panel);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -169,6 +169,12 @@ body.ui-night #disclaimer { opacity: 0.3; }
   transition: transform var(--ease);
 }
 #panel-roster.collapsed { transform: translateX(calc(100% - 44px)); }
+
+/* Backdrop — tapping map closes the panel */
+#roster-backdrop {
+  display: none; position: fixed; inset: 0; z-index: 299;
+}
+#roster-backdrop.active { display: block; }
 
 .panel-toggle {
   position: absolute; left: 0; top: 8px;
@@ -178,6 +184,7 @@ body.ui-night #disclaimer { opacity: 0.3; }
   display: flex; align-items: center; justify-content: center;
   z-index: 1; touch-action: manipulation;
 }
+#panel-roster:not(.collapsed) .panel-toggle { color: var(--blue); }
 .panel-toggle svg { width: 22px; height: 22px; }
 .panel-toggle:hover { color: var(--text); }
 
