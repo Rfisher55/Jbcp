@@ -431,7 +431,10 @@ const UI = {
         </div>
         <div class="btn-row" style="margin-bottom:8px">
           <button class="btn-secondary" id="btn-export-plan">Export Plan</button>
-          <button class="btn-secondary btn-danger" id="btn-leave-mission">Leave</button>
+          <button class="btn-secondary" id="btn-import-plan">Import Plan</button>
+        </div>
+        <div class="btn-row" style="margin-bottom:8px">
+          <button class="btn-secondary btn-full btn-danger" id="btn-leave-mission">Leave Mission</button>
         </div>
         <div class="btn-row" style="margin-bottom:8px">
           <button class="btn-secondary" id="btn-pace-plan">PACE Plan</button>
@@ -446,7 +449,8 @@ const UI = {
         </div>
       ` : `
         <div class="btn-row" style="margin-bottom:8px">
-          <button class="btn-secondary btn-full" id="btn-export-plan">Export Plan (offline)</button>
+          <button class="btn-secondary" id="btn-export-plan">Export Plan</button>
+          <button class="btn-secondary" id="btn-import-plan">Import Plan</button>
         </div>
         <div class="btn-row" style="margin-bottom:8px">
           <button class="btn-secondary" id="btn-pace-plan">PACE Plan</button>
@@ -526,6 +530,11 @@ const UI = {
     document.getElementById('btn-export-plan')?.addEventListener('click', () => {
       UI.closeSheet('sheet-mission');
       App._exportPlan();
+    });
+
+    document.getElementById('btn-import-plan')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-mission');
+      App._openPlanImport();
     });
 
     let leaveStep = 0;
@@ -1006,6 +1015,10 @@ const App = {
 
     // SPOTREP form
     document.getElementById('btn-spotrep-submit')?.addEventListener('click', () => Reports.submitSPOTREP());
+    document.getElementById('btn-spotdtg-now')?.addEventListener('click', () => {
+      const el = document.getElementById('spot-dtg');
+      if (el) el.value = Reports._dtg();
+    });
 
     // 9-Line form
     document.getElementById('btn-9line-submit')?.addEventListener('click', () => Reports.submit9Line());
@@ -1695,6 +1708,7 @@ const App = {
       lng:      u.data.lng,
       notes:    u.data.notes,
       redcon:   u.data.redcon,
+      opstat:   u.data.opstat,
       lace:     u.data.lace,
     }));
     const graphics = Object.values(MapCtrl._graphics).map(g => ({
@@ -1727,6 +1741,76 @@ const App = {
       navigator.clipboard?.writeText(json).then(() =>
         UI.toast('Plan copied to clipboard (JSON)', 'success')
       );
+    }
+  },
+
+  _openPlanImport() {
+    const fi = document.createElement('input');
+    fi.type = 'file'; fi.accept = '.json'; fi.style.display = 'none';
+    fi.addEventListener('change', () => {
+      const file = fi.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => this._parsePlan(e.target.result);
+      reader.readAsText(file);
+      fi.remove();
+    });
+    document.body.appendChild(fi);
+    fi.click();
+    UI.toast('Select a plan .json file', 'info', 2500);
+  },
+
+  _parsePlan(jsonStr) {
+    try {
+      const plan = JSON.parse(jsonStr);
+      if (!plan || typeof plan !== 'object') throw new Error('Invalid plan file');
+
+      const units    = Array.isArray(plan.units)    ? plan.units    : [];
+      const graphics = Array.isArray(plan.graphics) ? plan.graphics : [];
+
+      let placed = 0, updatedU = 0, placedG = 0;
+
+      units.forEach(u => {
+        if (!u.id || !isFinite(u.lat) || !isFinite(u.lng)) return;
+        const unit = {
+          id:         u.id,
+          sidc:       u.sidc || 'SFGPUC-----',
+          callsign:   String(u.callsign || 'IMPORTED').slice(0, 24),
+          lat:        u.lat,
+          lng:        u.lng,
+          notes:      u.notes || '',
+          redcon:     u.redcon || 5,
+          opstat:     u.opstat || 'FMC',
+          lace:       u.lace || null,
+          updated_at: new Date().toISOString(),
+        };
+        if (MapCtrl._units[u.id]) {
+          MapCtrl._updateUnit(u.id, unit);
+          updatedU++;
+        } else {
+          MapCtrl._addUnitMarker(unit);
+          placed++;
+        }
+        LocalStore.upsertUnit(unit);
+      });
+
+      graphics.forEach(g => {
+        if (!g.id || !g.type || !g.geometry) return;
+        if (!MapCtrl._graphics[g.id]) {
+          MapCtrl._renderGraphic(g);
+          LocalStore.upsertGraphic(g);
+          placedG++;
+        }
+      });
+
+      const msg = [
+        placed    && `${placed} unit${placed !== 1 ? 's' : ''} added`,
+        updatedU  && `${updatedU} updated`,
+        placedG   && `${placedG} graphic${placedG !== 1 ? 's' : ''} added`,
+      ].filter(Boolean).join(', ');
+      UI.toast(`Plan imported: ${msg || 'no changes'}`, 'success');
+    } catch(e) {
+      UI.toast('Plan import error: ' + e.message, 'error');
     }
   },
 

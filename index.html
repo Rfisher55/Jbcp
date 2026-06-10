@@ -458,7 +458,10 @@
                autocomplete="off" autocapitalize="sentences">
       </div>
       <div class="field-group">
-        <label for="spot-dtg">T — Time (DTG)</label>
+        <label for="spot-dtg" style="display:flex;justify-content:space-between;align-items:center">
+          <span>T — Time (DTG)</span>
+          <button class="btn-secondary" id="btn-spotdtg-now" style="font-size:10px;padding:2px 8px;margin:0">Now</button>
+        </label>
         <input id="spot-dtg" type="text" placeholder="DDHHMM Z MON YY"
                autocomplete="off" autocapitalize="characters">
       </div>
