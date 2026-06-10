@@ -46,6 +46,7 @@ const MapCtrl = {
   _clickTimeout:     null,
   _ctxLatLng:        null,
   _symbolScale:      1.0,
+  _batchLoading:     false,
 
   init() {
     const savedView = (() => {
@@ -593,6 +594,7 @@ const MapCtrl = {
     this._unitLayer.clearLayers();
     this._graphicLayer.clearLayers();
     this._reportLayer.clearLayers();
+    this.clearRangeRings();
     this._units    = {};
     this._graphics = {};
 
@@ -622,6 +624,7 @@ const MapCtrl = {
     this._unitLayer.clearLayers();
     this._graphicLayer.clearLayers();
     this._reportLayer.clearLayers();
+    this.clearRangeRings();
     this._units    = {};
     this._graphics = {};
     BFT.leaveMission();
@@ -773,8 +776,10 @@ const MapCtrl = {
   clearMeasure() {
     this._measureLayer.clearLayers();
     this._measurePts = [];
-    ['m-distance','m-azimuth','m-back-az','m-mils','m-from','m-to'].forEach(id =>
-      document.getElementById(id).textContent = '—');
+    ['m-distance','m-azimuth','m-back-az','m-mils','m-from','m-to'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '—';
+    });
   },
 
   _bearing(a, b) {
@@ -833,6 +838,7 @@ const MapCtrl = {
     this._unitLayer.clearLayers();
     this._graphicLayer.clearLayers();
     this._reportLayer.clearLayers();
+    this.clearRangeRings();
     this._units    = {};
     this._graphics = {};
     const units    = LocalStore.getUnits();
