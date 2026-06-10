@@ -27,6 +27,7 @@ const MapCtrl = {
   _measureLayer:     null,
   _pinLayer:         null,
   _previewGroup:     null,
+  _rangeRings:       {},   // unitId → array of Leaflet circle layers
   _selfMarker:       null,
   _units:            {},
   _graphics:         {},
@@ -533,8 +534,8 @@ const MapCtrl = {
 
     for (const u of units)   this._addUnitMarker(u);
     for (const g of graphics) this._renderGraphic(g);
-    // Load locally-cached reports for this session
     for (const r of LocalStore.getReports()) this.placeReportMarker(r);
+    this.updateUnitCount();
     UI.toast(`Loaded ${units.length} unit${units.length !== 1 ? 's' : ''}`, 'info');
   },
 
@@ -855,6 +856,31 @@ const MapCtrl = {
     });
 
     marker.addTo(this._reportLayer);
+  },
+
+  toggleRangeRings(unitId, lat, lng) {
+    if (this._rangeRings[unitId]) {
+      this._rangeRings[unitId].forEach(c => this._measureLayer.removeLayer(c));
+      delete this._rangeRings[unitId];
+      return false; // removed
+    }
+    const RINGS = [
+      { r: 1000,  color: '#58a6ff', label: '1km' },
+      { r: 3000,  color: '#d29922', label: '3km' },
+      { r: 5000,  color: '#ff8c00', label: '5km' },
+    ];
+    this._rangeRings[unitId] = RINGS.map(({ r, color }) =>
+      L.circle([lat, lng], {
+        radius: r, color, fillOpacity: 0, weight: 1.5,
+        dashArray: '4,6', interactive: false,
+      }).addTo(this._measureLayer)
+    );
+    return true; // added
+  },
+
+  clearRangeRings() {
+    Object.values(this._rangeRings).flat().forEach(c => this._measureLayer.removeLayer(c));
+    this._rangeRings = {};
   },
 
   get map() { return this._map; },
