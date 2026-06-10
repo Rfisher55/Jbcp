@@ -308,11 +308,15 @@ const Reports = {
       const preview = this._reportPreview(r);
       const unitEntry = r.unit_id ? MapCtrl._units?.[r.unit_id] : null;
       const unitLabel = unitEntry ? ` · ${_escH(unitEntry.data.callsign || '')}` : '';
+      const hasLoc = r.lat != null && r.lng != null;
       return `<div class="rpt-log-entry">
         <div class="rpt-log-header">
           <span class="rpt-log-badge ${_escH(r.type.toLowerCase())}">${_escH(r.type)}</span>
           <span class="rpt-log-meta">${_escH(r.reporter || '—')}${unitLabel} · ${dtLabel}</span>
-          <button class="rpt-log-copy" data-id="${_escH(r.id)}">Copy</button>
+          <div class="rpt-log-actions">
+            ${hasLoc ? `<button class="rpt-log-fly" data-id="${_escH(r.id)}" title="Fly to location">⌖</button>` : ''}
+            <button class="rpt-log-copy" data-id="${_escH(r.id)}">Copy</button>
+          </div>
         </div>
         <div class="rpt-log-preview">${preview}</div>
       </div>`;
@@ -322,6 +326,16 @@ const Reports = {
       btn.addEventListener('click', () => {
         const r = reports.find(x => x.id === btn.dataset.id);
         if (r) this._copyReport(r);
+      });
+    });
+
+    list.querySelectorAll('.rpt-log-fly').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const r = reports.find(x => x.id === btn.dataset.id);
+        if (r?.lat != null && r?.lng != null) {
+          UI.closeSheet('sheet-reports-log');
+          MapCtrl.flyToGrid(r.lat, r.lng);
+        }
       });
     });
   },
