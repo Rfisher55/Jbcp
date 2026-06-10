@@ -871,6 +871,20 @@ const App = {
     document.getElementById('btn-bft-card-close')?.addEventListener('click', () =>
       UI.closeSheet('sheet-bft-card'));
 
+    // Tap any MGRS link in chat or BFT card → fly to that grid
+    document.getElementById('chat-msgs')?.addEventListener('click', e => {
+      const el = e.target.closest('[data-mgrs]');
+      if (!el) return;
+      const result = parseMGRS(el.dataset.mgrs);
+      if (result.valid) { UI.closeSheet('sheet-chat'); MapCtrl.flyToGrid(result.lat, result.lng); }
+    });
+    document.getElementById('bft-card-mgrs')?.addEventListener('click', () => {
+      const mgrs = document.getElementById('bft-card-mgrs')?.textContent;
+      if (!mgrs || mgrs === '—') return;
+      const result = parseMGRS(mgrs);
+      if (result.valid) { UI.closeSheet('sheet-bft-card'); MapCtrl.flyToGrid(result.lat, result.lng); }
+    });
+
     // Init map
     MapCtrl.init();
 

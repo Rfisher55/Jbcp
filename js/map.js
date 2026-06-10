@@ -671,9 +671,11 @@ const MapCtrl = {
     const mgrsA = toMGRS(a.lat, a.lng, 4) || '—';
     const mgrsB = toMGRS(b.lat, b.lng, 4) || '—';
 
+    const mils = Math.round(az * 6400 / 360);
     document.getElementById('m-distance').textContent =
       dist >= 1000 ? (dist / 1000).toFixed(2) + ' km' : Math.round(dist) + ' m';
     document.getElementById('m-azimuth').textContent  = az.toFixed(1) + '°';
+    document.getElementById('m-mils').textContent     = mils + ' mil';
     document.getElementById('m-from').textContent     = mgrsA;
     document.getElementById('m-to').textContent       = mgrsB;
 
