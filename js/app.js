@@ -239,6 +239,7 @@ const UI = {
       </div>
       <div class="btn-row" style="margin-bottom:8px">
         <button class="btn-secondary" id="btn-unit-dupe">Duplicate</button>
+        <button class="btn-secondary" id="btn-unit-9line">9-Line MEDEVAC</button>
       </div>
       <button class="btn-secondary btn-danger btn-full" id="btn-unit-delete">Delete</button>
     `;
@@ -361,6 +362,17 @@ const UI = {
       UI.toast(`Duplicated as "${dupe.callsign}"`, 'success');
     });
 
+    document.getElementById('btn-unit-9line').addEventListener('click', () => {
+      UI.closeSheet('sheet-unit');
+      Reports.open9Line(unit.lat, unit.lng);
+      // Pre-fill line 2 frequency from PACE plan if available
+      const pace = App._loadPACEData?.();
+      if (pace?.p_freq) {
+        const freqEl = document.getElementById('m9-freq');
+        if (freqEl && !freqEl.value) freqEl.value = pace.p_freq;
+      }
+    });
+
     document.getElementById('btn-unit-save').addEventListener('click', () => {
       const cs    = document.getElementById('edit-callsign').value.trim();
       const notes = document.getElementById('edit-notes').value.trim();
@@ -425,17 +437,23 @@ const UI = {
           <button class="btn-secondary" id="btn-pace-plan">PACE Plan</button>
           <button class="btn-secondary" id="btn-force-status">Force Status</button>
         </div>
-        <div class="btn-row" style="margin-bottom:16px">
+        <div class="btn-row" style="margin-bottom:8px">
           <button class="btn-secondary" id="btn-cot-export">Export CoT</button>
           <button class="btn-secondary" id="btn-cot-import">Import CoT</button>
+        </div>
+        <div class="btn-row" style="margin-bottom:16px">
+          <button class="btn-secondary btn-full" id="btn-unit-summary">Unit Summary (Text)</button>
         </div>
       ` : `
         <div class="btn-row" style="margin-bottom:8px">
           <button class="btn-secondary btn-full" id="btn-export-plan">Export Plan (offline)</button>
         </div>
-        <div class="btn-row" style="margin-bottom:16px">
+        <div class="btn-row" style="margin-bottom:8px">
           <button class="btn-secondary" id="btn-pace-plan">PACE Plan</button>
           <button class="btn-secondary" id="btn-force-status">Force Status</button>
+        </div>
+        <div class="btn-row" style="margin-bottom:16px">
+          <button class="btn-secondary btn-full" id="btn-unit-summary">Unit Summary (Text)</button>
         </div>
       `}
       ${missions.length ? `
@@ -551,6 +569,11 @@ const UI = {
     document.getElementById('btn-cot-import')?.addEventListener('click', () => {
       UI.closeSheet('sheet-mission');
       App._openCotImport();
+    });
+
+    document.getElementById('btn-unit-summary')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-mission');
+      App._exportUnitSummary();
     });
 
     document.querySelectorAll('#mission-list .mission-card').forEach(card => {
@@ -671,6 +694,7 @@ const App = {
   _labelCallback: null,
   _lastBFT:       0,
   _selfPos:       null,
+  _followGPS:     true,
 
   promptLabel(typeName, prefix, cb) {
     this._labelCallback = cb;
@@ -822,6 +846,9 @@ const App = {
           document.body.classList.remove('fullmap');
         } else if (MapCtrl._isDrawing()) {
           MapCtrl.cancelDraw();
+        } else if (MapCtrl._editUnitSymbolId) {
+          MapCtrl._editUnitSymbolId = null;
+          UI.closeSheet('sheet-symbols');
         } else if (MapCtrl._activeTool === 'place-unit' || MapCtrl._activeTool === 'pin') {
           MapCtrl.setTool('select');
           UI.toolBtn('select');
@@ -991,12 +1018,30 @@ const App = {
       UI.closeSheet('sheet-force-status'));
     document.getElementById('btn-fstat-share')?.addEventListener('click', () => {
       if (!Chat.isJoined()) { UI.toast('Join a mission to share', 'info'); return; }
+      const safeCs = s => String(s || '?').replace(/[|\x00-\x1f]/g, '').slice(0, 16) || '?';
       const units = Object.values(MapCtrl._units)
         .sort((a, b) => (a.data.redcon || 5) - (b.data.redcon || 5))
-        .map(({ data: u }) => `${u.callsign || '?'} RC${u.redcon || 5}/${u.opstat || 'FMC'}`)
+        .map(({ data: u }) => `${safeCs(u.callsign)} RC${u.redcon || 5}/${u.opstat || 'FMC'}`)
         .join(' | ');
       if (units) { Chat.send('FORCE STATUS: ' + units); UI.toast('Force status shared to chat', 'success'); }
     });
+    document.getElementById('btn-fstat-export')?.addEventListener('click', () => {
+      App._exportUnitSummary();
+    });
+
+    document.querySelectorAll('.btn-rc-bulk').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const rc = parseInt(btn.dataset.rc, 10);
+        const units = Object.values(MapCtrl._units);
+        if (!units.length) { UI.toast('No units to update', 'info'); return; }
+        units.forEach(({ data: u }) => {
+          MapCtrl._updateUnit(u.id, { redcon: rc });
+        });
+        UI.toast(`All units set to REDCON ${rc}`, 'success');
+        App._showForceStatus();
+      });
+    });
+
     document.getElementById('force-status-list')?.addEventListener('click', e => {
       const item = e.target.closest('[data-uid]');
       if (!item) return;
@@ -1341,6 +1386,16 @@ const App = {
     });
   },
 
+  _loadPACEData() {
+    try {
+      const key = Mission.active ? `cop_pace_${Mission.current.id}` : 'cop_pace_offline';
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const pace = JSON.parse(raw);
+      return { p_freq: pace.p?.freq || '', p_method: pace.p?.method || '' };
+    } catch { return null; }
+  },
+
   _showForceStatus() {
     const list  = document.getElementById('force-status-list');
     const units = Object.values(MapCtrl._units)
@@ -1388,7 +1443,7 @@ const App = {
       const cs   = (u.callsign || 'UNKNOWN').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
       return `<event version="2.0" uid="${u.id}" type="${type}" time="${u.updated_at || now}" start="${u.updated_at || now}" stale="${stale}" how="h-g-i-g-o">` +
         `<point lat="${u.lat.toFixed(6)}" lon="${u.lng.toFixed(6)}" hae="0" ce="9999" le="9999"/>` +
-        `<detail><contact callsign="${cs}"/><uid Droid="${cs}"/>` +
+        `<detail sidc="${u.sidc || ''}"><contact callsign="${cs}"/><uid Droid="${cs}"/>` +
         `<remarks>REDCON:${u.redcon||5} OPSTAT:${u.opstat||'FMC'}${u.lace ? ` LACE:${u.lace.l}/${u.lace.a}/${u.lace.c}/${u.lace.e}` : ''}</remarks>` +
         `</detail></event>`;
     }).join('\n');
@@ -1405,6 +1460,53 @@ const App = {
     } catch {
       navigator.clipboard?.writeText(xml).then(() => UI.toast('CoT XML copied to clipboard', 'success'));
     }
+  },
+
+  _exportUnitSummary() {
+    const units = Object.values(MapCtrl._units);
+    if (!units.length) { UI.toast('No units on map', 'info'); return; }
+
+    const dtg = (() => {
+      const d = new Date();
+      const dd  = String(d.getUTCDate()).padStart(2, '0');
+      const hh  = String(d.getUTCHours()).padStart(2, '0');
+      const mm  = String(d.getUTCMinutes()).padStart(2, '0');
+      const mon = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][d.getUTCMonth()];
+      const yr  = String(d.getUTCFullYear()).slice(-2);
+      return `${dd}${hh}${mm}Z${mon}${yr}`;
+    })();
+
+    const header = `UNIT SUMMARY DTG ${dtg}\n` + '='.repeat(40) + '\n';
+
+    const lines = units
+      .sort((a, b) => (a.data.redcon || 5) - (b.data.redcon || 5))
+      .map(({ data: u }) => {
+        const cs    = String(u.callsign || 'UNKNOWN').toUpperCase();
+        const mgrs  = u.lat && u.lng ? (toMGRS(u.lat, u.lng, 5) || `${u.lat.toFixed(4)}N ${u.lng.toFixed(4)}E`) : 'NO POS';
+        const rc    = `RC${u.redcon || 5}`;
+        const os    = u.opstat || 'FMC';
+        const fuel  = u.lace?.l  != null ? ` FUEL:${u.lace.l}%`   : '';
+        const ammo  = u.lace?.a  != null ? ` AMMO:${u.lace.a}%`   : '';
+        const cas   = u.lace?.c  != null ? ` CAS:${u.lace.c}`     : '';
+        const notes = u.notes && u.notes !== 'Imported from CoT' ? ` // ${u.notes.slice(0, 60)}` : '';
+        return `${cs.padEnd(12)} ${mgrs.padEnd(15)} ${rc} ${os}${fuel}${ammo}${cas}${notes}`;
+      });
+
+    const footer = '\n' + '='.repeat(40) + `\n${lines.length} UNIT${lines.length !== 1 ? 'S' : ''} TOTAL`;
+    const text = header + lines.join('\n') + footer;
+
+    navigator.clipboard?.writeText(text)
+      .then(() => UI.toast(`Unit summary copied (${lines.length} units)`, 'success'))
+      .catch(() => {
+        // Fallback: download as .txt
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = `unit-summary-${new Date().toISOString().slice(0,10)}.txt`;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        UI.toast(`Unit summary downloaded (${lines.length} units)`, 'success');
+      });
   },
 
   _openCotImport() {
@@ -1434,11 +1536,11 @@ const App = {
       if (!events.length) { UI.toast('No CoT events found in file', 'error'); return; }
 
       const COT_AFFIL = { f: 'SFGPUC-----', h: 'SHGPUC-----', n: 'SNGPUC-----', u: 'SUGPUC-----' };
-      let placed = 0;
+      let placed = 0, updated = 0;
 
       events.forEach(ev => {
         const type = ev.getAttribute('type') || '';
-        // Only import ground units (a-*-G-*)
+        // Import ground units (a-*-G-*) and skip non-unit events
         if (!type.startsWith('a-') || !type.includes('-G-')) return;
 
         const pt  = ev.querySelector('point');
@@ -1451,31 +1553,50 @@ const App = {
         const contact  = detail?.querySelector('contact');
         const callsign = contact?.getAttribute('callsign') || ev.getAttribute('uid') || 'IMPORT';
 
-        const aff  = type.split('-')[1] || 'f';
-        const sidc = COT_AFFIL[aff] || COT_AFFIL.f;
+        // Prefer explicit sidc attribute (ATAK / JBC-P producers set this)
+        const sidcAttr = detail?.querySelector('[sidc]')?.getAttribute('sidc') ||
+                         detail?.getAttribute('sidc');
+        let sidc;
+        if (sidcAttr && sidcAttr.length >= 10) {
+          sidc = sidcAttr;
+        } else {
+          const aff = type.split('-')[1] || 'f';
+          sidc = COT_AFFIL[aff] || COT_AFFIL.f;
+        }
 
-        // Parse optional REDCON/OPSTAT from remarks
-        const remarks = detail?.querySelector('remarks')?.textContent || '';
-        const rcMatch = remarks.match(/REDCON:(\d)/);
-        const osMatch = remarks.match(/OPSTAT:(FMC|PMC|NMC)/);
+        // Parse optional REDCON/OPSTAT/LACE from remarks
+        const remarks  = detail?.querySelector('remarks')?.textContent || '';
+        const rcMatch  = remarks.match(/REDCON:(\d)/);
+        const osMatch  = remarks.match(/OPSTAT:(FMC|PMC|NMC)/);
+        const laceMatch = remarks.match(/LACE:(\d+)\/(\d+)\/([^/]+)\/(\d+)/);
+
+        const uid = ev.getAttribute('uid') || crypto.randomUUID();
+        const existing = MapCtrl._units[uid];
 
         const unit = {
-          id:         ev.getAttribute('uid') || crypto.randomUUID(),
+          id:         uid,
           sidc,
           callsign:   callsign.slice(0, 24),
           lat, lng,
-          notes:      'Imported from CoT',
-          redcon:     rcMatch ? parseInt(rcMatch[1], 10) : 5,
-          opstat:     osMatch ? osMatch[1] : 'FMC',
-          updated_at: new Date().toISOString(),
+          notes:      existing ? existing.data.notes : 'Imported from CoT',
+          redcon:     rcMatch ? parseInt(rcMatch[1], 10) : (existing?.data.redcon || 5),
+          opstat:     osMatch ? osMatch[1] : (existing?.data.opstat || 'FMC'),
+          updated_at: ev.getAttribute('time') || new Date().toISOString(),
+          ...(laceMatch ? { lace: { l: laceMatch[1], a: laceMatch[2], c: laceMatch[3], e: laceMatch[4] } } : {}),
         };
 
-        MapCtrl._addUnitMarker(unit);
+        if (existing) {
+          MapCtrl._updateUnit(uid, unit);
+          updated++;
+        } else {
+          MapCtrl._addUnitMarker(unit);
+          placed++;
+        }
         LocalStore.upsertUnit(unit);
-        placed++;
       });
 
-      UI.toast(`Imported ${placed} unit${placed !== 1 ? 's' : ''} from CoT`, 'success');
+      const msg = [placed && `${placed} new`, updated && `${updated} updated`].filter(Boolean).join(', ');
+      UI.toast(`CoT import: ${msg || 'no changes'}`, 'success');
     } catch(e) {
       UI.toast('CoT parse error: ' + e.message, 'error');
     }
@@ -1526,29 +1647,65 @@ const App = {
   },
 
   _toggleTracking() {
+    const btn = document.getElementById('btn-locate');
     if (this._watchId) {
+      // Tracking is on: first tap re-enables follow, second tap (already following) stops tracking
+      if (!this._followGPS) {
+        this._followGPS = true;
+        btn.classList.add('active');
+        btn.classList.remove('active-dim');
+        if (App._selfPos) MapCtrl.panTo(App._selfPos.lat, App._selfPos.lng);
+        MapCtrl.map.once('dragstart', () => {
+          if (App._watchId) { App._followGPS = false; btn.classList.remove('active'); btn.classList.add('active-dim'); }
+        });
+        UI.toast('Following GPS position', 'info', 1500);
+        return;
+      }
       navigator.geolocation.clearWatch(this._watchId);
-      this._watchId = null;
-      document.getElementById('btn-locate').classList.remove('active');
+      this._watchId  = null;
+      this._followGPS = true;
+      btn.classList.remove('active');
       UI.toast('Location tracking off', 'info');
       return;
     }
     if (!navigator.geolocation) { UI.toast('Geolocation not supported', 'error'); return; }
+
+    this._followGPS = true;
+
+    // Stop following when user drags the map
+    MapCtrl.map.once('dragstart', () => {
+      if (App._watchId) {
+        App._followGPS = false;
+        btn.classList.remove('active');
+        btn.classList.add('active-dim');
+      }
+    });
 
     this._watchId = navigator.geolocation.watchPosition(
       pos => {
         const { latitude: lat, longitude: lng, heading, speed } = pos.coords;
         App._selfPos = { lat, lng };
         MapCtrl.showSelf(lat, lng);
-        MapCtrl.panTo(lat, lng);
-        document.getElementById('btn-locate').classList.add('active');
+        if (App._followGPS) MapCtrl.panTo(lat, lng);
+        btn.classList.toggle('active',     App._followGPS);
+        btn.classList.toggle('active-dim', !App._followGPS);
+
+        // Re-attach drag listener each time so it fires after a re-center
+        if (App._followGPS) {
+          MapCtrl.map.once('dragstart', () => {
+            if (App._watchId) {
+              App._followGPS = false;
+              btn.classList.remove('active');
+              btn.classList.add('active-dim');
+            }
+          });
+        }
 
         // Broadcast to BFT if mission active (max once per 15 seconds)
         if (Mission.active) {
           const now = Date.now();
-          if (now - this._lastBFT > 15000) {
-            this._lastBFT = now;
-            // Include own-unit status if we have a unit with matching callsign
+          if (now - App._lastBFT > 15000) {
+            App._lastBFT = now;
             const myUnit = Object.values(MapCtrl._units).find(u => u.data.callsign === Auth.callsign);
             const status = myUnit?.data.lace ? {
               fuel_pct: myUnit.data.lace.l,
@@ -1561,8 +1718,9 @@ const App = {
       },
       err => {
         UI.toast('Location error: ' + err.message, 'error');
-        this._watchId = null;
-        document.getElementById('btn-locate').classList.remove('active');
+        App._watchId   = null;
+        App._followGPS = true;
+        btn.classList.remove('active', 'active-dim');
       },
       { enableHighAccuracy: true, maximumAge: 5000 }
     );

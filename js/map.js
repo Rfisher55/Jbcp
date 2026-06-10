@@ -48,9 +48,12 @@ const MapCtrl = {
   _symbolScale:      1.0,
 
   init() {
+    const savedView = (() => {
+      try { return JSON.parse(localStorage.getItem('cop_map_view') || 'null'); } catch { return null; }
+    })();
     this._map = L.map('map', {
-      center:           AO.center,
-      zoom:             AO.zoom,
+      center:           savedView ? [savedView.lat, savedView.lng] : AO.center,
+      zoom:             savedView ? savedView.zoom : AO.zoom,
       zoomControl:      false,
       attributionControl: true,
       doubleClickZoom:  false,
@@ -87,6 +90,14 @@ const MapCtrl = {
     this._map.on('click',       e => this._onMapClick(e));
     this._map.on('dblclick',    e => this._onMapDblClick(e));
     this._map.on('contextmenu', e => this._onMapContextMenu(e));
+
+    // Persist map view so the app reopens at the same location
+    this._map.on('moveend', () => {
+      const c = this._map.getCenter();
+      try {
+        localStorage.setItem('cop_map_view', JSON.stringify({ lat: c.lat, lng: c.lng, zoom: this._map.getZoom() }));
+      } catch {}
+    });
     this._map.on('zoomend',     () => this._refreshIconSizes());
 
     // Refresh stale-opacity on all unit markers every 5 minutes
