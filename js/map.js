@@ -435,13 +435,8 @@ const MapCtrl = {
     const marker = L.marker([unit.lat, unit.lng], { icon, draggable: true })
       .addTo(this._unitLayer);
 
-    if (unit.callsign) {
-      marker.bindTooltip(unit.callsign, {
-        permanent: true, direction: 'bottom',
-        offset: [0, 4], className: 'unit-label',
-        interactive: false,
-      });
-    }
+    this._bindUnitTooltip(marker, unit);
+
 
     marker.on('click', () => {
       if (this._activeTool !== 'select') return;
@@ -451,6 +446,24 @@ const MapCtrl = {
 
     this._units[unit.id] = { data: unit, marker };
     this.updateUnitCount();
+  },
+
+  _bindUnitTooltip(marker, unit) {
+    if (!unit.callsign) return;
+    const RC_COL = ['','#f85149','#ff8c00','#d29922','#3fb950','#58a6ff'];
+    const rc  = unit.redcon || 5;
+    const tip = document.createElement('div');
+    if (rc <= 3) {
+      const badge = document.createElement('span');
+      badge.style.cssText = `color:${RC_COL[rc]};font-weight:900;margin-right:3px`;
+      badge.textContent   = `RC${rc}`;
+      tip.appendChild(badge);
+    }
+    tip.appendChild(document.createTextNode(unit.callsign));
+    marker.bindTooltip(tip, {
+      permanent: true, direction: 'bottom',
+      offset: [0, 4], className: 'unit-label', interactive: false,
+    });
   },
 
   _openUnitDetail(id) {
@@ -467,14 +480,9 @@ const MapCtrl = {
     if (!entry) return;
     Object.assign(entry.data, updates, { updated_at: new Date().toISOString() });
     if (updates.sidc) entry.marker.setIcon(makeMilIcon(updates.sidc, this._getIconSize()));
-    if (updates.callsign !== undefined) {
+    if (updates.callsign !== undefined || updates.redcon !== undefined) {
       entry.marker.unbindTooltip();
-      if (updates.callsign) {
-        entry.marker.bindTooltip(updates.callsign, {
-          permanent: true, direction: 'bottom', offset: [0, 4],
-          className: 'unit-label', interactive: false,
-        });
-      }
+      this._bindUnitTooltip(entry.marker, entry.data);
     }
     LocalStore.upsertUnit(entry.data);
     if (Mission.active) {
