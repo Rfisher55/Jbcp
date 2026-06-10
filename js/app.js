@@ -1772,67 +1772,73 @@ const App = {
       const COT_AFFIL = { f: 'SFGPUC-----', h: 'SHGPUC-----', n: 'SNGPUC-----', u: 'SUGPUC-----' };
       let placed = 0, updated = 0;
 
-      events.forEach(ev => {
-        const type = ev.getAttribute('type') || '';
-        // Import ground units (a-*-G-*) and skip non-unit events
-        if (!type.startsWith('a-') || !type.includes('-G-')) return;
+      MapCtrl._batchLoading = true;
+      try {
+        events.forEach(ev => {
+          const type = ev.getAttribute('type') || '';
+          // Import ground units (a-*-G-*) and skip non-unit events
+          if (!type.startsWith('a-') || !type.includes('-G-')) return;
 
-        const pt  = ev.querySelector('point');
-        if (!pt) return;
-        const lat = parseFloat(pt.getAttribute('lat'));
-        const lng = parseFloat(pt.getAttribute('lon') || pt.getAttribute('lng'));
-        if (!isFinite(lat) || !isFinite(lng)) return;
+          const pt  = ev.querySelector('point');
+          if (!pt) return;
+          const lat = parseFloat(pt.getAttribute('lat'));
+          const lng = parseFloat(pt.getAttribute('lon') || pt.getAttribute('lng'));
+          if (!isFinite(lat) || !isFinite(lng)) return;
 
-        const detail   = ev.querySelector('detail');
-        const contact  = detail?.querySelector('contact');
-        const callsign = contact?.getAttribute('callsign') || ev.getAttribute('uid') || 'IMPORT';
+          const detail   = ev.querySelector('detail');
+          const contact  = detail?.querySelector('contact');
+          const callsign = contact?.getAttribute('callsign') || ev.getAttribute('uid') || 'IMPORT';
 
-        // Prefer explicit sidc attribute (ATAK / JBC-P producers set this)
-        const sidcAttr = detail?.querySelector('[sidc]')?.getAttribute('sidc') ||
-                         detail?.getAttribute('sidc');
-        let sidc;
-        if (sidcAttr && sidcAttr.length >= 10) {
-          sidc = sidcAttr;
-        } else {
-          const aff = type.split('-')[1] || 'f';
-          sidc = COT_AFFIL[aff] || COT_AFFIL.f;
-        }
+          // Prefer explicit sidc attribute (ATAK / JBC-P producers set this)
+          const sidcAttr = detail?.querySelector('[sidc]')?.getAttribute('sidc') ||
+                           detail?.getAttribute('sidc');
+          let sidc;
+          if (sidcAttr && sidcAttr.length >= 10) {
+            sidc = sidcAttr;
+          } else {
+            const aff = type.split('-')[1] || 'f';
+            sidc = COT_AFFIL[aff] || COT_AFFIL.f;
+          }
 
-        // Parse optional REDCON/OPSTAT/LACE from remarks
-        const remarks  = detail?.querySelector('remarks')?.textContent || '';
-        const rcMatch  = remarks.match(/REDCON:(\d)/);
-        const osMatch  = remarks.match(/OPSTAT:(FMC|PMC|NMC)/);
-        const laceMatch = remarks.match(/LACE:(\d+)\/(\d+)\/([^/]+)\/(\d+)/);
+          // Parse optional REDCON/OPSTAT/LACE from remarks
+          const remarks  = detail?.querySelector('remarks')?.textContent || '';
+          const rcMatch  = remarks.match(/REDCON:(\d)/);
+          const osMatch  = remarks.match(/OPSTAT:(FMC|PMC|NMC)/);
+          const laceMatch = remarks.match(/LACE:(\d+)\/(\d+)\/([^/]+)\/(\d+)/);
 
-        const uid = ev.getAttribute('uid') || crypto.randomUUID();
-        const existing = MapCtrl._units[uid];
+          const uid = ev.getAttribute('uid') || crypto.randomUUID();
+          const existing = MapCtrl._units[uid];
 
-        const unit = {
-          id:         uid,
-          sidc,
-          callsign:   callsign.trim().slice(0, 24),
-          lat, lng,
-          notes:      existing ? existing.data.notes : 'Imported from CoT',
-          redcon:     rcMatch ? Math.max(1, Math.min(5, parseInt(rcMatch[1], 10))) : (existing?.data.redcon || 5),
-          opstat:     osMatch ? osMatch[1] : (existing?.data.opstat || 'FMC'),
-          updated_at: ev.getAttribute('time') || new Date().toISOString(),
-          ...(laceMatch ? { lace: {
-            l: Math.max(0, Math.min(100, parseInt(laceMatch[1],10)||0)),
-            a: Math.max(0, Math.min(100, parseInt(laceMatch[2],10)||0)),
-            c: Math.max(0,              parseInt(laceMatch[3],10)||0),
-            e: Math.max(0, Math.min(100, parseInt(laceMatch[4],10)||0)),
-          } } : {}),
-        };
+          const unit = {
+            id:         uid,
+            sidc,
+            callsign:   callsign.trim().slice(0, 24),
+            lat, lng,
+            notes:      existing ? existing.data.notes : 'Imported from CoT',
+            redcon:     rcMatch ? Math.max(1, Math.min(5, parseInt(rcMatch[1], 10))) : (existing?.data.redcon || 5),
+            opstat:     osMatch ? osMatch[1] : (existing?.data.opstat || 'FMC'),
+            updated_at: ev.getAttribute('time') || new Date().toISOString(),
+            ...(laceMatch ? { lace: {
+              l: Math.max(0, Math.min(100, parseInt(laceMatch[1],10)||0)),
+              a: Math.max(0, Math.min(100, parseInt(laceMatch[2],10)||0)),
+              c: Math.max(0,              parseInt(laceMatch[3],10)||0),
+              e: Math.max(0, Math.min(100, parseInt(laceMatch[4],10)||0)),
+            } } : {}),
+          };
 
-        if (existing) {
-          MapCtrl._updateUnit(uid, unit);
-          updated++;
-        } else {
-          MapCtrl._addUnitMarker(unit);
-          placed++;
-        }
-        LocalStore.upsertUnit(unit);
-      });
+          if (existing) {
+            MapCtrl._updateUnit(uid, unit);
+            updated++;
+          } else {
+            MapCtrl._addUnitMarker(unit);
+            placed++;
+          }
+          LocalStore.upsertUnit(unit);
+        });
+      } finally {
+        MapCtrl._batchLoading = false;
+        MapCtrl.updateUnitCount();
+      }
 
       const msg = [placed && `${placed} new`, updated && `${updated} updated`].filter(Boolean).join(', ');
       UI.toast(`CoT import: ${msg || 'no changes'}`, 'success');
@@ -1916,34 +1922,40 @@ const App = {
 
       let placed = 0, updatedU = 0, placedG = 0;
 
-      units.forEach(u => {
-        if (!u.id || !isFinite(u.lat) || !isFinite(u.lng)) return;
-        const unit = {
-          id:         u.id,
-          sidc:       u.sidc || 'SFGPUC-----',
-          callsign:   String(u.callsign || 'IMPORTED').trim().slice(0, 24),
-          lat:        u.lat,
-          lng:        u.lng,
-          notes:      u.notes || '',
-          redcon:     Math.max(1, Math.min(5, +u.redcon || 5)),
-          opstat:     ['FMC','PMC','NMC'].includes(u.opstat) ? u.opstat : 'FMC',
-          lace:       u.lace ? {
-            l: Math.max(0, Math.min(100, parseInt(u.lace.l, 10) || 0)),
-            a: Math.max(0, Math.min(100, parseInt(u.lace.a, 10) || 0)),
-            c: Math.max(0,              parseInt(u.lace.c, 10) || 0),
-            e: Math.max(0, Math.min(100, parseInt(u.lace.e, 10) || 0)),
-          } : null,
-          updated_at: new Date().toISOString(),
-        };
-        if (MapCtrl._units[u.id]) {
-          MapCtrl._updateUnit(u.id, unit);
-          updatedU++;
-        } else {
-          MapCtrl._addUnitMarker(unit);
-          placed++;
-        }
-        LocalStore.upsertUnit(unit);
-      });
+      MapCtrl._batchLoading = true;
+      try {
+        units.forEach(u => {
+          if (!u.id || !isFinite(u.lat) || !isFinite(u.lng)) return;
+          const unit = {
+            id:         u.id,
+            sidc:       u.sidc || 'SFGPUC-----',
+            callsign:   String(u.callsign || 'IMPORTED').trim().slice(0, 24),
+            lat:        u.lat,
+            lng:        u.lng,
+            notes:      u.notes || '',
+            redcon:     Math.max(1, Math.min(5, +u.redcon || 5)),
+            opstat:     ['FMC','PMC','NMC'].includes(u.opstat) ? u.opstat : 'FMC',
+            lace:       u.lace ? {
+              l: Math.max(0, Math.min(100, parseInt(u.lace.l, 10) || 0)),
+              a: Math.max(0, Math.min(100, parseInt(u.lace.a, 10) || 0)),
+              c: Math.max(0,              parseInt(u.lace.c, 10) || 0),
+              e: Math.max(0, Math.min(100, parseInt(u.lace.e, 10) || 0)),
+            } : null,
+            updated_at: new Date().toISOString(),
+          };
+          if (MapCtrl._units[u.id]) {
+            MapCtrl._updateUnit(u.id, unit);
+            updatedU++;
+          } else {
+            MapCtrl._addUnitMarker(unit);
+            placed++;
+          }
+          LocalStore.upsertUnit(unit);
+        });
+      } finally {
+        MapCtrl._batchLoading = false;
+        MapCtrl.updateUnitCount();
+      }
 
       graphics.forEach(g => {
         if (!g.id || !g.type || !g.geometry) return;

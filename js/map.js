@@ -432,7 +432,7 @@ const MapCtrl = {
   },
 
   // Backward-compat: called when symbol is selected after clicking map
-  async placeUnit(catalogEntry, echelon) {
+  placeUnit(catalogEntry, echelon) {
     const latlng = this._pendingLatLng;
     if (!latlng) return;
     this._pendingLatLng = null;
@@ -512,7 +512,7 @@ const MapCtrl = {
     });
   },
 
-  async _updateUnit(id, updates) {
+  _updateUnit(id, updates) {
     const entry = this._units[id];
     if (!entry) return;
     Object.assign(entry.data, updates, { updated_at: new Date().toISOString() });
@@ -536,7 +536,7 @@ const MapCtrl = {
     }
   },
 
-  async _deleteUnit(id) {
+  _deleteUnit(id) {
     const entry = this._units[id];
     if (!entry) return;
     this._unitLayer.removeLayer(entry.marker);
@@ -553,7 +553,7 @@ const MapCtrl = {
     UI.closeSheet('sheet-unit');
   },
 
-  async _onUnitDrag(id, e) {
+  _onUnitDrag(id, e) {
     const entry = this._units[id];
     if (!entry) return;
     const { lat, lng } = e.target.getLatLng();
@@ -758,7 +758,7 @@ const MapCtrl = {
     return null;
   },
 
-  async _saveGraphic(partial) {
+  _saveGraphic(partial) {
     const graphic = {
       id:         crypto.randomUUID(),
       mission_id: Mission.active ? Mission.current.id : null,
