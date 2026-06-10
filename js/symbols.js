@@ -1,4 +1,7 @@
 // milsymbol catalog and icon factory
+// Mixes 2525C (15-char) and 2525D (20-char) SIDCs; buildSIDC handles both.
+// 2525D format: [version(2)][context(1)][affil(1)][symset(2)][status(1)][HQ(1)][echelon(2)][entity(6)][trailing(4)]
+// Friendly prefix: 1003100000 | Hostile: 1006100000 | Neutral: 1004100000 | Unknown: 1001100000
 
 const CATALOG = [
   // ── Ground Combat — Friendly ──────────────────────────
@@ -9,22 +12,22 @@ const CATALOG = [
   { id: 'ada',        name: 'Air Defense',      base: 'SFGPUCAA---', cat: 'F' },
   { id: 'engr',       name: 'Engineer',         base: 'SFGPUCE----', cat: 'F' },
   { id: 'recon',      name: 'Reconnaissance',   base: 'SFGPUCR----', cat: 'F' },
-  { id: 'airborne',   name: 'Airborne',         base: 'SFGPUCIB---', cat: 'F' },
-  { id: 'airasslt',   name: 'Air Assault',      base: 'SFGPUCIA---', cat: 'F' },
-  { id: 'sf',         name: 'Special Forces',   base: 'SFGPUCSF---', cat: 'F' },
-  { id: 'ranger',     name: 'Ranger',           base: 'SFGPUCSR---', cat: 'F' },
+  { id: 'airborne',   name: 'Airborne',         base: '10031000001211020000', cat: 'F' },
+  { id: 'airasslt',   name: 'Air Assault',      base: '10031000001211030000', cat: 'F' },
+  { id: 'sf',         name: 'Special Forces',   base: '10031000001601010000', cat: 'F' },
+  { id: 'ranger',     name: 'Ranger',           base: '10031000001601020000', cat: 'F' },
   { id: 'at',         name: 'Anti-Tank',        base: 'SFGPUCAT---', cat: 'F' },
-  { id: 'cbrn',       name: 'CBRN',             base: 'SFGPUCN----', cat: 'F' },
-  { id: 'mp',         name: 'Military Police',  base: 'SFGPUSP----', cat: 'F' },
+  { id: 'cbrn',       name: 'CBRN',             base: '10031000001311000000', cat: 'F' },
+  { id: 'mp',         name: 'Military Police',  base: '10031000001302000000', cat: 'F' },
   // ── C2 & Support — Friendly ──────────────────────────
   { id: 'hq',         name: 'Headquarters',     base: 'SFGPUH-----', cat: 'F' },
-  { id: 'sig',        name: 'Signal',           base: 'SFGPUSC----', cat: 'F' },
-  { id: 'intel',      name: 'Intelligence',     base: 'SFGPUSI----', cat: 'F' },
-  { id: 'med',        name: 'Medical',          base: 'SFGPUSM----', cat: 'F' },
+  { id: 'sig',        name: 'Signal',           base: '10031000001303000000', cat: 'F' },
+  { id: 'intel',      name: 'Intelligence',     base: '10031000001309000000', cat: 'F' },
+  { id: 'med',        name: 'Medical',          base: '10031000001301000000', cat: 'F' },
   { id: 'log',        name: 'Logistics',        base: 'SFGPUSS----', cat: 'F' },
   { id: 'trans',      name: 'Transportation',   base: 'SFGPUST----', cat: 'F' },
   { id: 'ord',        name: 'Ordnance',         base: 'SFGPUSO----', cat: 'F' },
-  { id: 'fa-cp',      name: 'FA Fire Direc.',   base: 'SFGPUCFH---', cat: 'F' },
+  { id: 'fa-cp',      name: 'FA Fire Direc.',   base: 'SFGPUCF----', cat: 'F' },
   // ── Aviation — Friendly ──────────────────────────────
   { id: 'atk-helo',   name: 'Attack Helo',      base: 'SFAPWMA----', cat: 'F' },
   { id: 'util-helo',  name: 'Utility Helo',     base: 'SFAPMF-----', cat: 'F' },
@@ -79,20 +82,28 @@ const GRAPHIC_CATALOG = [
 
 const ECHELONS = {
   '':  '-',
-  'A': 'A', // Team/Crew
-  'B': 'B', // Squad
-  'C': 'C', // Section
-  'D': 'D', // Platoon
-  'E': 'E', // Company
-  'F': 'F', // Battalion
-  'G': 'G', // Regiment/Group
-  'H': 'H', // Brigade
-  'I': 'I', // Division
-  'J': 'J', // Corps
-  'K': 'K', // Army
+  'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D',
+  'E': 'E', 'F': 'F', 'G': 'G', 'H': 'H',
+  'I': 'I', 'J': 'J', 'K': 'K',
+};
+
+// 2525D two-character echelon codes (positions 8-9 of 20-char SIDC)
+const ECHELONS_2525D = {
+  '': '00', 'A': '11', 'B': '12', 'C': '13', 'D': '14',
+  'E': '15', 'F': '16', 'G': '17', 'H': '18', 'I': '19',
+  'J': '1A', 'K': '1B',
 };
 
 function buildSIDC(base, echelon = '') {
+  if (base.length >= 20) {
+    // 2525D: echelon encoded at positions 8-9
+    const ech = ECHELONS_2525D[echelon] || '00';
+    const arr  = base.split('');
+    arr[8] = ech[0];
+    arr[9] = ech[1];
+    return arr.join('');
+  }
+  // 2525C: echelon at position 10
   const padded = (base + '---------------').slice(0, 15);
   const arr    = padded.split('');
   arr[10] = ECHELONS[echelon] || '-';
