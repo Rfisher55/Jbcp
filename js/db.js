@@ -79,6 +79,19 @@ const DB = {
     return data;
   },
 
+  async findMissionByCode(code) {
+    if (!this.online) return null;
+    // code is first 8 chars of UUID (case-insensitive prefix match)
+    const prefix = code.toLowerCase();
+    const { data, error } = await _client.from('missions')
+      .select()
+      .filter('id::text', 'ilike', `${prefix}%`)
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data;
+  },
+
   async getUserMissions(userId) {
     if (!this.online) return [];
     const { data, error } = await _client
@@ -197,4 +210,12 @@ const LocalStore = {
     this._set('cop_graphics', list);
   },
   deleteGraphic(id) { this._set('cop_graphics', this.getGraphics().filter(g => g.id !== id)); },
+
+  getReports()  { return this._get('cop_reports'); },
+  upsertReport(r) {
+    const list = this.getReports().filter(x => x.id !== r.id);
+    list.push(r);
+    this._set('cop_reports', list);
+  },
+  deleteReport(id) { this._set('cop_reports', this.getReports().filter(r => r.id !== id)); },
 };

@@ -1,5 +1,8 @@
 // Main application controller
 
+const REDCON_COLORS = ['', '#f85149', '#ff8c00', '#d29922', '#3fb950', '#58a6ff'];
+const REDCON_LABELS = ['', 'IMMEDIATE ACTION', 'READY TO FIGHT', '30 MIN READINESS', 'MIN ALERT', 'NORMAL'];
+
 const UI = {
   toast(msg, type = 'info', duration = 3000) {
     const el = document.createElement('div');
@@ -79,7 +82,6 @@ const UI = {
 
   // ── Tactical graphic picker ────────────────────────────
   buildGraphicGrid(filter = 'LN') {
-    // Update tab active state
     document.querySelectorAll('.graphic-tab').forEach(b =>
       b.classList.toggle('active', b.dataset.tab === filter));
 
@@ -91,7 +93,6 @@ const UI = {
       const div = document.createElement('div');
       div.className = 'graphic-item';
 
-      // Visual style preview
       const previewStyle = item.type === 'line'
         ? `height:4px;border-radius:2px;background:${item.color};` +
           (item.dash ? `background:repeating-linear-gradient(90deg,${item.color} 0,${item.color} 8px,transparent 8px,transparent 14px);` : '')
@@ -117,47 +118,121 @@ const UI = {
     });
   },
 
-  // ── Unit detail (inline form) ──────────────────────────
+  // ── Unit detail (with REDCON and LACE) ────────────────
   showUnitDetail(unit, { onEdit, onDelete }) {
     const sidc    = unit.sidc || 'SFGPUC-----';
     const sym     = new ms.Symbol(sidc, { size: 50 });
     const mgrsStr = toMGRS(unit.lat, unit.lng, 5) || `${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}`;
+    const rc      = unit.redcon || 5;
+    const col     = REDCON_COLORS[rc];
+
+    const lace    = unit.lace;
+    const laceHTML = lace ? `
+      <div class="section-label">LACE STATUS</div>
+      <div class="lace-display">
+        ${['l','a','e'].map((k, i) => `
+          <div class="lace-row">
+            <span class="lace-key">${['L','A','E'][i]}</span>
+            <div class="lace-bar-bg"><div class="lace-fill ${Reports.laceColor(lace[k])}" style="width:${lace[k]}%"></div></div>
+            <span class="lace-val">${lace[k]}%</span>
+          </div>
+        `).join('')}
+        <div class="lace-row">
+          <span class="lace-key">C</span>
+          <div class="lace-bar-bg" style="background:rgba(248,81,73,0.15)"></div>
+          <span class="lace-val">${lace.c} cas</span>
+        </div>
+      </div>
+    ` : '';
+
+    const rcBtns = [1,2,3,4,5].map(r => {
+      const c   = REDCON_COLORS[r];
+      const act = r === rc;
+      return `<button class="rc-btn${act ? ' active' : ''}" data-rc="${r}"
+        style="${act ? `background:${c}22;border-color:${c};color:${c}` : ''}">${r}</button>`;
+    }).join('');
 
     document.getElementById('unit-detail-content').innerHTML = `
       <div class="unit-header">
         <img src="${sym.toDataURL()}" alt="symbol">
-        <div>
+        <div class="unit-header-info">
           <div class="unit-title" id="ud-title">${unit.callsign || 'Unit'}</div>
           <div class="unit-meta">${unit.sidc}</div>
+          <div class="redcon-badge" id="ud-rcbadge"
+            style="background:${col}22;border-color:${col}66;color:${col}">RC${rc} — ${REDCON_LABELS[rc]}</div>
         </div>
       </div>
+
+      <div class="redcon-row">
+        <span class="redcon-label">REDCON</span>
+        <div class="redcon-btns" id="redcon-btns">${rcBtns}</div>
+      </div>
+
+      ${laceHTML}
+
       <div class="field-group">
         <label for="edit-callsign">Callsign / Designation</label>
-        <input id="edit-callsign" type="text" value="${(unit.callsign || '').replace(/"/g,'&quot;')}" maxlength="24" autocapitalize="characters">
+        <input id="edit-callsign" type="text" value="${(unit.callsign || '').replace(/"/g,'&quot;')}"
+               maxlength="24" autocapitalize="characters">
       </div>
       <div class="field-group">
-        <label for="edit-notes">Notes</label>
-        <input id="edit-notes" type="text" value="${(unit.notes || '').replace(/"/g,'&quot;')}" placeholder="Optional remarks">
+        <label for="edit-notes">Notes / Remarks</label>
+        <input id="edit-notes" type="text" value="${(unit.notes || '').replace(/"/g,'&quot;')}"
+               placeholder="Optional remarks">
       </div>
       <dl class="detail-dl">
         <dt>MGRS</dt><dd>${mgrsStr}</dd>
         <dt>Lat/Lng</dt><dd>${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}</dd>
         <dt>Updated</dt><dd>${unit.updated_at ? new Date(unit.updated_at).toLocaleTimeString() : '—'}</dd>
       </dl>
-      <div class="btn-row">
+      <div class="btn-row" style="margin-bottom:8px">
         <button class="btn-primary" id="btn-unit-save">Save</button>
-        <button class="btn-secondary btn-danger" id="btn-unit-delete">Delete</button>
+        <button class="btn-secondary" id="btn-file-lace">File LACE</button>
       </div>
+      <button class="btn-secondary btn-danger btn-full" id="btn-unit-delete">Delete</button>
     `;
+
+    // REDCON selector
+    let curRC = rc;
+    document.getElementById('redcon-btns').addEventListener('click', e => {
+      const btn = e.target.closest('.rc-btn');
+      if (!btn) return;
+      curRC = +btn.dataset.rc;
+      const c = REDCON_COLORS[curRC];
+      document.querySelectorAll('.rc-btn').forEach(b => {
+        const r = +b.dataset.rc;
+        const bc = REDCON_COLORS[r];
+        b.classList.toggle('active', r === curRC);
+        b.style.background  = r === curRC ? bc + '22' : '';
+        b.style.borderColor = r === curRC ? bc : '';
+        b.style.color       = r === curRC ? bc : '';
+      });
+      const badge = document.getElementById('ud-rcbadge');
+      if (badge) {
+        badge.style.background  = c + '22';
+        badge.style.borderColor = c + '66';
+        badge.style.color       = c;
+        badge.textContent       = `RC${curRC} — ${REDCON_LABELS[curRC]}`;
+      }
+    });
+
+    document.getElementById('btn-file-lace').addEventListener('click', () => {
+      UI.closeSheet('sheet-unit');
+      Reports.openLACE(unit.id, unit.lace);
+    });
 
     document.getElementById('btn-unit-save').addEventListener('click', () => {
       const cs    = document.getElementById('edit-callsign').value.trim();
       const notes = document.getElementById('edit-notes').value.trim();
       if (cs) {
-        onEdit({ callsign: cs, notes });
+        onEdit({ callsign: cs, notes, redcon: curRC });
         document.getElementById('ud-title').textContent = cs;
       }
       UI.closeSheet('sheet-unit');
+    });
+
+    document.getElementById('edit-callsign').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btn-unit-save').click();
     });
 
     let deleteStep = 0;
@@ -174,10 +249,6 @@ const UI = {
       } else {
         onDelete();
       }
-    });
-
-    document.getElementById('edit-callsign').addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('btn-unit-save').click();
     });
 
     this.showSheet('sheet-unit');
@@ -267,6 +338,8 @@ const UI = {
           if (b) b.textContent = 'Leave';
         }, 3000);
       } else {
+        BFT.leaveMission();
+        Chat.leave();
         Mission.leave();
         MapCtrl.clearMission();
         UI.setMissionLabel(null);
@@ -325,6 +398,13 @@ const UI = {
           <span class="toggle-track"></span>
         </label>
       </div>
+      <div class="overlay-row">
+        <label for="tog-bft">BFT Tracks</label>
+        <label class="toggle">
+          <input id="tog-bft" type="checkbox" checked>
+          <span class="toggle-track"></span>
+        </label>
+      </div>
     `;
 
     document.getElementById('tog-grid').addEventListener('change', e =>
@@ -333,6 +413,11 @@ const UI = {
       e.target.checked ? MapCtrl._unitLayer.addTo(MapCtrl.map) : MapCtrl.map.removeLayer(MapCtrl._unitLayer));
     document.getElementById('tog-graphics').addEventListener('change', e =>
       e.target.checked ? MapCtrl._graphicLayer.addTo(MapCtrl.map) : MapCtrl.map.removeLayer(MapCtrl._graphicLayer));
+    document.getElementById('tog-bft').addEventListener('change', e => {
+      const bftLayer = BFT._layer;
+      if (!bftLayer) return;
+      e.target.checked ? bftLayer.addTo(MapCtrl.map) : MapCtrl.map.removeLayer(bftLayer);
+    });
   }
 };
 
@@ -343,6 +428,7 @@ const App = {
   _graphicTab:    'LN',
   _watchId:       null,
   _labelCallback: null,
+  _lastBFT:       0,
 
   promptLabel(typeName, prefix, cb) {
     this._labelCallback = cb;
@@ -401,8 +487,12 @@ const App = {
           UI.showSheet('sheet-graphic-picker');
         }
 
+        if (tool === 'reports') {
+          UI.showSheet('sheet-reports-menu');
+        }
+
         UI.toolBtn(tool);
-        MapCtrl.setTool(tool);
+        if (tool !== 'reports') MapCtrl.setTool(tool);
       });
     });
 
@@ -439,22 +529,26 @@ const App = {
       UI.buildGraphicGrid(this._graphicTab);
     });
 
-    // Draw toolbar buttons
+    // Draw toolbar
     document.getElementById('btn-draw-finish')?.addEventListener('click', () => MapCtrl.finishDraw());
     document.getElementById('btn-draw-undo')?.addEventListener('click',   () => MapCtrl.undoLastPoint());
     document.getElementById('btn-draw-cancel')?.addEventListener('click', () => MapCtrl.cancelDraw());
 
-    // Label sheet (replaces native prompt — works in iOS PWA)
-    document.getElementById('btn-label-done')?.addEventListener('click', () => this._confirmLabel(false));
-    document.getElementById('btn-label-skip')?.addEventListener('click', () => this._confirmLabel(true));
+    // Label sheet
+    document.getElementById('btn-label-done')?.addEventListener('click',  () => this._confirmLabel(false));
+    document.getElementById('btn-label-skip')?.addEventListener('click',  () => this._confirmLabel(true));
     document.getElementById('btn-label-close')?.addEventListener('click', () => this._confirmLabel(true));
     document.getElementById('label-input')?.addEventListener('keydown', e => {
       if (e.key === 'Enter') this._confirmLabel(false);
     });
 
-    // Full-map toggle
-    document.getElementById('btn-fullmap').addEventListener('click', () =>
-      document.body.classList.toggle('fullmap'));
+    // Fullscreen toggle (with exit button)
+    document.getElementById('btn-fullmap').addEventListener('click', () => {
+      document.body.classList.toggle('fullmap');
+    });
+    document.getElementById('btn-exit-fullmap')?.addEventListener('click', () => {
+      document.body.classList.remove('fullmap');
+    });
 
     // ESC key
     document.addEventListener('keydown', e => {
@@ -474,7 +568,7 @@ const App = {
       }
     });
 
-    // Locate
+    // Locate / GPS
     document.getElementById('btn-locate').addEventListener('click', () => this._toggleTracking());
 
     // Copy MGRS
@@ -503,9 +597,109 @@ const App = {
       if (e.key === 'Enter') this._plotGrid();
     });
 
-    // Comms placeholder
-    document.getElementById('btn-chat').addEventListener('click', () =>
-      UI.toast('C2 Comms coming in Phase 3', 'info'));
+    // Chat button
+    document.getElementById('btn-chat').addEventListener('click', () => {
+      if (Chat.isJoined()) {
+        Chat.open();
+      } else {
+        UI.toast('Join a mission to use chat', 'info');
+      }
+    });
+
+    // Chat send
+    document.getElementById('btn-chat-send')?.addEventListener('click', () => this._sendChat());
+    document.getElementById('chat-input')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this._sendChat(); }
+    });
+
+    // Chat canned messages
+    document.getElementById('chat-canned')?.addEventListener('click', e => {
+      const btn = e.target.closest('.canned-btn');
+      if (!btn) return;
+      const input = document.getElementById('chat-input');
+      if (input) { input.value = btn.dataset.msg; input.focus(); }
+    });
+
+    // Build canned message buttons
+    const cannedContainer = document.getElementById('chat-canned');
+    if (cannedContainer) {
+      cannedContainer.innerHTML = Chat.CANNED.map(m =>
+        `<button class="canned-btn" data-msg="${m.replace(/"/g,'&quot;')}">${m}</button>`
+      ).join('');
+    }
+
+    // Reports menu
+    document.getElementById('btn-rpt-lace')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-reports-menu');
+      Reports.openLACE(null);
+    });
+    document.getElementById('btn-rpt-spotrep')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-reports-menu');
+      const c = MapCtrl.map.getCenter();
+      Reports.openSPOTREP(c.lat, c.lng);
+    });
+    document.getElementById('btn-rpt-9line')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-reports-menu');
+      const c = MapCtrl.map.getCenter();
+      Reports.open9Line(c.lat, c.lng);
+    });
+    document.getElementById('btn-rpt-sitrep')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-reports-menu');
+      Reports.openSITREP();
+    });
+
+    // LACE form
+    ['lace-liquid','lace-ammo','lace-equip','lace-cas'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', () => Reports._updateLACEBars());
+    });
+    document.getElementById('btn-lace-submit')?.addEventListener('click', () => Reports.submitLACE());
+
+    // SPOTREP form
+    document.getElementById('btn-spotrep-submit')?.addEventListener('click', () => Reports.submitSPOTREP());
+
+    // 9-Line form
+    document.getElementById('btn-9line-submit')?.addEventListener('click', () => Reports.submit9Line());
+
+    // SITREP form
+    document.getElementById('btn-sitrep-submit')?.addEventListener('click', () => Reports.submitSITREP());
+
+    // Context menu (long-press on map)
+    document.getElementById('ctx-spotrep')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-context');
+      const ll = MapCtrl._ctxLatLng;
+      if (ll) Reports.openSPOTREP(ll.lat, ll.lng);
+    });
+    document.getElementById('ctx-9line')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-context');
+      const ll = MapCtrl._ctxLatLng;
+      if (ll) Reports.open9Line(ll.lat, ll.lng);
+    });
+    document.getElementById('ctx-waypoint')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-context');
+      const ll = MapCtrl._ctxLatLng;
+      if (ll) {
+        MapCtrl.setActiveSIDC({ id: 'wp', name: 'Waypoint', base: 'SFGPU------', cat: 'F' }, '');
+        MapCtrl._placeUnitAt(ll);
+        MapCtrl.setTool('select');
+        UI.toolBtn('select');
+      }
+    });
+    document.getElementById('ctx-chat-grid')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-context');
+      const ll   = MapCtrl._ctxLatLng;
+      const mgrs = ll ? toMGRS(ll.lat, ll.lng, 5) : '';
+      const input = document.getElementById('chat-input');
+      if (input) input.value = `Grid: ${mgrs}`;
+      if (Chat.isJoined()) {
+        Chat.open();
+      } else {
+        UI.toast('Join a mission to use chat', 'info');
+      }
+    });
+
+    // BFT card close
+    document.getElementById('btn-bft-card-close')?.addEventListener('click', () =>
+      UI.closeSheet('sheet-bft-card'));
 
     // Init map
     MapCtrl.init();
@@ -518,6 +712,18 @@ const App = {
     }
 
     await this._postAuth();
+  },
+
+  _sendChat() {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    if (Chat.send(text)) {
+      input.value = '';
+    } else {
+      UI.toast('Not connected to chat', 'error');
+    }
   },
 
   async _handleAuthSubmit() {
@@ -554,6 +760,8 @@ const App = {
     if (m) {
       UI.setMissionLabel(m.name);
       await MapCtrl.loadMission(m.id);
+      BFT.joinMission(m.id);
+      Chat.join(m.id);
       UI.toast(`Welcome back, ${Auth.callsign}`, 'success');
     } else {
       MapCtrl.loadLocalData();
@@ -564,6 +772,8 @@ const App = {
   onMissionActivated(m) {
     UI.setMissionLabel(m.name);
     MapCtrl.loadMission(m.id);
+    BFT.joinMission(m.id);
+    Chat.join(m.id);
   },
 
   _plotGrid() {
@@ -604,12 +814,22 @@ const App = {
       return;
     }
     if (!navigator.geolocation) { UI.toast('Geolocation not supported', 'error'); return; }
+
     this._watchId = navigator.geolocation.watchPosition(
       pos => {
-        const { latitude: lat, longitude: lng } = pos.coords;
+        const { latitude: lat, longitude: lng, heading, speed } = pos.coords;
         MapCtrl.showSelf(lat, lng);
         MapCtrl.panTo(lat, lng);
         document.getElementById('btn-locate').classList.add('active');
+
+        // Broadcast to BFT if mission active (max once per 15 seconds)
+        if (Mission.active) {
+          const now = Date.now();
+          if (now - this._lastBFT > 15000) {
+            this._lastBFT = now;
+            BFT.broadcast(lat, lng, heading, speed);
+          }
+        }
       },
       err => {
         UI.toast('Location error: ' + err.message, 'error');

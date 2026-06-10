@@ -1,5 +1,5 @@
 // Service Worker — shell caching + offline fallback
-const CACHE = 'cop-v3';
+const CACHE = 'cop-v4';
 const BASE  = self.registration.scope;
 
 const SHELL = [
@@ -12,6 +12,9 @@ const SHELL = [
   BASE + 'js/mission.js',
   BASE + 'js/mgrs-grid.js',
   BASE + 'js/symbols.js',
+  BASE + 'js/bft.js',
+  BASE + 'js/chat.js',
+  BASE + 'js/reports.js',
   BASE + 'js/map.js',
   BASE + 'js/app.js',
 ];

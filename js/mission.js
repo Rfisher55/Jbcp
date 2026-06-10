@@ -13,8 +13,11 @@ const Mission = {
   },
 
   async join(code) {
-    code = code.trim();
-    const m = await DB.getMission(code);
+    code = code.trim().replace(/-/g, '');
+    // Short code (≤8 chars) is a join-code prefix; full UUID (>8) is used directly
+    const m = code.length <= 8
+      ? await DB.findMissionByCode(code)
+      : await DB.getMission(code);
     if (!m) throw new Error('Mission not found. Check the code and try again.');
     await DB.joinMission(m.id, Auth.user.id, Auth.callsign, 'editor');
     return this._activate(m);
