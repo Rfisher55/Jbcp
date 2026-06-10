@@ -164,6 +164,7 @@ const MapCtrl = {
   setTool(tool) {
     this._activeTool = tool;
     this._drawPoints = [];
+    this._measurePts = [];
     this._clearPreview();
     this._activeGraphicType = null;
     if (tool !== 'place-unit') this._pendingLatLng = null;
