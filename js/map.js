@@ -752,9 +752,11 @@ const MapCtrl = {
     const mgrsB = toMGRS(b.lat, b.lng, 4) || '—';
 
     const mils = Math.round(az * 6400 / 360);
+    const backAz = (az + 180) % 360;
     document.getElementById('m-distance').textContent =
       dist >= 1000 ? (dist / 1000).toFixed(2) + ' km' : Math.round(dist) + ' m';
     document.getElementById('m-azimuth').textContent  = az.toFixed(1) + '°';
+    document.getElementById('m-back-az').textContent  = backAz.toFixed(1) + '°';
     document.getElementById('m-mils').textContent     = mils + ' mil';
     document.getElementById('m-from').textContent     = mgrsA;
     document.getElementById('m-to').textContent       = mgrsB;
@@ -765,7 +767,7 @@ const MapCtrl = {
   clearMeasure() {
     this._measureLayer.clearLayers();
     this._measurePts = [];
-    ['m-distance','m-azimuth','m-mils','m-from','m-to'].forEach(id =>
+    ['m-distance','m-azimuth','m-back-az','m-mils','m-from','m-to'].forEach(id =>
       document.getElementById(id).textContent = '—');
   },
 
