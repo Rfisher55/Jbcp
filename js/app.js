@@ -333,9 +333,11 @@ const UI = {
         ech = found ? found[0] : '';
       }
       App._symEchelon = ech;
-      UI.buildSymbolGrid(App._symFilter, App._symEchelon);
-      // Update echelon button active state in picker
+      const srch = document.getElementById('symbol-search');
+      if (srch) srch.value = '';
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === App._symFilter));
       document.querySelectorAll('.ech-btn').forEach(b => b.classList.toggle('active', b.dataset.ech === ech));
+      UI.buildSymbolGrid(App._symFilter, App._symEchelon);
       UI.closeSheet('sheet-unit');
       UI.showSheet('sheet-symbols');
     });
@@ -404,10 +406,12 @@ const UI = {
     document.getElementById('btn-unit-save').addEventListener('click', () => {
       const cs    = document.getElementById('edit-callsign').value.trim();
       const notes = document.getElementById('edit-notes').value.trim();
+      const updates = { notes, redcon: curRC, opstat: curOpStat };
       if (cs) {
-        onEdit({ callsign: cs, notes, redcon: curRC, opstat: curOpStat });
+        updates.callsign = cs;
         document.getElementById('ud-title').textContent = cs;
       }
+      onEdit(updates);
       UI.closeSheet('sheet-unit');
     });
 
@@ -778,6 +782,9 @@ const App = {
           MapCtrl.setTool('select');
           UI.toolBtn('select');
         }
+        if (sheet.id === 'sheet-reports-menu') {
+          UI.toolBtn('select');
+        }
       });
     });
 
@@ -799,10 +806,15 @@ const App = {
     document.querySelectorAll('.tool-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const tool = btn.dataset.tool;
+        if (!tool) return; // skip buttons handled by their own specific listeners (e.g. goto-grid)
 
         if (tool === 'place-unit') {
           this._symFilter  = 'F';
           this._symEchelon = '';
+          const srch = document.getElementById('symbol-search');
+          if (srch) srch.value = '';
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === 'F'));
+          document.querySelectorAll('.ech-btn').forEach(b => b.classList.toggle('active', b.dataset.ech === ''));
           UI.buildSymbolGrid('F', '');
           UI.showSheet('sheet-symbols');
         }
@@ -921,6 +933,10 @@ const App = {
         if (tool === 'place-unit') {
           App._symFilter  = 'F';
           App._symEchelon = '';
+          const srch = document.getElementById('symbol-search');
+          if (srch) srch.value = '';
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === 'F'));
+          document.querySelectorAll('.ech-btn').forEach(b => b.classList.toggle('active', b.dataset.ech === ''));
           UI.buildSymbolGrid('F', '');
           UI.showSheet('sheet-symbols');
           MapCtrl.setTool('place-unit');
