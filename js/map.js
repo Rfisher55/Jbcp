@@ -532,6 +532,10 @@ const MapCtrl = {
     const entry = this._units[id];
     if (!entry) return;
     this._unitLayer.removeLayer(entry.marker);
+    if (this._rangeRings[id]) {
+      this._rangeRings[id].forEach(l => this._measureLayer.removeLayer(l));
+      delete this._rangeRings[id];
+    }
     delete this._units[id];
     this.updateUnitCount();
     LocalStore.deleteUnit(id);
@@ -548,6 +552,11 @@ const MapCtrl = {
     entry.data.lat = lat;
     entry.data.lng = lng;
     entry.data.updated_at = new Date().toISOString();
+    if (this._rangeRings[id]) {
+      this._rangeRings[id].forEach(l => this._measureLayer.removeLayer(l));
+      delete this._rangeRings[id];
+      this.toggleRangeRings(id, lat, lng);
+    }
     LocalStore.upsertUnit(entry.data);
     if (Mission.active) {
       DB.upsertUnit(entry.data).catch(() => {});
