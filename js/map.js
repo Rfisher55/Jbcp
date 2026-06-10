@@ -179,7 +179,6 @@ const MapCtrl = {
     if (tool === 'draw-area')   { mc.classList.add('cursor-crosshair'); drawToolbar?.classList.remove('hidden'); this._updateDrawCount(); }
     if (tool === 'measure')     { mc.classList.add('cursor-crosshair'); UI.showSheet('sheet-measure'); }
     if (tool === 'pin')         { mc.classList.add('cursor-crosshair'); UI.toast('Tap map to drop a pin — grid auto-copies', 'info', 2500); }
-    if (tool === 'plot-grid')   { UI.showSheet('sheet-plot-grid'); this._activeTool = 'select'; }
     if (tool === 'select')      { this._activeSIDC = null; this._activeCatalogEntry = null; }
   },
 

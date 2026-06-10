@@ -1529,35 +1529,6 @@ const App = {
     Chat.join(m.id);
   },
 
-  _plotGrid() {
-    const raw   = document.getElementById('plot-input').value;
-    const errEl = document.getElementById('plot-error');
-    errEl.hidden = true;
-
-    const result = parseMGRS(raw);
-    if (!result.valid) {
-      errEl.textContent = 'Invalid grid. Try "16TDL123456" or just "123456".';
-      errEl.hidden = false;
-      return;
-    }
-
-    MapCtrl.panTo(result.lat, result.lng, 15);
-    UI.closeSheet('sheet-plot-grid');
-
-    const marker = L.circleMarker([result.lat, result.lng], {
-      radius: 8, color: '#d29922', fillColor: '#d29922', fillOpacity: 0.8
-    }).addTo(MapCtrl.map);
-    marker.bindPopup(
-      `<div class="popup-body"><div class="popup-name">Plotted Grid</div>` +
-      `<div class="popup-mgrs">${toMGRS(result.lat, result.lng, 5)}</div></div>`,
-      { autoPan: false }
-    ).openPopup();
-    setTimeout(() => marker.remove(), 30000);
-
-    const note = result.note ? ` (${result.note})` : '';
-    UI.toast(`Plotting: ${toMGRS(result.lat, result.lng, 5)}${note}`, 'info');
-  },
-
   _savePACE() {
     const pace = {
       p: { method: document.getElementById('pace-p-method')?.value.trim(), freq: document.getElementById('pace-p-freq')?.value.trim() },
