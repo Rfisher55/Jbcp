@@ -403,7 +403,7 @@ const MapCtrl = {
     const entry = this._units[id];
     if (!entry) return;
     Object.assign(entry.data, updates, { updated_at: new Date().toISOString() });
-    if (updates.sidc) entry.marker.setIcon(makeMilIcon(updates.sidc));
+    if (updates.sidc) entry.marker.setIcon(makeMilIcon(updates.sidc, this._getIconSize()));
     LocalStore.upsertUnit(entry.data);
     if (Mission.active) {
       DB.upsertUnit(entry.data).catch(e => UI.toast('Update failed: ' + e.message, 'error'));
@@ -446,7 +446,7 @@ const MapCtrl = {
       if (existing) {
         existing.data = row;
         existing.marker.setLatLng([row.lat, row.lng]);
-        existing.marker.setIcon(makeMilIcon(row.sidc));
+        existing.marker.setIcon(makeMilIcon(row.sidc, this._getIconSize()));
       } else {
         this._addUnitMarker(row);
       }

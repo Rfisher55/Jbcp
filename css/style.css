@@ -162,6 +162,7 @@ html, body {
   background: none; border: none; border-right: 1px solid var(--border);
   color: var(--text-dim); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
+  z-index: 1; touch-action: manipulation;
 }
 .panel-toggle svg { width: 22px; height: 22px; }
 .panel-toggle:hover { color: var(--text); }
