@@ -1,6 +1,6 @@
 // milsymbol catalog and icon factory
 // Mixes 2525C (15-char) and 2525D (20-char) SIDCs; buildSIDC handles both.
-// 2525D format: [version(2)][context(1)][affil(1)][symset(2)][status(1)][HQ(1)][echelon(2)][entity(6)][trailing(4)]
+// 2525D format: [version(2)][context(1)][affil(1)][symset(2)][status(1)][HQ(1)][echelon(2)][entity(2)][entitytype(2)][entitysubtype(2)][mod1(2)][mod2(2)]
 // Friendly prefix: 1003100000 | Hostile: 1006100000 | Neutral: 1004100000 | Unknown: 1001100000
 
 const CATALOG = [
@@ -12,18 +12,18 @@ const CATALOG = [
   { id: 'ada',        name: 'Air Defense',      base: 'SFGPUCAA---', cat: 'F' },
   { id: 'engr',       name: 'Engineer',         base: 'SFGPUCE----', cat: 'F' },
   { id: 'recon',      name: 'Reconnaissance',   base: 'SFGPUCR----', cat: 'F' },
-  { id: 'airborne',   name: 'Airborne',         base: '10031000001111030000', cat: 'F' },
-  { id: 'airasslt',   name: 'Air Assault',      base: '10031000001111040000', cat: 'F' },
-  { id: 'sf',         name: 'Special Forces',   base: '10031000001111000000', cat: 'F' },
-  { id: 'ranger',     name: 'Ranger',           base: '10031000001111000000', cat: 'F' },
+  { id: 'airborne',   name: 'Airborne',         base: '10031000001211000001', cat: 'F' },
+  { id: 'airasslt',   name: 'Air Assault',      base: '10031000001211000059', cat: 'F' },
+  { id: 'sf',         name: 'Special Forces',   base: '10031000001217000000', cat: 'F' },
+  { id: 'ranger',     name: 'Ranger',           base: '10031000001220000000', cat: 'F' },
   { id: 'at',         name: 'Anti-Tank',        base: 'SFGPUCAT---', cat: 'F' },
-  { id: 'cbrn',       name: 'CBRN',             base: '10031000001311000000', cat: 'F' },
-  { id: 'mp',         name: 'Military Police',  base: '10031000001302000000', cat: 'F' },
+  { id: 'cbrn',       name: 'CBRN',             base: '10031000001401000000', cat: 'F' },
+  { id: 'mp',         name: 'Military Police',  base: '10031000001412000000', cat: 'F' },
   // ── C2 & Support — Friendly ──────────────────────────
   { id: 'hq',         name: 'Headquarters',     base: 'SFGPUH-----', cat: 'F' },
-  { id: 'sig',        name: 'Signal',           base: '10031000001303000000', cat: 'F' },
-  { id: 'intel',      name: 'Intelligence',     base: '10031000001309000000', cat: 'F' },
-  { id: 'med',        name: 'Medical',          base: '10031000001301000000', cat: 'F' },
+  { id: 'sig',        name: 'Signal',           base: '10031000001110000000', cat: 'F' },
+  { id: 'intel',      name: 'Intelligence',     base: '10031000001510000000', cat: 'F' },
+  { id: 'med',        name: 'Medical',          base: '10031000001613000000', cat: 'F' },
   { id: 'log',        name: 'Logistics',        base: 'SFGPUSS----', cat: 'F' },
   { id: 'trans',      name: 'Transportation',   base: 'SFGPUST----', cat: 'F' },
   { id: 'ord',        name: 'Ordnance',         base: 'SFGPUSO----', cat: 'F' },
