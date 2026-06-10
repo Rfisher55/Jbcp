@@ -97,7 +97,7 @@ const MapCtrl = {
     Object.values(this._units).forEach(({ data, marker }) => {
       marker.setIcon(makeMilIcon(data.sidc, size));
     });
-  },,
+  },
 
   // ── Tool activation ─────────────────────────────────────
   setTool(tool) {
