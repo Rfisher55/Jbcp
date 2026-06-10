@@ -93,12 +93,12 @@
     <div id="coord-chip" class="coord-chip" title="Tap to copy MGRS">
       <span id="coord-mgrs">No position</span>
     </div>
-    <button class="icon-btn" id="btn-chat" title="Comms (Phase 3)">
+    <button class="icon-btn" id="btn-chat" title="Comms">
       <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="currentColor"/></svg>
     </button>
   </nav>
 
-  <!-- ── SHEETS ────────────────────────────────────────────── -->
+  <!-- ── SHEETS ────────────────────────────────────── -->
 
   <!-- Auth sheet -->
   <div id="sheet-auth" class="sheet" role="dialog" aria-modal="true">
@@ -230,10 +230,28 @@
     </div>
   </div>
 
+  <!-- Label input sheet (replaces native prompt — works in iOS PWA) -->
+  <div id="sheet-label" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-label-close">✕</button>
+      <h3 id="sheet-label-title">Label</h3>
+      <div class="field-group">
+        <label for="label-input">Label text</label>
+        <input id="label-input" type="text" placeholder="Optional label…"
+               autocomplete="off" autocapitalize="characters" spellcheck="false">
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" id="btn-label-done">Done ✓</button>
+        <button class="btn-secondary" id="btn-label-skip">No Label</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast container -->
   <div id="toasts" aria-live="polite"></div>
 
-  <!-- ── SCRIPTS ────────────────────────────────── -->
+  <!-- ── SCRIPTS ────────────────────────────── -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
   <script src="https://unpkg.com/mgrs/mgrs.js"></script>

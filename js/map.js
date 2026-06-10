@@ -74,6 +74,7 @@ const MapCtrl = {
     this._map.on('click',       e => this._onMapClick(e));
     this._map.on('dblclick',    e => this._onMapDblClick(e));
     this._map.on('contextmenu', e => this._onMapContextMenu(e));
+    this._map.on('zoomend',     () => this._refreshIconSizes());
 
     return this;
   },
@@ -82,7 +83,23 @@ const MapCtrl = {
     return ['draw-line', 'draw-area', 'draw-graphic'].includes(this._activeTool);
   },
 
-  // ── Tool activation ─────────────────────────────────────
+  _getIconSize() {
+    const z = this._map ? this._map.getZoom() : 13;
+    if (z <= 9)  return 20;
+    if (z <= 11) return 26;
+    if (z <= 13) return 32;
+    if (z <= 15) return 40;
+    return 48;
+  },
+
+  _refreshIconSizes() {
+    const size = this._getIconSize();
+    Object.values(this._units).forEach(({ data, marker }) => {
+      marker.setIcon(makeMilIcon(data.sidc, size));
+    });
+  },
+
+  // ── Tool activation ─────────────────────────────────────────
   setTool(tool) {
     this._activeTool = tool;
     this._drawPoints = [];
@@ -209,10 +226,10 @@ const MapCtrl = {
     if (label && gt) label.textContent = gt.name;
   },
 
-  // ── Finish / cancel draw ─────────────────────────────────
+  // ── Finish / cancel draw ───────────────────────────────────────
   finishDraw() {
     this._clearPreview();
-    const pts  = this._drawPoints.slice();
+    const pts = this._drawPoints.slice();
     this._drawPoints = [];
     document.getElementById('draw-toolbar')?.classList.add('hidden');
 
@@ -220,34 +237,38 @@ const MapCtrl = {
     const gt   = this._activeGraphicType;
     const isArea = tool === 'draw-area' || (tool === 'draw-graphic' && gt?.type === 'area');
 
-    if (pts.length < 2 || (isArea && pts.length < 3)) {
-      UI.toast('Too few points — draw cancelled', 'info');
-      this.setTool('select');
-      UI.toolBtn('select');
-      return;
-    }
-
-    if (isArea) {
-      const geo = { type: 'Polygon', coordinates: [[...pts.map(p => [p.lng, p.lat]), [pts[0].lng, pts[0].lat]]] };
-      const sty = gt ? { color: gt.color, weight: gt.weight, dashArray: gt.dash, fillOpacity: gt.fill } : { color: '#d29922', fillOpacity: 0.1 };
-      const name = gt?.label !== '' ? this._promptLabel(gt?.name || 'Area', gt?.label) : '';
-      this._saveGraphic({ type: 'area', geometry: geo, style: { ...sty, label: name } });
-    } else {
-      const geo = { type: 'LineString', coordinates: pts.map(p => [p.lng, p.lat]) };
-      const sty = gt ? { color: gt.color, weight: gt.weight, dashArray: gt.dash } : { color: '#58a6ff', weight: 2 };
-      const name = gt?.label !== '' ? this._promptLabel(gt?.name || 'Line', gt?.label) : '';
-      this._saveGraphic({ type: 'line', geometry: geo, style: { ...sty, label: name } });
-    }
-
+    // Reset tool immediately so map stays interactive while label sheet is open
     this._activeGraphicType = null;
     this.setTool('select');
     UI.toolBtn('select');
-  },
 
-  _promptLabel(typeName, prefix) {
-    const suggested = prefix ? prefix + ' ' : '';
-    const result = prompt(`Label for ${typeName}:`, suggested);
-    return result !== null ? result.trim() : '';
+    if (pts.length < 2 || (isArea && pts.length < 3)) {
+      UI.toast('Too few points — draw cancelled', 'info');
+      return;
+    }
+
+    const save = (label) => {
+      if (isArea) {
+        const geo = { type: 'Polygon', coordinates: [[...pts.map(p => [p.lng, p.lat]), [pts[0].lng, pts[0].lat]]] };
+        const sty = gt
+          ? { color: gt.color, weight: gt.weight, dashArray: gt.dash, fillOpacity: gt.fill }
+          : { color: '#d29922', fillOpacity: 0.1 };
+        this._saveGraphic({ type: 'area', geometry: geo, style: { ...sty, label } });
+      } else {
+        const geo = { type: 'LineString', coordinates: pts.map(p => [p.lng, p.lat]) };
+        const sty = gt
+          ? { color: gt.color, weight: gt.weight, dashArray: gt.dash }
+          : { color: '#58a6ff', weight: 2 };
+        this._saveGraphic({ type: 'line', geometry: geo, style: { ...sty, label } });
+      }
+    };
+
+    // Only prompt for label if the graphic type expects one
+    if (gt?.label !== '') {
+      App.promptLabel(gt?.name || (isArea ? 'Area' : 'Line'), gt?.label || '', save);
+    } else {
+      save('');
+    }
   },
 
   cancelDraw() {
@@ -314,7 +335,6 @@ const MapCtrl = {
     };
 
     this._addUnitMarker(unit);
-    LocalStore.upsertUnit(unit);
     if (Mission.active) {
       DB.upsertUnit(unit).catch(e => UI.toast('Save failed: ' + e.message, 'error'));
     }
@@ -323,7 +343,7 @@ const MapCtrl = {
   },
 
   _addUnitMarker(unit) {
-    const icon   = makeMilIcon(unit.sidc);
+    const icon   = makeMilIcon(unit.sidc, this._getIconSize());
     const marker = L.marker([unit.lat, unit.lng], { icon, draggable: true })
       .addTo(this._unitLayer);
 
@@ -381,7 +401,7 @@ const MapCtrl = {
     }
   },
 
-  // ── Remote sync handlers ─────────────────────────────────
+  // ── Remote sync handlers ───────────────────────────────────────
   handleRemoteUnit(payload) {
     const { eventType, new: row, old } = payload;
     if (eventType === 'DELETE') {
@@ -433,7 +453,7 @@ const MapCtrl = {
     this._graphics = {};
   },
 
-  // ── Graphics ─────────────────────────────────────────────
+  // ── Graphics ──────────────────────────────────────────────
   _renderGraphic(g) {
     const existing = this._graphics[g.id];
     if (existing) { this._graphicLayer.removeLayer(existing.layer); }
@@ -593,7 +613,7 @@ const MapCtrl = {
     this._currentBase = key;
   },
 
-  // ── Self position ────────────────────────────────────────
+  // ── Self position ──────────────────────────────────────────
   showSelf(lat, lng) {
     const latlng = L.latLng(lat, lng);
     if (this._selfMarker) {
