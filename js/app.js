@@ -716,6 +716,17 @@ const App = {
   },
 
   async init() {
+    // Global MGRS tap-link delegate — any element with data-mgrs + mgrs-tap-link class
+    document.body.addEventListener('click', e => {
+      const el = e.target.closest('.mgrs-tap-link[data-mgrs]');
+      if (!el) return;
+      const result = parseMGRS(el.dataset.mgrs);
+      if (result.valid) {
+        UI.closeAllSheets();
+        MapCtrl.flyToGrid(result.lat, result.lng);
+      }
+    });
+
     // Close buttons
     document.querySelectorAll('.btn-close').forEach(btn => {
       const sheet = btn.closest('.sheet');
@@ -1434,7 +1445,7 @@ const App = {
       const ago     = u.updated_at ? _timeAgo(new Date(u.updated_at)) : '';
       return `<div class="fstat-item" data-uid="${_escH(u.id)}">
         <div class="fstat-callsign">${_escH(u.callsign || '—')}</div>
-        <div class="fstat-grid mgrs-tap-link">${_escH(mgrs)}</div>
+        <div class="fstat-grid mgrs-tap-link" data-mgrs="${_escH(mgrs)}">${_escH(mgrs)}</div>
         ${laceStr ? `<div class="fstat-lace">${laceStr}</div>` : ''}
         ${ago ? `<div class="fstat-ago">${_escH(ago)}</div>` : ''}
         <div class="fstat-rc" style="color:${col};border-color:${col}">RC${rc}</div>

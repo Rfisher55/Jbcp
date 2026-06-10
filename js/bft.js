@@ -189,6 +189,25 @@ const BFT = {
     if (ammoEl && t.ammo_pct != null) ammoEl.textContent = t.ammo_pct + '%';
     if (statEl && t.opstat)           statEl.textContent = t.opstat;
 
+    // Fly-to and share buttons
+    const flyBtn   = document.getElementById('btn-bft-fly');
+    const shareBtn = document.getElementById('btn-bft-share-pos');
+    if (flyBtn) {
+      flyBtn.onclick = () => {
+        UI.closeSheet('sheet-bft-card');
+        MapCtrl.flyToGrid(t.lat, t.lng);
+      };
+    }
+    if (shareBtn) {
+      shareBtn.onclick = () => {
+        if (!Chat.isJoined()) { UI.toast('Join a mission to share', 'info'); return; }
+        const cs = String(t.callsign || 'Track').replace(/[|\x00-\x1f]/g, '').slice(0, 16);
+        Chat.send(`BFT TRACK: ${cs} @ ${t.mgrs || `${t.lat.toFixed(5)},${t.lng.toFixed(5)}`} HDG ${t.heading || 0}° ${t.speed || 0}kph`);
+        UI.closeSheet('sheet-bft-card');
+        UI.toast('Position shared to chat', 'success', 2000);
+      };
+    }
+
     UI.showSheet('sheet-bft-card');
   },
 

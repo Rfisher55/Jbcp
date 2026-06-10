@@ -24,12 +24,16 @@ const Chat = {
     'CASUALTY — WAIT OUT',
   ],
 
+  _missionId: null,
+  _STORE_MAX: 100,
+
   join(missionId) {
     this.leave();
     if (!DB.online) return;
 
-    this._msgs   = [];
-    this._unread = 0;
+    this._missionId = missionId;
+    this._msgs      = this._loadStored(missionId);
+    this._unread    = 0;
 
     this._channel = DB.client.channel(`chat:${missionId}`, {
       config: { broadcast: { self: true } }
@@ -44,8 +48,23 @@ const Chat = {
       try { DB.client.removeChannel(this._channel); } catch {}
       this._channel = null;
     }
-    this._msgs   = [];
-    this._unread = 0;
+    this._msgs      = [];
+    this._unread    = 0;
+    this._missionId = null;
+  },
+
+  _loadStored(missionId) {
+    try {
+      return JSON.parse(localStorage.getItem(`cop_chat_${missionId}`) || '[]');
+    } catch { return []; }
+  },
+
+  _saveStored() {
+    if (!this._missionId) return;
+    try {
+      const recent = this._msgs.slice(-this._STORE_MAX);
+      localStorage.setItem(`cop_chat_${this._missionId}`, JSON.stringify(recent));
+    } catch {}
   },
 
   send(text) {
@@ -66,8 +85,10 @@ const Chat = {
   },
 
   _receive(msg) {
+    if (this._msgs.find(m => m.id === msg.id)) return;
     this._msgs.push(msg);
     if (this._msgs.length > this.MAX) this._msgs.shift();
+    this._saveStored();
 
     const open = !document.getElementById('sheet-chat')?.classList.contains('hidden');
     if (open) {
