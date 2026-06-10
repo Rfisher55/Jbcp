@@ -95,8 +95,8 @@ const BFT = {
 
   _icon(data, stale) {
     const init    = (data.callsign || '??').slice(0, 2).toUpperCase();
-    const hdg     = data.heading || 0;
-    const moving  = (data.speed || 0) > 1;
+    const hdg     = Math.round(+(data.heading || 0)) % 360;
+    const moving  = +(data.speed || 0) > 1;
     const arrow   = `<svg class="bft-hdg-arrow${moving ? '' : ' bft-hdg-hidden'}" ` +
                     `style="transform:rotate(${hdg}deg)" viewBox="0 0 10 10" width="10" height="10">` +
                     `<polygon points="5,0 10,10 5,7 0,10"/></svg>`;
