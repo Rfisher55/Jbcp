@@ -211,7 +211,9 @@ const MapCtrl = {
     });
     const marker = L.marker(latlng, { icon, zIndexOffset: 700, interactive: true });
     marker.on('click', () => {
-      navigator.clipboard?.writeText(mgrs).then(() => UI.toast('Grid copied: ' + mgrs, 'success'));
+      navigator.clipboard?.writeText(mgrs)
+        .then(() => UI.toast('Grid copied: ' + mgrs, 'success'))
+        .catch(() => UI.toast('Grid: ' + mgrs, 'info'));
     });
     marker.on('contextmenu', () => {
       this._pinLayer.removeLayer(marker);
@@ -219,7 +221,9 @@ const MapCtrl = {
     });
     marker.addTo(this._pinLayer);
     this._pins[id] = { marker, mgrs };
-    navigator.clipboard?.writeText(mgrs).then(() => UI.toast(`Pin dropped — Grid copied: ${mgrs}`, 'success'));
+    navigator.clipboard?.writeText(mgrs)
+      .then(() => UI.toast(`Pin dropped — Grid copied: ${mgrs}`, 'success'))
+      .catch(() => UI.toast(`Pin dropped — ${mgrs}`, 'info'));
   },
 
   clearPins() {
@@ -929,7 +933,7 @@ const MapCtrl = {
         if (d.actions) body += `<tr><td>Actions</td><td>${_escH(d.actions)}</td></tr>`;
         body += `</table>`;
       }
-      body += `<button class="btn-del-report" data-rid="${report.id}" style="font-size:11px;margin-top:8px;padding:4px 12px;` +
+      body += `<button class="btn-del-report" data-rid="${_escH(report.id)}" style="font-size:11px;margin-top:8px;padding:4px 12px;` +
               `background:rgba(248,81,73,0.2);color:#f85149;border:1px solid rgba(248,81,73,0.4);border-radius:6px;cursor:pointer">Remove</button>`;
       body += `</div>`;
 

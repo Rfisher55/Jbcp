@@ -99,13 +99,14 @@ const Reports = {
       created_at: new Date().toISOString()
     };
     LocalStore.upsertReport(rpt);
-    if (this._ctx?.lat != null) MapCtrl.placeReportMarker(rpt);
+    const hasLoc = this._ctx?.lat != null;
+    if (hasLoc) MapCtrl.placeReportMarker(rpt);
 
     if (Chat.isJoined()) {
       Chat.send(`SPOTREP: ${size} ${activity} at ${location} DTG ${dtg}`);
     }
     UI.closeSheet('sheet-spotrep');
-    UI.toast('SPOTREP filed — enemy marker placed', 'success');
+    UI.toast(hasLoc ? 'SPOTREP filed — enemy marker placed' : 'SPOTREP filed', 'success');
     this._ctx = null;
   },
 

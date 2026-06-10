@@ -198,12 +198,12 @@ const UI = {
 
       <div class="field-group">
         <label for="edit-callsign">Callsign / Designation</label>
-        <input id="edit-callsign" type="text" value="${(unit.callsign || '').replace(/"/g,'&quot;')}"
+        <input id="edit-callsign" type="text" value="${_escH(unit.callsign || '')}"
                maxlength="24" autocapitalize="characters">
       </div>
       <div class="field-group">
         <label for="edit-notes">Notes / Remarks</label>
-        <input id="edit-notes" type="text" value="${(unit.notes || '').replace(/"/g,'&quot;')}"
+        <input id="edit-notes" type="text" value="${_escH(unit.notes || '')}"
                placeholder="Optional remarks">
       </div>
       <div class="field-group" style="margin-bottom:6px">
@@ -529,8 +529,10 @@ const UI = {
     });
 
     document.getElementById('btn-copy-code')?.addEventListener('click', () => {
-      navigator.clipboard?.writeText(Mission.current.id.slice(0,8).toUpperCase());
-      UI.toast('Code copied!', 'success');
+      const code = Mission.current.id.slice(0,8).toUpperCase();
+      navigator.clipboard?.writeText(code)
+        .then(() => UI.toast('Code copied!', 'success'))
+        .catch(() => UI.toast(`Code: ${code}`, 'info'));
     });
 
     document.getElementById('btn-share-mission')?.addEventListener('click', () => {
@@ -541,8 +543,9 @@ const UI = {
       if (navigator.share) {
         navigator.share({ title: `Mission: ${name}`, text }).catch(() => {});
       } else {
-        navigator.clipboard?.writeText(text);
-        UI.toast('Invite text copied!', 'success');
+        navigator.clipboard?.writeText(text)
+          .then(() => UI.toast('Invite text copied!', 'success'))
+          .catch(() => UI.toast(`Code: ${code}`, 'info'));
       }
     });
 
@@ -931,8 +934,9 @@ const App = {
     // Copy MGRS
     document.getElementById('coord-chip').addEventListener('click', () => {
       const txt = document.getElementById('coord-mgrs').textContent;
-      navigator.clipboard?.writeText(txt);
-      UI.toast('MGRS copied: ' + txt, 'success');
+      navigator.clipboard?.writeText(txt)
+        .then(() => UI.toast('MGRS copied: ' + txt, 'success'))
+        .catch(() => UI.toast(txt, 'info'));
     });
 
     // Layers
@@ -1209,8 +1213,9 @@ const App = {
       UI.closeSheet('sheet-context');
       const ll   = MapCtrl._ctxLatLng;
       const mgrs = ll ? (toMGRS(ll.lat, ll.lng, 5) || `${ll.lat.toFixed(5)},${ll.lng.toFixed(5)}`) : '';
-      navigator.clipboard?.writeText(mgrs);
-      UI.toast('Grid copied: ' + mgrs, 'success', 2000);
+      navigator.clipboard?.writeText(mgrs)
+        .then(() => UI.toast('Grid copied: ' + mgrs, 'success', 2000))
+        .catch(() => UI.toast('Grid: ' + mgrs, 'info', 2000));
     });
     document.getElementById('ctx-nbc')?.addEventListener('click', () => {
       UI.closeSheet('sheet-context');
@@ -1397,6 +1402,7 @@ const App = {
       const val = document.getElementById('hhour-time').value;
       if (!val) return;
       const [h, m] = val.split(':').map(Number);
+      if (!isFinite(h) || !isFinite(m)) { UI.toast('Invalid time', 'error'); return; }
       const t = new Date();
       t.setHours(h, m, 0, 0);
       if (t < Date.now()) t.setDate(t.getDate() + 1);
@@ -1652,6 +1658,7 @@ const App = {
     const now   = new Date().toISOString();
     const stale = new Date(Date.now() + 5 * 60000).toISOString();
 
+    const xmlEsc = v => String(v).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
     const events = units.map(({ data: u }) => {
       const s = u.sidc || '';
       let aff;
@@ -1662,13 +1669,17 @@ const App = {
       }
       const type = `a-${aff}-G-U-C`;
       if (!isFinite(u.lat) || !isFinite(u.lng)) return null;
-      const xmlEsc = v => String(v).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
-      const cs   = xmlEsc(u.callsign || 'UNKNOWN');
-      const sidc = xmlEsc(u.sidc || '');
+      const cs     = xmlEsc(u.callsign || 'UNKNOWN');
+      const sidc   = xmlEsc(u.sidc || '');
+      const opstat = xmlEsc(u.opstat || 'FMC');
+      const redcon = Number.isInteger(u.redcon) ? u.redcon : 5;
+      const laceStr = u.lace
+        ? ` LACE:${+u.lace.l|0}/${+u.lace.a|0}/${+u.lace.c|0}/${+u.lace.e|0}`
+        : '';
       return `<event version="2.0" uid="${xmlEsc(u.id)}" type="${type}" time="${u.updated_at || now}" start="${u.updated_at || now}" stale="${stale}" how="h-g-i-g-o">` +
         `<point lat="${u.lat.toFixed(6)}" lon="${u.lng.toFixed(6)}" hae="0" ce="9999" le="9999"/>` +
         `<detail sidc="${sidc}"><contact callsign="${cs}"/><uid Droid="${cs}"/>` +
-        `<remarks>REDCON:${u.redcon||5} OPSTAT:${u.opstat||'FMC'}${u.lace ? ` LACE:${u.lace.l}/${u.lace.a}/${u.lace.c}/${u.lace.e}` : ''}</remarks>` +
+        `<remarks>REDCON:${redcon} OPSTAT:${opstat}${laceStr}</remarks>` +
         `</detail></event>`;
     }).filter(Boolean).join('\n');
 
@@ -1682,7 +1693,9 @@ const App = {
       URL.revokeObjectURL(url);
       UI.toast(`CoT export: ${units.length} units`, 'success');
     } catch {
-      navigator.clipboard?.writeText(xml).then(() => UI.toast('CoT XML copied to clipboard', 'success'));
+      navigator.clipboard?.writeText(xml)
+        .then(() => UI.toast('CoT XML copied to clipboard', 'success'))
+        .catch(() => UI.toast('Export failed — try again', 'error'));
     }
   },
 
@@ -1810,7 +1823,7 @@ const App = {
           redcon:     rcMatch ? Math.max(1, Math.min(5, parseInt(rcMatch[1], 10))) : (existing?.data.redcon || 5),
           opstat:     osMatch ? osMatch[1] : (existing?.data.opstat || 'FMC'),
           updated_at: ev.getAttribute('time') || new Date().toISOString(),
-          ...(laceMatch ? { lace: { l: +laceMatch[1], a: +laceMatch[2], c: +laceMatch[3], e: +laceMatch[4] } } : {}),
+          ...(laceMatch ? { lace: { l: parseInt(laceMatch[1],10)||0, a: parseInt(laceMatch[2],10)||0, c: parseInt(laceMatch[3],10)||0, e: parseInt(laceMatch[4],10)||0 } } : {}),
         };
 
         if (existing) {
@@ -1869,9 +1882,9 @@ const App = {
       UI.toast('Plan exported', 'success');
     } catch {
       // iOS Safari fallback: copy to clipboard
-      navigator.clipboard?.writeText(json).then(() =>
-        UI.toast('Plan copied to clipboard (JSON)', 'success')
-      );
+      navigator.clipboard?.writeText(json)
+        .then(() => UI.toast('Plan copied to clipboard (JSON)', 'success'))
+        .catch(() => UI.toast('Export failed — try again', 'error'));
     }
   },
 
