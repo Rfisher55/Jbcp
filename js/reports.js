@@ -163,7 +163,8 @@ const Reports = {
   openSITREP() {
     document.getElementById('sit-unit').value     = Auth.callsign || '';
     document.getElementById('sit-dtg').value      = this._dtg();
-    document.getElementById('sit-loc').value      = document.getElementById('coord-mgrs')?.textContent || '';
+    const coordTxt = document.getElementById('coord-mgrs')?.textContent || '';
+    document.getElementById('sit-loc').value      = coordTxt === 'No position' ? '' : coordTxt;
     document.getElementById('sit-friendly').value = '';
     document.getElementById('sit-enemy').value    = '';
     document.getElementById('sit-log').value      = '';
