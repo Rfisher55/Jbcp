@@ -1,4 +1,10 @@
 // Military report forms: LACE, SPOTREP, 9-Line MEDEVAC, SITREP
+
+function _selfMGRS() {
+  const t = document.getElementById('coord-mgrs')?.textContent || '';
+  return t === 'No position' ? '' : t;
+}
+
 const Reports = {
   _ctx: null,  // { type, lat, lng, unitId }
 
@@ -55,7 +61,7 @@ const Reports = {
       reporter:   Auth.callsign,
       unit_id:    this._ctx?.unitId,
       data:       lace,
-      mgrs:       document.getElementById('coord-mgrs')?.textContent || '',
+      mgrs:       _selfMGRS(),
       created_at: new Date().toISOString()
     });
     if (Chat.isJoined()) Chat.send(`LACE: Liquid ${l}% Ammo ${a}% Equip ${e}% — Cas:${c}`);
@@ -229,7 +235,7 @@ const Reports = {
     const mia = +(document.getElementById('ace-mia').value);
     LocalStore.upsertReport({
       id: crypto.randomUUID(), type: 'ACE', reporter: Auth.callsign,
-      unit_id: this._ctx?.unitId, mgrs: document.getElementById('coord-mgrs')?.textContent || '',
+      unit_id: this._ctx?.unitId, mgrs: _selfMGRS(),
       data: { a, e, kia, wia, mia }, created_at: new Date().toISOString()
     });
     if (Chat.isJoined()) Chat.send(`ACE: Ammo ${a}% Equip ${e}% — KIA:${kia} WIA:${wia} MIA:${mia}`);
@@ -318,6 +324,7 @@ const Reports = {
           <div class="rpt-log-actions">
             ${hasLoc ? `<button class="rpt-log-fly" data-id="${_escH(r.id)}" title="Fly to location">⌖</button>` : ''}
             <button class="rpt-log-copy" data-id="${_escH(r.id)}">Copy</button>
+            <button class="rpt-log-del" data-id="${_escH(r.id)}" title="Delete report">✕</button>
           </div>
         </div>
         <div class="rpt-log-preview">${preview}</div>
@@ -338,6 +345,13 @@ const Reports = {
           UI.closeSheet('sheet-reports-log');
           MapCtrl.flyToGrid(r.lat, r.lng);
         }
+      });
+    });
+
+    list.querySelectorAll('.rpt-log-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        LocalStore.deleteReport(btn.dataset.id);
+        this._renderLog();
       });
     });
   },
