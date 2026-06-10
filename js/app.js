@@ -1,7 +1,6 @@
-// Main application controller — wires all modules together
+// Main application controller
 
 const UI = {
-  // ── Toast ─────────────────────────────────────────────
   toast(msg, type = 'info', duration = 3000) {
     const el = document.createElement('div');
     el.className = `toast ${type}`;
@@ -10,32 +9,23 @@ const UI = {
     setTimeout(() => el.remove(), duration);
   },
 
-  // ── Sheet management ───────────────────────────────────
-  showSheet(id) {
-    document.getElementById(id)?.classList.remove('hidden');
-  },
-  closeSheet(id) {
-    document.getElementById(id)?.classList.add('hidden');
-  },
+  showSheet(id)  { document.getElementById(id)?.classList.remove('hidden'); },
+  closeSheet(id) { document.getElementById(id)?.classList.add('hidden'); },
   closeAllSheets() {
     document.querySelectorAll('.sheet:not(#sheet-auth)').forEach(s => s.classList.add('hidden'));
   },
 
-  // ── Tool button active state ───────────────────────────
   toolBtn(tool) {
-    document.querySelectorAll('.tool-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.tool === tool);
-    });
+    document.querySelectorAll('.tool-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.tool === tool));
   },
 
-  // ── Mission chip label ─────────────────────────────────
   setMissionLabel(name) {
     document.getElementById('mission-chip-label').textContent = name || 'No Mission';
   },
 
-  // ── Roster ─────────────────────────────────────────────
   updateRoster(state) {
-    const list = document.getElementById('roster-list');
+    const list    = document.getElementById('roster-list');
     const members = Object.values(state).flat();
     if (!members.length) {
       list.innerHTML = '<p class="empty-msg">No members online</p>';
@@ -55,9 +45,20 @@ const UI = {
 
   // ── Symbol picker ──────────────────────────────────────
   buildSymbolGrid(filter = 'F', echelon = '') {
-    const grid = document.getElementById('symbol-grid');
-    const items = CATALOG.filter(c => c.cat === filter);
+    const search = (document.getElementById('symbol-search')?.value || '').toLowerCase();
+    const grid   = document.getElementById('symbol-grid');
+    const items  = CATALOG.filter(c => {
+      if (c.cat !== filter) return false;
+      if (search && !c.name.toLowerCase().includes(search)) return false;
+      return true;
+    });
+
     grid.innerHTML = '';
+    if (!items.length) {
+      grid.innerHTML = '<p class="empty-msg" style="padding:12px">No symbols match</p>';
+      return;
+    }
+
     items.forEach(entry => {
       const sidc = buildSIDC(entry.base, echelon);
       const div  = document.createElement('div');
@@ -68,14 +69,55 @@ const UI = {
       label.textContent = entry.name;
       div.appendChild(label);
       div.addEventListener('click', () => {
-        MapCtrl.placeUnit(entry, echelon);
+        MapCtrl.setActiveSIDC(entry, echelon);
         UI.closeSheet('sheet-symbols');
+        UI.toast(`${entry.name} — click map to place (ESC to stop)`, 'info', 2500);
       });
       grid.appendChild(div);
     });
   },
 
-  // ── Unit detail panel ──────────────────────────────────
+  // ── Tactical graphic picker ────────────────────────────
+  buildGraphicGrid(filter = 'LN') {
+    // Update tab active state
+    document.querySelectorAll('.graphic-tab').forEach(b =>
+      b.classList.toggle('active', b.dataset.tab === filter));
+
+    const grid  = document.getElementById('graphic-grid');
+    const items = GRAPHIC_CATALOG.filter(g => g.cat === filter);
+    grid.innerHTML = '';
+
+    items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'graphic-item';
+
+      // Visual style preview
+      const previewStyle = item.type === 'line'
+        ? `height:4px;border-radius:2px;background:${item.color};` +
+          (item.dash ? `background:repeating-linear-gradient(90deg,${item.color} 0,${item.color} 8px,transparent 8px,transparent 14px);` : '')
+        : `height:28px;border-radius:4px;border:2px ${item.dash ? 'dashed' : 'solid'} ${item.color};` +
+          `background:${item.color}22;`;
+
+      div.innerHTML = `
+        <div class="graphic-preview" style="${previewStyle}"></div>
+        <span class="graphic-name">${item.name}</span>
+        ${item.label ? `<span class="graphic-code">${item.label}</span>` : ''}
+      `;
+
+      div.addEventListener('click', () => {
+        MapCtrl.startGraphicDraw(item);
+        UI.closeSheet('sheet-graphic-picker');
+        const tip = item.type === 'area'
+          ? `${item.name}: click to add points (3+ needed), dbl-click to finish`
+          : `${item.name}: click to add points, dbl-click to finish`;
+        UI.toast(tip, 'info', 3500);
+      });
+
+      grid.appendChild(div);
+    });
+  },
+
+  // ── Unit detail (inline form) ──────────────────────────
   showUnitDetail(unit, { onEdit, onDelete }) {
     const sidc    = unit.sidc || 'SFGPUC-----';
     const sym     = new ms.Symbol(sidc, { size: 50 });
@@ -83,31 +125,47 @@ const UI = {
 
     document.getElementById('unit-detail-content').innerHTML = `
       <div class="unit-header">
-        <img src="${sym.toDataURL()}" alt="unit symbol">
+        <img src="${sym.toDataURL()}" alt="symbol">
         <div>
-          <div class="unit-title">${unit.callsign || 'Unit'}</div>
+          <div class="unit-title" id="ud-title">${unit.callsign || 'Unit'}</div>
           <div class="unit-meta">${unit.sidc}</div>
         </div>
       </div>
+      <div class="field-group">
+        <label for="edit-callsign">Callsign / Designation</label>
+        <input id="edit-callsign" type="text" value="${(unit.callsign || '').replace(/"/g,'&quot;')}" maxlength="24" autocapitalize="characters">
+      </div>
+      <div class="field-group">
+        <label for="edit-notes">Notes</label>
+        <input id="edit-notes" type="text" value="${(unit.notes || '').replace(/"/g,'&quot;')}" placeholder="Optional remarks">
+      </div>
       <dl class="detail-dl">
         <dt>MGRS</dt><dd>${mgrsStr}</dd>
-        <dt>Lat / Lng</dt><dd>${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}</dd>
-        <dt>Last updated</dt><dd>${unit.updated_at ? new Date(unit.updated_at).toLocaleTimeString() : '—'}</dd>
-        ${unit.notes ? `<dt>Notes</dt><dd>${unit.notes}</dd>` : ''}
+        <dt>Lat/Lng</dt><dd>${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}</dd>
+        <dt>Updated</dt><dd>${unit.updated_at ? new Date(unit.updated_at).toLocaleTimeString() : '—'}</dd>
       </dl>
       <div class="btn-row">
-        <button class="btn-secondary" id="btn-unit-edit">Edit</button>
+        <button class="btn-primary" id="btn-unit-save">Save</button>
         <button class="btn-secondary btn-danger" id="btn-unit-delete">Delete</button>
       </div>
     `;
 
-    document.getElementById('btn-unit-edit').addEventListener('click', () => {
-      const cs = prompt('Callsign:', unit.callsign);
-      if (cs !== null) onEdit({ callsign: cs.trim() || unit.callsign });
-      UI.showUnitDetail({ ...unit, callsign: cs?.trim() || unit.callsign }, { onEdit, onDelete });
+    document.getElementById('btn-unit-save').addEventListener('click', () => {
+      const cs    = document.getElementById('edit-callsign').value.trim();
+      const notes = document.getElementById('edit-notes').value.trim();
+      if (cs) {
+        onEdit({ callsign: cs, notes });
+        document.getElementById('ud-title').textContent = cs;
+      }
+      UI.closeSheet('sheet-unit');
     });
+
     document.getElementById('btn-unit-delete').addEventListener('click', () => {
-      if (confirm(`Delete unit "${unit.callsign}"?`)) onDelete();
+      if (confirm(`Delete "${unit.callsign}"?`)) onDelete();
+    });
+
+    document.getElementById('edit-callsign').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btn-unit-save').click();
     });
 
     this.showSheet('sheet-unit');
@@ -158,7 +216,6 @@ const UI = {
       <div id="mission-error" class="error-msg" hidden></div>
     `;
 
-    // Wire events
     document.getElementById('btn-create-mission').addEventListener('click', async () => {
       const name = document.getElementById('new-mission-name').value.trim();
       const err  = document.getElementById('mission-error');
@@ -187,7 +244,7 @@ const UI = {
     });
 
     document.getElementById('btn-leave-mission')?.addEventListener('click', () => {
-      if (confirm('Leave this mission? Your local changes will remain.')) {
+      if (confirm('Leave this mission?')) {
         Mission.leave();
         MapCtrl.clearMission();
         UI.setMissionLabel(null);
@@ -209,7 +266,6 @@ const UI = {
 
   // ── Layers sheet ───────────────────────────────────────
   buildLayersSheet() {
-    // Basemap buttons
     const grid = document.getElementById('basemap-grid');
     grid.innerHTML = '';
     Object.entries(BASEMAPS).forEach(([key, bm]) => {
@@ -225,7 +281,6 @@ const UI = {
       grid.appendChild(div);
     });
 
-    // Overlay toggles
     document.getElementById('overlay-list').innerHTML = `
       <div class="overlay-row">
         <label for="tog-grid">MGRS Grid</label>
@@ -241,33 +296,39 @@ const UI = {
           <span class="toggle-track"></span>
         </label>
       </div>
+      <div class="overlay-row">
+        <label for="tog-graphics">Graphics</label>
+        <label class="toggle">
+          <input id="tog-graphics" type="checkbox" checked>
+          <span class="toggle-track"></span>
+        </label>
+      </div>
     `;
 
-    document.getElementById('tog-grid').addEventListener('change', e => {
-      MapCtrl.setGridVisible(e.target.checked);
-    });
-    document.getElementById('tog-units').addEventListener('change', e => {
-      e.target.checked
-        ? MapCtrl._unitLayer.addTo(MapCtrl.map)
-        : MapCtrl.map.removeLayer(MapCtrl._unitLayer);
-    });
+    document.getElementById('tog-grid').addEventListener('change', e =>
+      MapCtrl.setGridVisible(e.target.checked));
+    document.getElementById('tog-units').addEventListener('change', e =>
+      e.target.checked ? MapCtrl._unitLayer.addTo(MapCtrl.map) : MapCtrl.map.removeLayer(MapCtrl._unitLayer));
+    document.getElementById('tog-graphics').addEventListener('change', e =>
+      e.target.checked ? MapCtrl._graphicLayer.addTo(MapCtrl.map) : MapCtrl.map.removeLayer(MapCtrl._graphicLayer));
   }
 };
 
-// ── App bootstrap ──────────────────────────────────────────
+// ── App bootstrap ─────────────────────────────────────────
 const App = {
   _symFilter:  'F',
   _symEchelon: '',
+  _graphicTab: 'LN',
   _watchId:    null,
 
   async init() {
-    // Bind all close buttons
+    // Close buttons
     document.querySelectorAll('.btn-close').forEach(btn => {
       const sheet = btn.closest('.sheet');
       if (sheet) btn.addEventListener('click', () => UI.closeSheet(sheet.id));
     });
 
-    // Auth sheet submit
+    // Auth
     document.getElementById('btn-auth-submit').addEventListener('click', () => this._handleAuthSubmit());
     document.getElementById('auth-callsign').addEventListener('keydown', e => {
       if (e.key === 'Enter') this._handleAuthSubmit();
@@ -284,18 +345,26 @@ const App = {
     document.querySelectorAll('.tool-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const tool = btn.dataset.tool;
+
         if (tool === 'place-unit') {
-          // Show sheet then wait for map click
           this._symFilter  = 'F';
           this._symEchelon = '';
           UI.buildSymbolGrid('F', '');
+          UI.showSheet('sheet-symbols');
         }
+
+        if (tool === 'draw-graphic') {
+          this._graphicTab = 'LN';
+          UI.buildGraphicGrid('LN');
+          UI.showSheet('sheet-graphic-picker');
+        }
+
         UI.toolBtn(tool);
         MapCtrl.setTool(tool);
       });
     });
 
-    // Symbol filter / echelon buttons
+    // Symbol picker: filter buttons
     document.getElementById('symbol-filters').addEventListener('click', e => {
       const btn = e.target.closest('.filter-btn');
       if (!btn) return;
@@ -304,6 +373,8 @@ const App = {
       this._symFilter = btn.dataset.filter;
       UI.buildSymbolGrid(this._symFilter, this._symEchelon);
     });
+
+    // Symbol picker: echelon buttons
     document.getElementById('echelon-bar').addEventListener('click', e => {
       const btn = e.target.closest('.ech-btn');
       if (!btn) return;
@@ -313,14 +384,38 @@ const App = {
       UI.buildSymbolGrid(this._symFilter, this._symEchelon);
     });
 
-    // Full-map toggle
-    document.getElementById('btn-fullmap').addEventListener('click', () => {
-      document.body.classList.toggle('fullmap');
+    // Symbol search
+    document.getElementById('symbol-search')?.addEventListener('input', () => {
+      UI.buildSymbolGrid(this._symFilter, this._symEchelon);
     });
+
+    // Graphic picker: tab buttons
+    document.getElementById('graphic-tabs').addEventListener('click', e => {
+      const btn = e.target.closest('.graphic-tab');
+      if (!btn) return;
+      this._graphicTab = btn.dataset.tab;
+      UI.buildGraphicGrid(this._graphicTab);
+    });
+
+    // Draw toolbar buttons
+    document.getElementById('btn-draw-finish')?.addEventListener('click', () => MapCtrl.finishDraw());
+    document.getElementById('btn-draw-undo')?.addEventListener('click',   () => MapCtrl.undoLastPoint());
+    document.getElementById('btn-draw-cancel')?.addEventListener('click', () => MapCtrl.cancelDraw());
+
+    // Full-map toggle
+    document.getElementById('btn-fullmap').addEventListener('click', () =>
+      document.body.classList.toggle('fullmap'));
+
+    // ESC key
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') {
         if (document.body.classList.contains('fullmap')) {
           document.body.classList.remove('fullmap');
+        } else if (MapCtrl._isDrawing()) {
+          MapCtrl.cancelDraw();
+        } else if (MapCtrl._activeTool === 'place-unit') {
+          MapCtrl.setTool('select');
+          UI.toolBtn('select');
         } else {
           UI.closeAllSheets();
           MapCtrl.setTool('select');
@@ -329,7 +424,7 @@ const App = {
       }
     });
 
-    // Locate button
+    // Locate
     document.getElementById('btn-locate').addEventListener('click', () => this._toggleTracking());
 
     // Copy MGRS
@@ -346,14 +441,11 @@ const App = {
     });
 
     // Roster toggle
-    document.getElementById('btn-roster-toggle').addEventListener('click', () => {
-      document.getElementById('panel-roster').classList.toggle('collapsed');
-    });
+    document.getElementById('btn-roster-toggle').addEventListener('click', () =>
+      document.getElementById('panel-roster').classList.toggle('collapsed'));
 
     // Measure clear
-    document.getElementById('btn-measure-clear').addEventListener('click', () => {
-      MapCtrl.clearMeasure();
-    });
+    document.getElementById('btn-measure-clear').addEventListener('click', () => MapCtrl.clearMeasure());
 
     // Plot grid
     document.getElementById('btn-plot-go').addEventListener('click', () => this._plotGrid());
@@ -362,9 +454,8 @@ const App = {
     });
 
     // Comms placeholder
-    document.getElementById('btn-chat').addEventListener('click', () => {
-      UI.toast('C2 Comms coming in Phase 3', 'info');
-    });
+    document.getElementById('btn-chat').addEventListener('click', () =>
+      UI.toast('C2 Comms coming in Phase 3', 'info'));
 
     // Init map
     MapCtrl.init();
@@ -409,7 +500,6 @@ const App = {
   },
 
   async _postAuth() {
-    // Try restoring last mission
     const m = await Mission.restore();
     if (m) {
       UI.setMissionLabel(m.name);
@@ -426,13 +516,13 @@ const App = {
   },
 
   _plotGrid() {
-    const raw  = document.getElementById('plot-input').value;
+    const raw   = document.getElementById('plot-input').value;
     const errEl = document.getElementById('plot-error');
     errEl.hidden = true;
 
     const result = parseMGRS(raw);
     if (!result.valid) {
-      errEl.textContent = 'Invalid grid reference. Try "16TDL123456" or "123456" for a local grid.';
+      errEl.textContent = 'Invalid grid. Try "16TDL123456" or just "123456".';
       errEl.hidden = false;
       return;
     }
@@ -440,15 +530,18 @@ const App = {
     MapCtrl.panTo(result.lat, result.lng, 15);
     UI.closeSheet('sheet-plot-grid');
 
-    const note = result.note ? ` (${result.note})` : '';
-    UI.toast(`Plotting: ${toMGRS(result.lat, result.lng, 5)}${note}`, 'info');
-
-    // Drop a temporary marker
     const marker = L.circleMarker([result.lat, result.lng], {
       radius: 8, color: '#d29922', fillColor: '#d29922', fillOpacity: 0.8
     }).addTo(MapCtrl.map);
-    marker.bindPopup(`<div class="popup-body"><div class="popup-name">Plotted Grid</div><div class="popup-mgrs">${toMGRS(result.lat, result.lng, 5)}</div></div>`, { autoPan: false }).openPopup();
+    marker.bindPopup(
+      `<div class="popup-body"><div class="popup-name">Plotted Grid</div>` +
+      `<div class="popup-mgrs">${toMGRS(result.lat, result.lng, 5)}</div></div>`,
+      { autoPan: false }
+    ).openPopup();
     setTimeout(() => marker.remove(), 30000);
+
+    const note = result.note ? ` (${result.note})` : '';
+    UI.toast(`Plotting: ${toMGRS(result.lat, result.lng, 5)}${note}`, 'info');
   },
 
   _toggleTracking() {
@@ -459,10 +552,7 @@ const App = {
       UI.toast('Location tracking off', 'info');
       return;
     }
-    if (!navigator.geolocation) {
-      UI.toast('Geolocation not supported', 'error');
-      return;
-    }
+    if (!navigator.geolocation) { UI.toast('Geolocation not supported', 'error'); return; }
     this._watchId = navigator.geolocation.watchPosition(
       pos => {
         const { latitude: lat, longitude: lng } = pos.coords;
@@ -480,7 +570,6 @@ const App = {
   }
 };
 
-// Boot on DOM ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => App.init());
 } else {

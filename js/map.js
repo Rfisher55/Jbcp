@@ -19,77 +19,122 @@ const BASEMAPS = {
 };
 
 const MapCtrl = {
-  _map:         null,
-  _grid:        null,
-  _unitLayer:   null,
-  _graphicLayer:null,
-  _selfMarker:  null,
-  _units:       {},    // id → { data, marker }
-  _graphics:    {},    // id → { data, layer }
-  _basemap:     null,
-  _activeTool:  'select',
-  _drawPoints:  [],
-  _measurePts:  [],
-  _measureLayer:null,
+  _map:              null,
+  _grid:             null,
+  _unitLayer:        null,
+  _graphicLayer:     null,
+  _measureLayer:     null,
+  _previewGroup:     null,
+  _selfMarker:       null,
+  _units:            {},
+  _graphics:         {},
+  _basemap:          null,
+  _currentBase:      'osm',
+  _activeTool:       'select',
+  _drawPoints:       [],
+  _measurePts:       [],
+  _activeSIDC:       null,
+  _activeCatalogEntry: null,
+  _activeEchelon:    '',
+  _activeGraphicType:null,
+  _pendingLatLng:    null,
+  _clickTimeout:     null,
 
   init() {
     this._map = L.map('map', {
-      center:    AO.center,
-      zoom:      AO.zoom,
-      zoomControl: false,
+      center:           AO.center,
+      zoom:             AO.zoom,
+      zoomControl:      false,
       attributionControl: true,
+      doubleClickZoom:  false,
     });
 
-    // Default basemap
     this._basemap = L.tileLayer(BASEMAPS.osm.url, BASEMAPS.osm.opts).addTo(this._map);
-    this._currentBase = 'osm';
 
-    // Feature layers
     this._unitLayer    = L.featureGroup().addTo(this._map);
     this._graphicLayer = L.featureGroup().addTo(this._map);
     this._measureLayer = L.featureGroup().addTo(this._map);
+    this._previewGroup = L.featureGroup().addTo(this._map);
 
-    // MGRS grid
     this._grid = createMGRSGrid().addTo(this._map);
 
-    // Cursor MGRS readout
+    // MGRS cursor readout + draw preview
     this._map.on('mousemove', e => {
       const s = toMGRS(e.latlng.lat, e.latlng.lng, 4);
       document.getElementById('mgrs-display').textContent = s || '──';
+      if (this._isDrawing() && this._drawPoints.length > 0) {
+        this._updatePreview(e.latlng);
+      }
     });
     this._map.on('mouseout', () => {
       document.getElementById('mgrs-display').textContent = '──────────────';
+      if (this._isDrawing()) this._updatePreview(null);
     });
 
-    // Map click dispatch
-    this._map.on('click', e => this._onMapClick(e));
+    this._map.on('click',       e => this._onMapClick(e));
+    this._map.on('dblclick',    e => this._onMapDblClick(e));
+    this._map.on('contextmenu', e => this._onMapContextMenu(e));
 
     return this;
+  },
+
+  _isDrawing() {
+    return ['draw-line', 'draw-area', 'draw-graphic'].includes(this._activeTool);
   },
 
   // ── Tool activation ─────────────────────────────────────
   setTool(tool) {
     this._activeTool = tool;
     this._drawPoints = [];
+    this._clearPreview();
+    this._activeGraphicType = null;
+
     const mc = this._map.getContainer();
     mc.className = mc.className.replace(/cursor-\S+/g, '').trim();
 
-    if (tool === 'select')     { /* default cursor */ }
-    if (tool === 'place-unit') { mc.classList.add('cursor-cell'); }
-    if (tool === 'draw-line')  { mc.classList.add('cursor-crosshair'); }
-    if (tool === 'draw-area')  { mc.classList.add('cursor-crosshair'); }
-    if (tool === 'measure')    { mc.classList.add('cursor-crosshair'); UI.showSheet('sheet-measure'); }
-    if (tool === 'plot-grid')  { UI.showSheet('sheet-plot-grid'); this._activeTool = 'select'; }
+    const drawToolbar = document.getElementById('draw-toolbar');
+    if (drawToolbar) drawToolbar.classList.add('hidden');
+
+    if (tool === 'place-unit')  { mc.classList.add('cursor-cell'); }
+    if (tool === 'draw-line')   { mc.classList.add('cursor-crosshair'); drawToolbar?.classList.remove('hidden'); this._updateDrawCount(); }
+    if (tool === 'draw-area')   { mc.classList.add('cursor-crosshair'); drawToolbar?.classList.remove('hidden'); this._updateDrawCount(); }
+    if (tool === 'measure')     { mc.classList.add('cursor-crosshair'); UI.showSheet('sheet-measure'); }
+    if (tool === 'plot-grid')   { UI.showSheet('sheet-plot-grid'); this._activeTool = 'select'; }
+    if (tool === 'select')      { this._activeSIDC = null; this._activeCatalogEntry = null; }
   },
 
-  // ── Map click handler ────────────────────────────────────
-  _onMapClick(e) {
-    const { lat, lng } = e.latlng;
+  // Start a tactical graphic draw with a specific type
+  startGraphicDraw(graphicType) {
+    this._activeGraphicType = graphicType;
+    this._drawPoints = [];
+    this._activeTool = 'draw-graphic';
+    this._clearPreview();
 
+    const mc = this._map.getContainer();
+    mc.className = mc.className.replace(/cursor-\S+/g, '').trim();
+    mc.classList.add('cursor-crosshair');
+
+    document.getElementById('draw-toolbar')?.classList.remove('hidden');
+    this._updateDrawCount();
+  },
+
+  // Store the selected symbol before clicking the map
+  setActiveSIDC(entry, echelon) {
+    this._activeCatalogEntry = entry;
+    this._activeEchelon      = echelon;
+    this._activeSIDC         = buildSIDC(entry.base, echelon);
+  },
+
+  // ── Map click ────────────────────────────────────────────
+  _onMapClick(e) {
     if (this._activeTool === 'place-unit') {
-      // Show symbol picker; pending placement stored
-      this._pendingLatLng = e.latlng;
-      UI.showSheet('sheet-symbols');
+      if (!this._activeSIDC) {
+        this._pendingLatLng = e.latlng;
+        UI.buildSymbolGrid(App._symFilter || 'F', App._symEchelon || '');
+        UI.showSheet('sheet-symbols');
+        return;
+      }
+      this._placeUnitAt(e.latlng);
       return;
     }
 
@@ -100,30 +145,164 @@ const MapCtrl = {
       return;
     }
 
-    if (this._activeTool === 'draw-line') {
-      this._drawPoints.push(e.latlng);
-      if (this._drawPoints.length >= 2) this._finishLine();
-      return;
-    }
-
-    if (this._activeTool === 'draw-area') {
-      this._drawPoints.push(e.latlng);
-      if (this._drawPoints.length >= 3) this._finishArea();
-      return;
+    if (this._isDrawing()) {
+      clearTimeout(this._clickTimeout);
+      const latlng = e.latlng;
+      this._clickTimeout = setTimeout(() => {
+        this._drawPoints.push(latlng);
+        this._updatePreview(null);
+        this._updateDrawCount();
+      }, 180);
     }
   },
 
-  // ── Place unit after symbol chosen ─────────────────────
-  async placeUnit(catalogEntry, echelon) {
-    if (!this._pendingLatLng) return;
-    const latlng = this._pendingLatLng;
-    this._pendingLatLng = null;
+  _onMapDblClick(e) {
+    if (this._isDrawing()) {
+      clearTimeout(this._clickTimeout);
+      L.DomEvent.stop(e);
+      this.finishDraw();
+    }
+  },
 
-    const sidc     = buildSIDC(catalogEntry.base, echelon);
-    const missionId = Mission.active ? Mission.current.id : null;
+  _onMapContextMenu(e) {
+    if (this._isDrawing()) {
+      L.DomEvent.stop(e);
+      if (this._drawPoints.length > 0) {
+        this._drawPoints.pop();
+        this._updatePreview(null);
+        this._updateDrawCount();
+      }
+    }
+  },
+
+  // ── Draw preview ─────────────────────────────────────────
+  _updatePreview(cursor) {
+    this._clearPreview();
+    if (!this._isDrawing()) return;
+
+    const gt    = this._activeGraphicType;
+    const color = gt?.color || (this._activeTool === 'draw-area' ? '#d29922' : '#58a6ff');
+    const dash  = gt?.dash  || null;
+
+    this._drawPoints.forEach(p => {
+      L.circleMarker(p, { radius: 4, color, fillColor: color, fillOpacity: 0.9, weight: 1.5, interactive: false })
+        .addTo(this._previewGroup);
+    });
+
+    const pts = cursor ? [...this._drawPoints, cursor] : this._drawPoints;
+    if (pts.length >= 2) {
+      L.polyline(pts, { color, weight: 2, opacity: 0.65, dashArray: dash, interactive: false })
+        .addTo(this._previewGroup);
+    }
+  },
+
+  _clearPreview() {
+    if (this._previewGroup) this._previewGroup.clearLayers();
+  },
+
+  _updateDrawCount() {
+    const n  = this._drawPoints.length;
+    const gt = this._activeGraphicType;
+    const el = document.getElementById('draw-vertex-count');
+    const label = document.getElementById('draw-type-label');
+    if (el) el.textContent = n + (n === 1 ? ' pt' : ' pts');
+    if (label && gt) label.textContent = gt.name;
+  },
+
+  // ── Finish / cancel draw ─────────────────────────────────
+  finishDraw() {
+    this._clearPreview();
+    const pts  = this._drawPoints.slice();
+    this._drawPoints = [];
+    document.getElementById('draw-toolbar')?.classList.add('hidden');
+
+    const tool = this._activeTool;
+    const gt   = this._activeGraphicType;
+    const isArea = tool === 'draw-area' || (tool === 'draw-graphic' && gt?.type === 'area');
+
+    if (pts.length < 2 || (isArea && pts.length < 3)) {
+      UI.toast('Too few points — draw cancelled', 'info');
+      this.setTool('select');
+      UI.toolBtn('select');
+      return;
+    }
+
+    if (isArea) {
+      const geo = { type: 'Polygon', coordinates: [[...pts.map(p => [p.lng, p.lat]), [pts[0].lng, pts[0].lat]]] };
+      const sty = gt ? { color: gt.color, weight: gt.weight, dashArray: gt.dash, fillOpacity: gt.fill } : { color: '#d29922', fillOpacity: 0.1 };
+      const name = gt?.label !== '' ? this._promptLabel(gt?.name || 'Area', gt?.label) : '';
+      this._saveGraphic({ type: 'area', geometry: geo, style: { ...sty, label: name } });
+    } else {
+      const geo = { type: 'LineString', coordinates: pts.map(p => [p.lng, p.lat]) };
+      const sty = gt ? { color: gt.color, weight: gt.weight, dashArray: gt.dash } : { color: '#58a6ff', weight: 2 };
+      const name = gt?.label !== '' ? this._promptLabel(gt?.name || 'Line', gt?.label) : '';
+      this._saveGraphic({ type: 'line', geometry: geo, style: { ...sty, label: name } });
+    }
+
+    this._activeGraphicType = null;
+    this.setTool('select');
+    UI.toolBtn('select');
+  },
+
+  _promptLabel(typeName, prefix) {
+    const suggested = prefix ? prefix + ' ' : '';
+    const result = prompt(`Label for ${typeName}:`, suggested);
+    return result !== null ? result.trim() : '';
+  },
+
+  cancelDraw() {
+    clearTimeout(this._clickTimeout);
+    this._clearPreview();
+    this._drawPoints = [];
+    this._activeGraphicType = null;
+    document.getElementById('draw-toolbar')?.classList.add('hidden');
+    this.setTool('select');
+    UI.toolBtn('select');
+  },
+
+  undoLastPoint() {
+    if (this._drawPoints.length > 0) {
+      this._drawPoints.pop();
+      this._updatePreview(null);
+      this._updateDrawCount();
+    }
+  },
+
+  // ── Place unit ───────────────────────────────────────────
+  _placeUnitAt(latlng) {
+    const entry = this._activeCatalogEntry;
+    if (!entry) return;
+
     const unit = {
       id:         crypto.randomUUID(),
-      mission_id: missionId,
+      mission_id: Mission.active ? Mission.current.id : null,
+      sidc:       this._activeSIDC,
+      callsign:   entry.name,
+      lat:        latlng.lat,
+      lng:        latlng.lng,
+      notes:      '',
+      created_by: Auth.user?.id,
+      updated_at: new Date().toISOString(),
+    };
+
+    this._addUnitMarker(unit);
+
+    if (Mission.active) {
+      DB.upsertUnit(unit).catch(e => UI.toast('Save failed: ' + e.message, 'error'));
+    }
+    // Keep tool active for placing more of the same symbol
+  },
+
+  // Backward-compat: called when symbol is selected after clicking map
+  async placeUnit(catalogEntry, echelon) {
+    const latlng = this._pendingLatLng;
+    if (!latlng) return;
+    this._pendingLatLng = null;
+
+    const sidc = buildSIDC(catalogEntry.base, echelon);
+    const unit = {
+      id:         crypto.randomUUID(),
+      mission_id: Mission.active ? Mission.current.id : null,
       sidc,
       callsign:   catalogEntry.name,
       lat:        latlng.lat,
@@ -134,12 +313,9 @@ const MapCtrl = {
     };
 
     this._addUnitMarker(unit);
-
-    if (missionId) {
-      try { await DB.upsertUnit(unit); }
-      catch (e) { UI.toast('Save failed: ' + e.message, 'error'); }
+    if (Mission.active) {
+      DB.upsertUnit(unit).catch(e => UI.toast('Save failed: ' + e.message, 'error'));
     }
-
     this.setTool('select');
     UI.toolBtn('select');
   },
@@ -149,7 +325,10 @@ const MapCtrl = {
     const marker = L.marker([unit.lat, unit.lng], { icon, draggable: true })
       .addTo(this._unitLayer);
 
-    marker.on('click', () => this._openUnitDetail(unit.id));
+    marker.on('click', () => {
+      if (this._activeTool !== 'select') return;
+      this._openUnitDetail(unit.id);
+    });
     marker.on('dragend', e => this._onUnitDrag(unit.id, e));
 
     this._units[unit.id] = { data: unit, marker };
@@ -159,8 +338,8 @@ const MapCtrl = {
     const u = this._units[id];
     if (!u) return;
     UI.showUnitDetail(u.data, {
-      onEdit: (updates) => this._updateUnit(id, updates),
-      onDelete: () => this._deleteUnit(id),
+      onEdit:   updates => this._updateUnit(id, updates),
+      onDelete: ()      => this._deleteUnit(id),
     });
   },
 
@@ -168,15 +347,9 @@ const MapCtrl = {
     const entry = this._units[id];
     if (!entry) return;
     Object.assign(entry.data, updates, { updated_at: new Date().toISOString() });
-
-    // Re-render icon if SIDC changed
-    if (updates.sidc) {
-      entry.marker.setIcon(makeMilIcon(updates.sidc));
-    }
-
+    if (updates.sidc) entry.marker.setIcon(makeMilIcon(updates.sidc));
     if (Mission.active) {
-      try { await DB.upsertUnit(entry.data); }
-      catch (e) { UI.toast('Update failed: ' + e.message, 'error'); }
+      DB.upsertUnit(entry.data).catch(e => UI.toast('Update failed: ' + e.message, 'error'));
     }
   },
 
@@ -185,10 +358,8 @@ const MapCtrl = {
     if (!entry) return;
     this._unitLayer.removeLayer(entry.marker);
     delete this._units[id];
-
     if (Mission.active) {
-      try { await DB.deleteUnit(id); }
-      catch (e) { UI.toast('Delete failed: ' + e.message, 'error'); }
+      DB.deleteUnit(id).catch(e => UI.toast('Delete failed: ' + e.message, 'error'));
     }
     UI.closeSheet('sheet-unit');
   },
@@ -200,14 +371,12 @@ const MapCtrl = {
     entry.data.lat = lat;
     entry.data.lng = lng;
     entry.data.updated_at = new Date().toISOString();
-
     if (Mission.active) {
-      try { await DB.upsertUnit(entry.data); }
-      catch {}
+      DB.upsertUnit(entry.data).catch(() => {});
     }
   },
 
-  // ── Remote change handlers ───────────────────────────────
+  // ── Remote sync handlers ─────────────────────────────────
   handleRemoteUnit(payload) {
     const { eventType, new: row, old } = payload;
     if (eventType === 'DELETE') {
@@ -235,11 +404,11 @@ const MapCtrl = {
     }
   },
 
-  // ── Load mission data ────────────────────────────────────
+  // ── Mission load ─────────────────────────────────────────
   async loadMission(missionId) {
     this._unitLayer.clearLayers();
     this._graphicLayer.clearLayers();
-    this._units = {};
+    this._units    = {};
     this._graphics = {};
 
     const [units, graphics] = await Promise.all([
@@ -249,13 +418,13 @@ const MapCtrl = {
 
     for (const u of units)   this._addUnitMarker(u);
     for (const g of graphics) this._renderGraphic(g);
-    UI.toast(`Loaded ${units.length} units`, 'info');
+    UI.toast(`Loaded ${units.length} unit${units.length !== 1 ? 's' : ''}`, 'info');
   },
 
   clearMission() {
     this._unitLayer.clearLayers();
     this._graphicLayer.clearLayers();
-    this._units = {};
+    this._units    = {};
     this._graphics = {};
   },
 
@@ -264,57 +433,106 @@ const MapCtrl = {
     const existing = this._graphics[g.id];
     if (existing) { this._graphicLayer.removeLayer(existing.layer); }
 
-    let layer;
-    const geo = g.geometry;
-    const sty = g.style || {};
-    const defStyle = { color: sty.color || '#58a6ff', weight: sty.weight || 2, opacity: 0.8, fillOpacity: 0.15 };
+    const geo  = g.geometry;
+    const sty  = g.style || {};
+    const name = sty.label || '';
 
+    const lineOpts = {
+      color:       sty.color || '#58a6ff',
+      weight:      sty.weight || 2,
+      opacity:     0.9,
+      dashArray:   sty.dashArray || null,
+      fillOpacity: sty.fillOpacity || 0.12,
+    };
+
+    let geomLayer;
     if (geo.type === 'LineString') {
-      layer = L.polyline(geo.coordinates.map(c => [c[1], c[0]]), defStyle);
+      geomLayer = L.polyline(geo.coordinates.map(c => [c[1], c[0]]), lineOpts);
     } else if (geo.type === 'Polygon') {
-      layer = L.polygon(geo.coordinates[0].map(c => [c[1], c[0]]), { ...defStyle, fill: true });
+      geomLayer = L.polygon(geo.coordinates[0].map(c => [c[1], c[0]]), { ...lineOpts, fill: true });
     } else {
       return;
     }
 
-    layer.addTo(this._graphicLayer);
-    this._graphics[g.id] = { data: g, layer };
+    const group = L.featureGroup();
+    group.addLayer(geomLayer);
+
+    // Label marker
+    if (name) {
+      const center = this._geomCenter(geo);
+      if (center) {
+        group.addLayer(L.marker(center, {
+          icon: L.divIcon({
+            html: `<div class="graphic-label" style="color:${lineOpts.color}">${name}</div>`,
+            className: '', iconSize: null,
+          }),
+          interactive: false,
+          zIndexOffset: -10,
+        }));
+      }
+    }
+
+    // Click → select popup with delete
+    group.on('click', e => {
+      if (this._activeTool !== 'select') return;
+      L.DomEvent.stopPropagation(e);
+      const nameHtml = name ? `<div style="font-weight:700;margin-bottom:8px;font-size:14px">${name}</div>` : '';
+      L.popup({ closeButton: true, autoPan: false })
+        .setLatLng(e.latlng)
+        .setContent(
+          `<div class="popup-body">${nameHtml}` +
+          `<button data-gid="${g.id}" class="btn-del-graphic" style="font-size:12px;padding:4px 12px;` +
+          `background:rgba(248,81,73,0.2);color:#f85149;border:1px solid rgba(248,81,73,0.4);` +
+          `border-radius:6px;cursor:pointer">Delete</button></div>`
+        )
+        .addTo(this._map)
+        .openOn(this._map);
+
+      setTimeout(() => {
+        document.querySelectorAll(`.btn-del-graphic[data-gid="${g.id}"]`).forEach(btn => {
+          btn.addEventListener('click', () => {
+            this._graphicLayer.removeLayer(group);
+            delete this._graphics[g.id];
+            if (Mission.active) DB.deleteGraphic(g.id).catch(() => {});
+            this._map.closePopup();
+          });
+        });
+      }, 40);
+    });
+
+    group.addTo(this._graphicLayer);
+    this._graphics[g.id] = { data: g, layer: group };
   },
 
-  _finishLine() {
-    const pts = this._drawPoints.splice(0);
-    const geo = {
-      type: 'LineString',
-      coordinates: pts.map(p => [p.lng, p.lat])
-    };
-    this._saveGraphic({ type: 'line', geometry: geo, style: { color: '#58a6ff' } });
-    this.setTool('select');
-    UI.toolBtn('select');
-  },
-
-  _finishArea() {
-    const pts = this._drawPoints.splice(0);
-    const geo = {
-      type: 'Polygon',
-      coordinates: [[...pts.map(p => [p.lng, p.lat]), [pts[0].lng, pts[0].lat]]]
-    };
-    this._saveGraphic({ type: 'area', geometry: geo, style: { color: '#d29922', fill: true } });
-    this.setTool('select');
-    UI.toolBtn('select');
+  _geomCenter(geo) {
+    try {
+      if (geo.type === 'LineString') {
+        const mid = geo.coordinates[Math.floor(geo.coordinates.length / 2)];
+        return [mid[1], mid[0]];
+      }
+      if (geo.type === 'Polygon') {
+        const ring = geo.coordinates[0];
+        const lat  = ring.reduce((s, c) => s + c[1], 0) / ring.length;
+        const lng  = ring.reduce((s, c) => s + c[0], 0) / ring.length;
+        return [lat, lng];
+      }
+    } catch {}
+    return null;
   },
 
   async _saveGraphic(partial) {
     const graphic = {
       id:         crypto.randomUUID(),
       mission_id: Mission.active ? Mission.current.id : null,
-      ...partial,
+      type:       partial.type,
+      geometry:   partial.geometry,
+      style:      partial.style || {},
       created_by: Auth.user?.id,
       updated_at: new Date().toISOString(),
     };
     this._renderGraphic(graphic);
     if (Mission.active) {
-      try { await DB.upsertGraphic(graphic); }
-      catch (e) { UI.toast('Save failed: ' + e.message, 'error'); }
+      DB.upsertGraphic(graphic).catch(e => UI.toast('Save failed: ' + e.message, 'error'));
     }
   },
 
@@ -327,11 +545,10 @@ const MapCtrl = {
   _computeMeasure() {
     const [a, b] = this._measurePts;
     this._drawMeasurePt(b);
-    L.polyline([a, b], { color: '#d29922', weight: 2, dashArray: '6,4' })
-      .addTo(this._measureLayer);
+    L.polyline([a, b], { color: '#d29922', weight: 2, dashArray: '6,4' }).addTo(this._measureLayer);
 
-    const dist = this._map.distance(a, b);
-    const az   = this._bearing(a, b);
+    const dist  = this._map.distance(a, b);
+    const az    = this._bearing(a, b);
     const mgrsA = toMGRS(a.lat, a.lng, 4) || '—';
     const mgrsB = toMGRS(b.lat, b.lng, 4) || '—';
 
@@ -375,11 +592,10 @@ const MapCtrl = {
     if (this._selfMarker) {
       this._selfMarker.setLatLng(latlng);
     } else {
-      const icon = L.divIcon({
-        html: `<div class="self-dot"></div>`,
-        className: '', iconSize: [16, 16], iconAnchor: [8, 8]
-      });
-      this._selfMarker = L.marker(latlng, { icon, zIndexOffset: 1000 }).addTo(this._map);
+      this._selfMarker = L.marker(latlng, {
+        icon: L.divIcon({ html: '<div class="self-dot"></div>', className: '', iconSize: [16,16], iconAnchor: [8,8] }),
+        zIndexOffset: 1000,
+      }).addTo(this._map);
     }
     const mgrsStr = toMGRS(lat, lng, 5) || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     document.getElementById('coord-mgrs').textContent = mgrsStr;
@@ -390,7 +606,6 @@ const MapCtrl = {
     else this._map.panTo([lat, lng]);
   },
 
-  // ── Grid visibility ──────────────────────────────────────
   setGridVisible(v) {
     v ? this._grid.show() : this._grid.hide();
   },

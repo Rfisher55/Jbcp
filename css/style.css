@@ -568,6 +568,90 @@ body.fullmap #disclaimer { display: none !important; }
   50%      { box-shadow: 0 0 0 8px rgba(88,166,255,0.15), 0 2px 8px rgba(0,0,0,0.5); }
 }
 
+/* ── Draw toolbar ────────────────────────────────────── */
+.draw-toolbar {
+  position: fixed;
+  top: calc(22px + var(--safe-t) + var(--bar-h) + 10px);
+  left: 50%; transform: translateX(-50%);
+  z-index: 300;
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg-solid);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  white-space: nowrap;
+}
+.draw-toolbar.hidden { display: none; }
+.draw-type-label {
+  font-size: 12px; font-weight: 600; color: var(--text);
+  margin-right: 4px; max-width: 120px;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.draw-vertex-count {
+  font-size: 11px; color: var(--text-dim);
+  font-family: 'SF Mono', monospace; min-width: 36px;
+}
+.dtb-btn {
+  height: 28px; padding: 0 10px; border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.07); color: var(--text);
+  font-size: 12px; cursor: pointer; transition: background var(--ease);
+}
+.dtb-btn:hover { background: rgba(255,255,255,0.14); }
+.dtb-finish { background: rgba(88,166,255,0.15); border-color: rgba(88,166,255,0.4); color: var(--blue); }
+.dtb-cancel { color: var(--red); }
+
+/* ── Symbol search ───────────────────────────────────── */
+#symbol-search {
+  width: 100%; height: 36px; padding: 0 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border); border-radius: 18px;
+  color: var(--text); font-size: 14px; font-family: inherit;
+  outline: none; margin-bottom: 10px;
+  -webkit-appearance: none; appearance: none;
+}
+#symbol-search:focus { border-color: var(--blue); }
+
+/* ── Graphic picker ──────────────────────────────────── */
+.graphic-tabs {
+  display: flex; gap: 6px; margin-bottom: 14px;
+}
+.graphic-tab {
+  flex: 1; height: 34px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  color: var(--text-dim); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all var(--ease);
+}
+.graphic-tab.active {
+  background: rgba(88,166,255,0.15); border-color: rgba(88,166,255,0.4); color: var(--blue);
+}
+.graphic-grid {
+  display: grid; grid-template-columns: repeat(2,1fr); gap: 8px;
+}
+.graphic-item {
+  padding: 10px; background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  cursor: pointer; transition: all var(--ease);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.graphic-item:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.2); }
+.graphic-item:active { transform: scale(.97); }
+.graphic-preview { border-radius: 3px; }
+.graphic-name { font-size: 12px; color: var(--text); font-weight: 500; }
+.graphic-code { font-size: 10px; color: var(--text-dim); font-family: monospace; }
+
+/* ── Graphic labels on map ───────────────────────────── */
+.graphic-label {
+  font-family: 'SF Mono', 'Courier New', monospace;
+  font-size: 11px; font-weight: 700;
+  white-space: nowrap;
+  text-shadow: 0 0 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7);
+  pointer-events: none;
+  padding: 1px 4px;
+}
+
 /* ── Responsive: sidebar on tablet+ ──────────────────── */
 @media (min-width: 768px) {
   .sheet {
