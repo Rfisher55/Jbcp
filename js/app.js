@@ -152,20 +152,22 @@ const UI = {
     const col     = REDCON_COLORS[rc];
 
     const lace    = unit.lace;
+    const _lacePct = v => Math.max(0, Math.min(100, +v || 0));
     const laceHTML = lace ? `
       <div class="section-label">LACE STATUS</div>
       <div class="lace-display">
-        ${['l','a','e'].map((k, i) => `
-          <div class="lace-row">
+        ${['l','a','e'].map((k, i) => {
+          const pct = _lacePct(lace[k]);
+          return `<div class="lace-row">
             <span class="lace-key">${['L','A','E'][i]}</span>
-            <div class="lace-bar-bg"><div class="lace-fill ${Reports.laceColor(lace[k])}" style="width:${lace[k]}%"></div></div>
-            <span class="lace-val">${lace[k]}%</span>
-          </div>
-        `).join('')}
+            <div class="lace-bar-bg"><div class="lace-fill ${Reports.laceColor(pct)}" style="width:${pct}%"></div></div>
+            <span class="lace-val">${pct}%</span>
+          </div>`;
+        }).join('')}
         <div class="lace-row">
           <span class="lace-key">C</span>
           <div class="lace-bar-bg" style="background:rgba(248,81,73,0.15)"></div>
-          <span class="lace-val">${lace.c} cas</span>
+          <span class="lace-val">${Math.max(0, +lace.c || 0)} cas</span>
         </div>
       </div>
     ` : '';
@@ -1951,7 +1953,12 @@ const App = {
           notes:      u.notes || '',
           redcon:     Math.max(1, Math.min(5, +u.redcon || 5)),
           opstat:     ['FMC','PMC','NMC'].includes(u.opstat) ? u.opstat : 'FMC',
-          lace:       u.lace || null,
+          lace:       u.lace ? {
+            l: Math.max(0, Math.min(100, parseInt(u.lace.l, 10) || 0)),
+            a: Math.max(0, Math.min(100, parseInt(u.lace.a, 10) || 0)),
+            c: Math.max(0,              parseInt(u.lace.c, 10) || 0),
+            e: Math.max(0, Math.min(100, parseInt(u.lace.e, 10) || 0)),
+          } : null,
           updated_at: new Date().toISOString(),
         };
         if (MapCtrl._units[u.id]) {
