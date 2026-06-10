@@ -96,12 +96,15 @@ const Chat = {
     div.innerHTML =
       `<div class="chat-header">` +
       `<span class="chat-cs">${_escH(msg.callsign)}</span>` +
-      (msg.mgrs ? `<span class="chat-grid">${_escH(msg.mgrs)}</span>` : '') +
+      (msg.mgrs ? `<span class="chat-grid mgrs-tap-link" data-mgrs="${_escH(msg.mgrs)}">${_escH(msg.mgrs)}</span>` : '') +
       `<span class="chat-time">${time}</span></div>` +
-      `<div class="chat-text">${_escH(msg.text)}</div>`;
+      `<div class="chat-text">${_linkifyMGRS(msg.text)}</div>`;
     list.appendChild(div);
     list.scrollTop = list.scrollHeight;
   },
+
+  // Detect MGRS-like tokens in message text and wrap them in tappable spans
+  _linkifyMGRS: null,  // set below after function definition
 
   _refreshBadge() {
     const b = document.getElementById('chat-badge');
@@ -111,4 +114,25 @@ const Chat = {
   },
 
   isJoined() { return this._channel !== null; }
+};
+
+// Scan message text for MGRS coordinates and wrap matches in clickable spans.
+// Pattern: 1-2 digit zone + zone letter + 2 letter 100km square + 4-10 even digits.
+Chat._linkifyMGRS = function(text) {
+  const RE = /\b(\d{1,2}[C-HJ-NP-X][A-Z]{2}\d{4,10})\b/gi;
+  let result = '';
+  let last = 0;
+  let m;
+  while ((m = RE.exec(text)) !== null) {
+    const candidate = m[1];
+    if (typeof parseMGRS === 'function') {
+      const parsed = parseMGRS(candidate);
+      if (!parsed.valid) { result += _escH(text.slice(last, RE.lastIndex)); last = RE.lastIndex; continue; }
+    }
+    result += _escH(text.slice(last, m.index));
+    result += `<span class="chat-text-grid mgrs-tap-link" data-mgrs="${_escH(candidate)}">${_escH(candidate)}</span>`;
+    last = RE.lastIndex;
+  }
+  result += _escH(text.slice(last));
+  return result;
 };
