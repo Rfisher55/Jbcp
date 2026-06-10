@@ -190,12 +190,23 @@ const UI = {
       </div>
       <dl class="detail-dl">
         <dt>MGRS</dt><dd class="mgrs-tap-link" data-mgrs="${mgrsStr}">${mgrsStr}</dd>
+        ${(() => {
+          const selfPos = App._selfPos;
+          if (!selfPos) return '';
+          const dist = MapCtrl.map?.distance(selfPos, { lat: unit.lat, lng: unit.lng });
+          const brg  = MapCtrl._bearing?.(selfPos, { lat: unit.lat, lng: unit.lng });
+          if (!dist || brg == null) return '';
+          const distStr = dist >= 1000 ? (dist / 1000).toFixed(1) + ' km' : Math.round(dist) + ' m';
+          const brgStr  = brg.toFixed(0) + '° (' + Math.round(brg * 6400 / 360) + ' mil)';
+          return `<dt>From self</dt><dd>${distStr} at ${brgStr}</dd>`;
+        })()}
         <dt>Lat/Lng</dt><dd>${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}</dd>
         <dt>Updated</dt><dd>${unit.updated_at ? new Date(unit.updated_at).toLocaleTimeString() : '—'}</dd>
       </dl>
       <div class="btn-row" style="margin-bottom:8px">
         <button class="btn-primary" id="btn-unit-save">Save</button>
-        <button class="btn-secondary" id="btn-file-lace">File LACE</button>
+        <button class="btn-secondary" id="btn-file-lace">LACE</button>
+        <button class="btn-secondary" id="btn-file-ace">ACE</button>
       </div>
       <div class="btn-row" style="margin-bottom:8px">
         <button class="btn-secondary" id="btn-unit-fly">Go to Unit</button>
@@ -242,6 +253,11 @@ const UI = {
     document.getElementById('btn-file-lace').addEventListener('click', () => {
       UI.closeSheet('sheet-unit');
       Reports.openLACE(unit.id, unit.lace);
+    });
+
+    document.getElementById('btn-file-ace').addEventListener('click', () => {
+      UI.closeSheet('sheet-unit');
+      Reports.openACE(unit.id);
     });
 
     document.getElementById('btn-unit-fly').addEventListener('click', () => {
@@ -560,6 +576,7 @@ const App = {
   _watchId:       null,
   _labelCallback: null,
   _lastBFT:       0,
+  _selfPos:       null,
 
   promptLabel(typeName, prefix, cb) {
     this._labelCallback = cb;
@@ -1293,6 +1310,7 @@ const App = {
     this._watchId = navigator.geolocation.watchPosition(
       pos => {
         const { latitude: lat, longitude: lng, heading, speed } = pos.coords;
+        App._selfPos = { lat, lng };
         MapCtrl.showSelf(lat, lng);
         MapCtrl.panTo(lat, lng);
         document.getElementById('btn-locate').classList.add('active');
