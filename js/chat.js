@@ -142,6 +142,17 @@ const Chat = {
     b.style.display = this._unread > 0 ? 'flex' : 'none';
   },
 
+  clearHistory() {
+    this._msgs   = [];
+    this._unread = 0;
+    if (this._missionId) {
+      try { localStorage.removeItem(`cop_chat_${this._missionId}`); } catch {}
+    }
+    const list = document.getElementById('chat-msgs');
+    if (list) list.innerHTML = '';
+    this._refreshBadge();
+  },
+
   isJoined() { return this._channel !== null; }
 };
 

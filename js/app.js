@@ -938,6 +938,25 @@ const App = {
     // Measure clear
     document.getElementById('btn-measure-clear').addEventListener('click', () => MapCtrl.clearMeasure());
 
+    // Chat clear (two-tap confirm)
+    let _chatClearStep = 0;
+    document.getElementById('btn-chat-clear')?.addEventListener('click', () => {
+      _chatClearStep++;
+      const btn = document.getElementById('btn-chat-clear');
+      if (_chatClearStep === 1) {
+        if (btn) btn.textContent = 'Confirm';
+        setTimeout(() => {
+          _chatClearStep = 0;
+          if (btn) btn.textContent = 'Clear';
+        }, 3000);
+      } else {
+        _chatClearStep = 0;
+        if (btn) btn.textContent = 'Clear';
+        Chat.clearHistory();
+        UI.toast('Chat history cleared', 'info', 2000);
+      }
+    });
+
     // (plot-grid sheet removed — replaced by pin tool)
 
     // Chat button

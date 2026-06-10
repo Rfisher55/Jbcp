@@ -298,8 +298,11 @@
   <div id="sheet-chat" class="sheet sheet-tall hidden" role="dialog" aria-modal="true">
     <div class="sheet-inner sheet-inner-chat">
       <div class="sheet-handle"></div>
-      <button class="btn-close" id="btn-chat-close">✕</button>
-      <h3>GeoChat</h3>
+      <div class="sheet-head">
+        <h3>GeoChat</h3>
+        <button class="btn-secondary" id="btn-chat-clear" style="font-size:11px;padding:2px 8px">Clear</button>
+        <button class="btn-close" id="btn-chat-close">✕</button>
+      </div>
       <div id="chat-msgs" class="chat-msgs"></div>
       <div id="chat-canned" class="chat-canned"></div>
       <div class="chat-input-row">
