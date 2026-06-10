@@ -160,8 +160,20 @@ const UI = {
       UI.closeSheet('sheet-unit');
     });
 
+    let deleteStep = 0;
     document.getElementById('btn-unit-delete').addEventListener('click', () => {
-      if (confirm(`Delete "${unit.callsign}"?`)) onDelete();
+      deleteStep++;
+      if (deleteStep === 1) {
+        const btn = document.getElementById('btn-unit-delete');
+        if (btn) { btn.textContent = 'Tap again to confirm'; btn.style.background = 'rgba(248,81,73,0.4)'; }
+        setTimeout(() => {
+          deleteStep = 0;
+          const b = document.getElementById('btn-unit-delete');
+          if (b) { b.textContent = 'Delete'; b.style.background = ''; }
+        }, 3000);
+      } else {
+        onDelete();
+      }
     });
 
     document.getElementById('edit-callsign').addEventListener('keydown', e => {
@@ -243,8 +255,18 @@ const UI = {
       UI.toast('Code copied!', 'success');
     });
 
+    let leaveStep = 0;
     document.getElementById('btn-leave-mission')?.addEventListener('click', () => {
-      if (confirm('Leave this mission?')) {
+      leaveStep++;
+      if (leaveStep === 1) {
+        const btn = document.getElementById('btn-leave-mission');
+        if (btn) btn.textContent = 'Tap again to confirm';
+        setTimeout(() => {
+          leaveStep = 0;
+          const b = document.getElementById('btn-leave-mission');
+          if (b) b.textContent = 'Leave';
+        }, 3000);
+      } else {
         Mission.leave();
         MapCtrl.clearMission();
         UI.setMissionLabel(null);
@@ -316,10 +338,30 @@ const UI = {
 
 // ── App bootstrap ─────────────────────────────────────────
 const App = {
-  _symFilter:  'F',
-  _symEchelon: '',
-  _graphicTab: 'LN',
-  _watchId:    null,
+  _symFilter:     'F',
+  _symEchelon:    '',
+  _graphicTab:    'LN',
+  _watchId:       null,
+  _labelCallback: null,
+
+  promptLabel(typeName, prefix, cb) {
+    this._labelCallback = cb;
+    const input = document.getElementById('label-input');
+    const title = document.getElementById('sheet-label-title');
+    if (title) title.textContent = `Label for ${typeName}`;
+    if (input) input.value = prefix ? prefix.trimEnd() + ' ' : '';
+    UI.showSheet('sheet-label');
+    setTimeout(() => { try { input?.focus(); input?.select(); } catch {} }, 150);
+  },
+
+  _confirmLabel(skip) {
+    const value = skip ? '' : (document.getElementById('label-input')?.value || '').trim();
+    UI.closeSheet('sheet-label');
+    if (this._labelCallback) {
+      this._labelCallback(value);
+      this._labelCallback = null;
+    }
+  },
 
   async init() {
     // Close buttons
@@ -401,6 +443,14 @@ const App = {
     document.getElementById('btn-draw-finish')?.addEventListener('click', () => MapCtrl.finishDraw());
     document.getElementById('btn-draw-undo')?.addEventListener('click',   () => MapCtrl.undoLastPoint());
     document.getElementById('btn-draw-cancel')?.addEventListener('click', () => MapCtrl.cancelDraw());
+
+    // Label sheet (replaces native prompt — works in iOS PWA)
+    document.getElementById('btn-label-done')?.addEventListener('click', () => this._confirmLabel(false));
+    document.getElementById('btn-label-skip')?.addEventListener('click', () => this._confirmLabel(true));
+    document.getElementById('btn-label-close')?.addEventListener('click', () => this._confirmLabel(true));
+    document.getElementById('label-input')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') this._confirmLabel(false);
+    });
 
     // Full-map toggle
     document.getElementById('btn-fullmap').addEventListener('click', () =>

@@ -230,6 +230,24 @@
     </div>
   </div>
 
+  <!-- Label input sheet (replaces native prompt — works in iOS PWA) -->
+  <div id="sheet-label" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-label-close">✕</button>
+      <h3 id="sheet-label-title">Label</h3>
+      <div class="field-group">
+        <label for="label-input">Label text</label>
+        <input id="label-input" type="text" placeholder="Optional label…"
+               autocomplete="off" autocapitalize="characters" spellcheck="false">
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" id="btn-label-done">Done ✓</button>
+        <button class="btn-secondary" id="btn-label-skip">No Label</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast container -->
   <div id="toasts" aria-live="polite"></div>
 

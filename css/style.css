@@ -98,6 +98,7 @@ html, body {
   color: var(--text-dim); cursor: pointer;
   transition: background var(--ease), color var(--ease);
   flex-shrink: 0;
+  touch-action: manipulation;
 }
 .icon-btn svg { width: 22px; height: 22px; }
 .icon-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
@@ -126,6 +127,7 @@ html, body {
   border: 1px solid transparent; border-radius: var(--r-sm);
   color: var(--text-dim); cursor: pointer;
   transition: all var(--ease);
+  touch-action: manipulation;
 }
 .tool-btn svg { width: 20px; height: 20px; }
 .tool-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
@@ -167,6 +169,7 @@ html, body {
 .panel-content {
   padding: 12px 12px 12px 56px;
   overflow-y: auto; height: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 .panel-content h3 {
   font-size: 12px; font-weight: 700; color: var(--text-dim);
@@ -218,6 +221,7 @@ html, body {
   border-radius: var(--r) var(--r) 0 0;
   padding: 0 20px calc(24px + var(--safe-b));
   max-height: 80vh; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   position: relative;
 }
 
@@ -269,8 +273,9 @@ html, body {
   padding: 0 12px;
   background: rgba(255,255,255,0.06);
   border: 1px solid var(--border); border-radius: var(--r-sm);
-  color: var(--text); font-size: 15px; font-family: inherit;
+  color: var(--text); font-size: 16px; font-family: inherit;
   outline: none; -webkit-appearance: none; appearance: none;
+  touch-action: manipulation;
 }
 .field-group select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%238b949e' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
@@ -289,8 +294,9 @@ html, body {
 .btn-primary {
   height: var(--touch); padding: 0 20px;
   background: var(--blue); color: #000; border: none;
-  border-radius: var(--r-sm); font-size: 15px; font-weight: 600;
+  border-radius: var(--r-sm); font-size: 16px; font-weight: 600;
   cursor: pointer; transition: opacity var(--ease);
+  touch-action: manipulation;
 }
 .btn-primary:hover { opacity: .85; }
 .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
@@ -299,8 +305,9 @@ html, body {
   height: var(--touch); padding: 0 20px;
   background: rgba(255,255,255,0.08);
   color: var(--text); border: 1px solid var(--border);
-  border-radius: var(--r-sm); font-size: 15px; font-weight: 500;
+  border-radius: var(--r-sm); font-size: 16px; font-weight: 500;
   cursor: pointer; transition: background var(--ease);
+  touch-action: manipulation;
 }
 .btn-secondary:hover { background: rgba(255,255,255,0.14); }
 
@@ -361,6 +368,7 @@ html, body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
   gap: 6px; max-height: 340px; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: 4px;
 }
 .symbol-item {
@@ -593,10 +601,11 @@ body.fullmap #disclaimer { display: none !important; }
   font-family: 'SF Mono', monospace; min-width: 36px;
 }
 .dtb-btn {
-  height: 28px; padding: 0 10px; border-radius: 14px;
+  height: 36px; padding: 0 14px; border-radius: 18px;
   border: 1px solid var(--border);
   background: rgba(255,255,255,0.07); color: var(--text);
-  font-size: 12px; cursor: pointer; transition: background var(--ease);
+  font-size: 13px; cursor: pointer; transition: background var(--ease);
+  touch-action: manipulation;
 }
 .dtb-btn:hover { background: rgba(255,255,255,0.14); }
 .dtb-finish { background: rgba(88,166,255,0.15); border-color: rgba(88,166,255,0.4); color: var(--blue); }

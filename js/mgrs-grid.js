@@ -97,11 +97,12 @@ const MGRSGrid = L.Layer.extend({
     const bounds = map.getBounds();
 
     // Grid interval and label precision by zoom level
+    // Keep grid sparse enough to be readable at each zoom
     let interval, digits;
-    if      (zoom < 8)  { interval = 100000; digits = 0; }
-    else if (zoom < 10) { interval = 10000;  digits = 1; }
-    else if (zoom < 13) { interval = 1000;   digits = 2; }
-    else if (zoom < 15) { interval = 100;    digits = 3; }
+    if      (zoom < 9)  { interval = 100000; digits = 0; }
+    else if (zoom < 12) { interval = 10000;  digits = 1; }
+    else if (zoom < 16) { interval = 1000;   digits = 2; }
+    else if (zoom < 18) { interval = 100;    digits = 3; }
     else                { interval = 10;     digits = 4; }
 
     // Which UTM zones are visible?
