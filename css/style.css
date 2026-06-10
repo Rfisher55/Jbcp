@@ -996,6 +996,23 @@ body.fullmap #btn-exit-fullmap { display: flex; }
 .report-pin.generic {
   background: rgba(210,153,34,0.25); border-color: var(--yellow); color: var(--yellow);
 }
+/* ── Unit callsign labels ────────────────────────────── */
+.unit-label {
+  background: rgba(13,17,23,0.82) !important;
+  border: 1px solid rgba(88,166,255,0.35) !important;
+  border-radius: 3px !important;
+  color: #c9d1d9 !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: .04em !important;
+  padding: 1px 4px !important;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: none !important;
+}
+.unit-label::before { display: none !important; }
+#map.hide-unit-labels .unit-label { display: none !important; }
+
 .report-pin.nbc {
   background: rgba(255,165,0,0.25); border-color: #ffa500; color: #ffa500;
   font-size: 10px; font-weight: 800; letter-spacing: -0.5px;

@@ -435,6 +435,14 @@ const MapCtrl = {
     const marker = L.marker([unit.lat, unit.lng], { icon, draggable: true })
       .addTo(this._unitLayer);
 
+    if (unit.callsign) {
+      marker.bindTooltip(unit.callsign, {
+        permanent: true, direction: 'bottom',
+        offset: [0, 4], className: 'unit-label',
+        interactive: false,
+      });
+    }
+
     marker.on('click', () => {
       if (this._activeTool !== 'select') return;
       this._openUnitDetail(unit.id);
@@ -459,6 +467,15 @@ const MapCtrl = {
     if (!entry) return;
     Object.assign(entry.data, updates, { updated_at: new Date().toISOString() });
     if (updates.sidc) entry.marker.setIcon(makeMilIcon(updates.sidc, this._getIconSize()));
+    if (updates.callsign !== undefined) {
+      entry.marker.unbindTooltip();
+      if (updates.callsign) {
+        entry.marker.bindTooltip(updates.callsign, {
+          permanent: true, direction: 'bottom', offset: [0, 4],
+          className: 'unit-label', interactive: false,
+        });
+      }
+    }
     LocalStore.upsertUnit(entry.data);
     if (Mission.active) {
       DB.upsertUnit(entry.data).catch(e => UI.toast('Update failed: ' + e.message, 'error'));
