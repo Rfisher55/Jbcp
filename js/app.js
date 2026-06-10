@@ -1158,14 +1158,45 @@ const App = {
     document.getElementById('btn-goto-go')?.addEventListener('click', () => {
       const raw = document.getElementById('goto-grid-input')?.value?.trim();
       if (!raw) return;
+
+      // First try MGRS
       const result = parseMGRS(raw);
-      if (!result.valid) {
-        document.getElementById('goto-grid-note').textContent = 'Invalid grid — try full MGRS (e.g. 38SMB12345678)';
+      if (result.valid) {
+        if (result.note) document.getElementById('goto-grid-note').textContent = result.note;
+        UI.closeSheet('sheet-goto-grid');
+        MapCtrl.flyToGrid(result.lat, result.lng);
         return;
       }
-      if (result.note) document.getElementById('goto-grid-note').textContent = result.note;
-      UI.closeSheet('sheet-goto-grid');
-      MapCtrl.flyToGrid(result.lat, result.lng);
+
+      // Then try fuzzy unit callsign search
+      const query = raw.toUpperCase();
+      const matches = Object.values(MapCtrl._units)
+        .filter(u => (u.data.callsign || '').toUpperCase().includes(query))
+        .sort((a, b) => {
+          const acs = (a.data.callsign || '').toUpperCase();
+          const bcs = (b.data.callsign || '').toUpperCase();
+          if (acs === query && bcs !== query) return -1;
+          if (bcs === query && acs !== query) return 1;
+          return acs.indexOf(query) - bcs.indexOf(query);
+        });
+
+      if (matches.length === 1) {
+        const u = matches[0].data;
+        UI.closeSheet('sheet-goto-grid');
+        MapCtrl.flyToGrid(u.lat, u.lng);
+        UI.toast(`Flying to ${u.callsign}`, 'info', 1500);
+        return;
+      }
+      if (matches.length > 1) {
+        const noteEl = document.getElementById('goto-grid-note');
+        noteEl.textContent = `${matches.length} units match — showing: ${matches.slice(0,3).map(u => u.data.callsign).join(', ')}`;
+        const first = matches[0].data;
+        UI.closeSheet('sheet-goto-grid');
+        MapCtrl.flyToGrid(first.lat, first.lng);
+        return;
+      }
+
+      document.getElementById('goto-grid-note').textContent = 'No unit found — try full MGRS (e.g. 38SMB12345678)';
     });
 
     document.getElementById('goto-grid-input')?.addEventListener('keydown', e => {
