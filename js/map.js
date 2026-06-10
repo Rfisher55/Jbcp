@@ -25,10 +25,12 @@ const MapCtrl = {
   _graphicLayer:     null,
   _reportLayer:      null,
   _measureLayer:     null,
+  _pinLayer:         null,
   _previewGroup:     null,
   _selfMarker:       null,
   _units:            {},
   _graphics:         {},
+  _pins:             {},
   _basemap:          null,
   _currentBase:      'osm',
   _activeTool:       'select',
@@ -41,6 +43,7 @@ const MapCtrl = {
   _pendingLatLng:    null,
   _clickTimeout:     null,
   _ctxLatLng:        null,
+  _symbolScale:      1.0,
 
   init() {
     this._map = L.map('map', {
@@ -57,7 +60,10 @@ const MapCtrl = {
     this._graphicLayer = L.featureGroup().addTo(this._map);
     this._reportLayer  = L.featureGroup().addTo(this._map);
     this._measureLayer = L.featureGroup().addTo(this._map);
+    this._pinLayer     = L.featureGroup().addTo(this._map);
     this._previewGroup = L.featureGroup().addTo(this._map);
+
+    this._symbolScale  = parseFloat(localStorage.getItem('cop_symbol_scale') || '1.0');
 
     BFT.init(this._map);
 
@@ -107,13 +113,21 @@ const MapCtrl = {
 
   _getIconSize() {
     const z = this._map ? this._map.getZoom() : 13;
-    if (z <= 5)  return 10;
-    if (z <= 7)  return 14;
-    if (z <= 9)  return 20;
-    if (z <= 11) return 26;
-    if (z <= 13) return 32;
-    if (z <= 15) return 40;
-    return 48;
+    let base;
+    if      (z <= 5)  base = 10;
+    else if (z <= 7)  base = 14;
+    else if (z <= 9)  base = 20;
+    else if (z <= 11) base = 26;
+    else if (z <= 13) base = 32;
+    else if (z <= 15) base = 40;
+    else              base = 48;
+    return Math.max(8, Math.round(base * this._symbolScale));
+  },
+
+  setSymbolScale(s) {
+    this._symbolScale = s;
+    localStorage.setItem('cop_symbol_scale', String(s));
+    this._refreshIconSizes();
   },
 
   _refreshIconSizes() {
@@ -140,6 +154,7 @@ const MapCtrl = {
     if (tool === 'draw-line')   { mc.classList.add('cursor-crosshair'); drawToolbar?.classList.remove('hidden'); this._updateDrawCount(); }
     if (tool === 'draw-area')   { mc.classList.add('cursor-crosshair'); drawToolbar?.classList.remove('hidden'); this._updateDrawCount(); }
     if (tool === 'measure')     { mc.classList.add('cursor-crosshair'); UI.showSheet('sheet-measure'); }
+    if (tool === 'pin')         { mc.classList.add('cursor-crosshair'); UI.toast('Tap map to drop a pin — grid auto-copies', 'info', 2500); }
     if (tool === 'plot-grid')   { UI.showSheet('sheet-plot-grid'); this._activeTool = 'select'; }
     if (tool === 'select')      { this._activeSIDC = null; this._activeCatalogEntry = null; }
   },
@@ -166,8 +181,39 @@ const MapCtrl = {
     this._activeSIDC         = buildSIDC(entry.base, echelon);
   },
 
+  // ── Pin drop ─────────────────────────────────────────────
+  _dropPin(latlng) {
+    const mgrs = toMGRS(latlng.lat, latlng.lng, 5) || `${latlng.lat.toFixed(5)},${latlng.lng.toFixed(5)}`;
+    const id   = crypto.randomUUID();
+    const icon = L.divIcon({
+      html: `<div class="pin-wrap"><div class="pin-dot"></div><div class="pin-label">${_escH(mgrs)}</div></div>`,
+      className: '', iconSize: [8, 8], iconAnchor: [4, 4],
+    });
+    const marker = L.marker(latlng, { icon, zIndexOffset: 700, interactive: true });
+    marker.on('click', () => {
+      navigator.clipboard?.writeText(mgrs).then(() => UI.toast('Grid copied: ' + mgrs, 'success'));
+    });
+    marker.on('contextmenu', () => {
+      this._pinLayer.removeLayer(marker);
+      delete this._pins[id];
+    });
+    marker.addTo(this._pinLayer);
+    this._pins[id] = { marker, mgrs };
+    navigator.clipboard?.writeText(mgrs).then(() => UI.toast(`Pin dropped — Grid copied: ${mgrs}`, 'success'));
+  },
+
+  clearPins() {
+    this._pinLayer.clearLayers();
+    this._pins = {};
+  },
+
   // ── Map click ────────────────────────────────────────────
   _onMapClick(e) {
+    if (this._activeTool === 'pin') {
+      this._dropPin(e.latlng);
+      return;
+    }
+
     if (this._activeTool === 'place-unit') {
       if (!this._activeSIDC) {
         this._pendingLatLng = e.latlng;

@@ -40,7 +40,7 @@ const BFT = {
     this._clearTracks();
   },
 
-  broadcast(lat, lng, heading, speed) {
+  broadcast(lat, lng, heading, speed, status = {}) {
     if (!this._channel) return;
     try {
       this._channel.send({
@@ -53,7 +53,10 @@ const BFT = {
           heading:  Math.round(heading || 0),
           speed:    Math.round((speed || 0) * 3.6),
           mgrs:     toMGRS(lat, lng, 5) || '',
-          ts:       Date.now()
+          ts:       Date.now(),
+          fuel_pct: status.fuel_pct ?? null,
+          ammo_pct: status.ammo_pct ?? null,
+          opstat:   status.opstat   || null,
         }
       });
     } catch {}
@@ -142,9 +145,23 @@ const BFT = {
     document.getElementById('bft-card-hdg').textContent   = t.heading  ? t.heading + '°' : '—';
     document.getElementById('bft-card-spd').textContent   = t.speed    ? t.speed + ' kph' : '—';
     document.getElementById('bft-card-age').textContent   = ages;
-    const badge = document.getElementById('bft-card-stale');
-    badge.textContent = t.stale ? 'STALE' : 'LIVE';
-    badge.className   = 'bft-status-badge ' + (t.stale ? 'stale' : 'live');
+
+    const stale = document.getElementById('bft-card-stale');
+    stale.textContent = t.stale ? 'STALE' : 'LIVE';
+    stale.className   = 'bft-status-badge ' + (t.stale ? 'stale' : 'live');
+
+    const fuelRow  = document.getElementById('bft-card-fuel-row');
+    const ammoRow  = document.getElementById('bft-card-ammo-row');
+    const statRow  = document.getElementById('bft-card-stat-row');
+    if (fuelRow) fuelRow.style.display = t.fuel_pct != null ? '' : 'none';
+    if (ammoRow) ammoRow.style.display = t.ammo_pct != null ? '' : 'none';
+    if (statRow) statRow.style.display = t.opstat   != null ? '' : 'none';
+    const fuelEl = document.getElementById('bft-card-fuel');
+    const ammoEl = document.getElementById('bft-card-ammo');
+    const statEl = document.getElementById('bft-card-opstat');
+    if (fuelEl && t.fuel_pct != null) fuelEl.textContent = t.fuel_pct + '%';
+    if (ammoEl && t.ammo_pct != null) ammoEl.textContent = t.ammo_pct + '%';
+    if (statEl && t.opstat)           statEl.textContent = t.opstat;
 
     UI.showSheet('sheet-bft-card');
   },

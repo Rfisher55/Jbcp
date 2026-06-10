@@ -1017,6 +1017,109 @@ body.fullmap #btn-exit-fullmap { display: flex; }
 .sheet-head > h3 { margin: 0; }
 .sheet-head > .btn-close { position: static; flex-shrink: 0; }
 
+/* ── Symbol scale bar ────────────────────────────────── */
+.scale-bar { display: flex; gap: 8px; margin-top: 8px; }
+.scale-btn {
+  flex: 1; padding: 9px 4px;
+  border: 1px solid var(--border); background: var(--surface2, rgba(255,255,255,0.05));
+  color: var(--text-dim); border-radius: var(--r-sm);
+  font-size: 0.85rem; cursor: pointer; touch-action: manipulation;
+  transition: all var(--ease);
+}
+.scale-btn.active { background: rgba(88,166,255,0.15); border-color: var(--blue); color: var(--blue); font-weight: 600; }
+
+/* ── NBC type buttons ────────────────────────────────── */
+.nbc-type-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.nbc-type-btn {
+  padding: 11px 4px; border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04); color: var(--text-dim);
+  border-radius: var(--r-sm); font-size: 0.8rem; cursor: pointer; touch-action: manipulation;
+  transition: all var(--ease);
+}
+.nbc-type-btn.active { border-color: var(--yellow); background: rgba(210,153,34,0.15); color: var(--yellow); font-weight: 600; }
+
+/* ── ACE report ───────────────────────────────────────── */
+.ace-cas-section { margin-bottom: 16px; }
+.ace-cas-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 8px; }
+.ace-cas-item { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.ace-cas-item label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; }
+.ace-num {
+  width: 100%; text-align: center; padding: 10px 4px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  color: var(--text); border-radius: var(--r-sm); font-size: 1.15rem; font-weight: 600;
+}
+.rpt-log-badge.ace  { background: rgba(88,166,255,0.25); color: #58a6ff; }
+.rpt-log-badge.nbc  { background: rgba(210,153,34,0.30); color: #d29922; }
+.rpt-icon.ace  { background: rgba(88,166,255,0.20); color: #58a6ff; font-size: 0.75rem; letter-spacing: .04em; }
+.rpt-icon.nbc  { background: rgba(210,153,34,0.20); color: #d29922; font-size: 0.75rem; letter-spacing: .04em; }
+
+/* ── PACE plan ────────────────────────────────────────── */
+.pace-item { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+.pace-letter {
+  width: 38px; height: 38px; flex-shrink: 0;
+  border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1.15rem;
+}
+.pace-p { background: rgba(63,185,80,0.18); color: #3fb950; }
+.pace-a { background: rgba(88,166,255,0.18); color: #58a6ff; }
+.pace-c { background: rgba(210,153,34,0.18); color: #d29922; }
+.pace-e { background: rgba(248,81,73,0.18); color: #f85149; }
+.pace-fields { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+.pace-fields input {
+  width: 100%; padding: 9px 12px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  color: var(--text); border-radius: var(--r-sm); font-size: 0.9rem;
+}
+.pace-fields input:focus { outline: none; border-color: var(--blue); }
+
+/* ── Force Status ─────────────────────────────────────── */
+.force-status-list { margin-top: 4px; padding-bottom: 8px; }
+.fstat-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.fstat-item:last-child { border-bottom: none; }
+.fstat-callsign { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fstat-rc {
+  font-size: 0.72rem; font-weight: 700; padding: 2px 6px;
+  border-radius: 4px; border: 1px solid currentColor; flex-shrink: 0;
+}
+.fstat-opstat {
+  font-size: 0.72rem; font-weight: 700; padding: 2px 6px;
+  border-radius: 4px; flex-shrink: 0;
+}
+.fstat-opstat.fmc  { background: rgba(63,185,80,0.2);  color: #3fb950; }
+.fstat-opstat.pmc  { background: rgba(210,153,34,0.2); color: #d29922; }
+.fstat-opstat.nmc  { background: rgba(248,81,73,0.2);  color: #f85149; }
+.fstat-lace { font-size: 0.75rem; color: var(--text-dim); flex-shrink: 0; }
+
+/* ── Operational status in unit detail ───────────────── */
+.opstat-row { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
+.opstat-btn {
+  flex: 1; padding: 8px 6px; min-width: 60px;
+  border: 1px solid var(--border); background: rgba(255,255,255,0.04);
+  color: var(--text-dim); border-radius: var(--r-sm);
+  font-size: 0.8rem; font-weight: 600; cursor: pointer; touch-action: manipulation;
+  text-align: center; transition: all var(--ease);
+}
+.opstat-btn.active-fmc { background: rgba(63,185,80,0.2);  border-color: #3fb950; color: #3fb950; }
+.opstat-btn.active-pmc { background: rgba(210,153,34,0.2); border-color: #d29922; color: #d29922; }
+.opstat-btn.active-nmc { background: rgba(248,81,73,0.2);  border-color: #f85149; color: #f85149; }
+
+/* ── Drop-pin marker ──────────────────────────────────── */
+.pin-wrap { display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+.pin-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #ff9500; border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5); pointer-events: all; cursor: pointer;
+}
+.pin-label {
+  margin-top: 3px; font-size: 10px; font-weight: 700;
+  color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  background: rgba(0,0,0,0.55); padding: 1px 5px; border-radius: 3px;
+  white-space: nowrap; pointer-events: all; cursor: pointer;
+}
+
 /* ── Prevent iOS long-press image preview on map markers ─ */
 .leaflet-marker-icon,
 .leaflet-marker-icon img {

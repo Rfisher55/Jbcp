@@ -168,6 +168,14 @@ const UI = {
         <div class="redcon-btns" id="redcon-btns">${rcBtns}</div>
       </div>
 
+      <div class="opstat-row">
+        ${['FMC','PMC','NMC'].map(s => {
+          const cur = unit.opstat || 'FMC';
+          const cls = cur === s ? `active-${s.toLowerCase()}` : '';
+          return `<button class="opstat-btn ${cls}" data-stat="${s}">${s}</button>`;
+        }).join('')}
+      </div>
+
       ${laceHTML}
 
       <div class="field-group">
@@ -191,6 +199,17 @@ const UI = {
       </div>
       <button class="btn-secondary btn-danger btn-full" id="btn-unit-delete">Delete</button>
     `;
+
+    // Op Status selector
+    let curOpStat = unit.opstat || 'FMC';
+    document.querySelector('.opstat-row')?.addEventListener('click', e => {
+      const btn = e.target.closest('.opstat-btn');
+      if (!btn) return;
+      curOpStat = btn.dataset.stat;
+      document.querySelectorAll('.opstat-btn').forEach(b => {
+        b.className = 'opstat-btn' + (b.dataset.stat === curOpStat ? ` active-${curOpStat.toLowerCase()}` : '');
+      });
+    });
 
     // REDCON selector
     let curRC = rc;
@@ -225,7 +244,7 @@ const UI = {
       const cs    = document.getElementById('edit-callsign').value.trim();
       const notes = document.getElementById('edit-notes').value.trim();
       if (cs) {
-        onEdit({ callsign: cs, notes, redcon: curRC });
+        onEdit({ callsign: cs, notes, redcon: curRC, opstat: curOpStat });
         document.getElementById('ud-title').textContent = cs;
       }
       UI.closeSheet('sheet-unit');
@@ -271,13 +290,24 @@ const UI = {
           <button class="btn-secondary" id="btn-copy-code">Copy Join Code</button>
           <button class="btn-secondary" id="btn-share-mission">Share</button>
         </div>
-        <div class="btn-row" style="margin-bottom:16px">
+        <div class="btn-row" style="margin-bottom:8px">
           <button class="btn-secondary" id="btn-export-plan">Export Plan</button>
           <button class="btn-secondary btn-danger" id="btn-leave-mission">Leave</button>
         </div>
-      ` : `
+        <div class="btn-row" style="margin-bottom:8px">
+          <button class="btn-secondary" id="btn-pace-plan">PACE Plan</button>
+          <button class="btn-secondary" id="btn-force-status">Force Status</button>
+        </div>
         <div class="btn-row" style="margin-bottom:16px">
+          <button class="btn-secondary btn-full" id="btn-cot-export">Export CoT (ATAK)</button>
+        </div>
+      ` : `
+        <div class="btn-row" style="margin-bottom:8px">
           <button class="btn-secondary btn-full" id="btn-export-plan">Export Plan (offline)</button>
+        </div>
+        <div class="btn-row" style="margin-bottom:16px">
+          <button class="btn-secondary" id="btn-pace-plan">PACE Plan</button>
+          <button class="btn-secondary" id="btn-force-status">Force Status</button>
         </div>
       `}
       ${missions.length ? `
@@ -374,6 +404,22 @@ const UI = {
       }
     });
 
+    document.getElementById('btn-pace-plan')?.addEventListener('click', () => {
+      App._loadPACE();
+      UI.closeSheet('sheet-mission');
+      UI.showSheet('sheet-pace');
+    });
+
+    document.getElementById('btn-force-status')?.addEventListener('click', () => {
+      App._showForceStatus();
+      UI.closeSheet('sheet-mission');
+    });
+
+    document.getElementById('btn-cot-export')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-mission');
+      App._exportCoT();
+    });
+
     document.querySelectorAll('#mission-list .mission-card').forEach(card => {
       card.addEventListener('click', async () => {
         try {
@@ -443,6 +489,18 @@ const UI = {
       const bftLayer = BFT._layer;
       if (!bftLayer) return;
       e.target.checked ? bftLayer.addTo(MapCtrl.map) : MapCtrl.map.removeLayer(bftLayer);
+    });
+
+    // Symbol scale buttons (initialize active state from current scale)
+    const curScale = MapCtrl._symbolScale;
+    document.querySelectorAll('.scale-btn').forEach(btn => {
+      const s = parseFloat(btn.dataset.scale);
+      btn.classList.toggle('active', Math.abs(s - curScale) < 0.05);
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        MapCtrl.setSymbolScale(parseFloat(btn.dataset.scale));
+      });
     });
   }
 };
@@ -522,6 +580,14 @@ const App = {
       });
     });
 
+    // Long-press pin to clear all pins
+    document.querySelectorAll('[data-tool="pin"]').forEach(btn => {
+      let t;
+      btn.addEventListener('touchstart', () => { t = setTimeout(() => { MapCtrl.clearPins(); UI.toast('Pins cleared', 'info'); }, 800); }, { passive: true });
+      btn.addEventListener('touchend', () => clearTimeout(t));
+      btn.addEventListener('touchmove', () => clearTimeout(t));
+    });
+
     // Symbol picker: filter buttons
     document.getElementById('symbol-filters').addEventListener('click', e => {
       const btn = e.target.closest('.filter-btn');
@@ -583,7 +649,7 @@ const App = {
           document.body.classList.remove('fullmap');
         } else if (MapCtrl._isDrawing()) {
           MapCtrl.cancelDraw();
-        } else if (MapCtrl._activeTool === 'place-unit') {
+        } else if (MapCtrl._activeTool === 'place-unit' || MapCtrl._activeTool === 'pin') {
           MapCtrl.setTool('select');
           UI.toolBtn('select');
         } else {
@@ -617,11 +683,7 @@ const App = {
     // Measure clear
     document.getElementById('btn-measure-clear').addEventListener('click', () => MapCtrl.clearMeasure());
 
-    // Plot grid
-    document.getElementById('btn-plot-go').addEventListener('click', () => this._plotGrid());
-    document.getElementById('plot-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') this._plotGrid();
-    });
+    // (plot-grid sheet removed — replaced by pin tool)
 
     // Chat button
     document.getElementById('btn-chat').addEventListener('click', () => {
@@ -663,6 +725,10 @@ const App = {
       UI.closeSheet('sheet-reports-menu');
       Reports.openLACE(null);
     });
+    document.getElementById('btn-rpt-ace')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-reports-menu');
+      Reports.openACE(null);
+    });
     document.getElementById('btn-rpt-spotrep')?.addEventListener('click', () => {
       UI.closeSheet('sheet-reports-menu');
       const c = MapCtrl.map.getCenter();
@@ -677,12 +743,33 @@ const App = {
       UI.closeSheet('sheet-reports-menu');
       Reports.openSITREP();
     });
+    document.getElementById('btn-rpt-nbc')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-reports-menu');
+      const c = MapCtrl.map.getCenter();
+      Reports.openNBC(c.lat, c.lng);
+    });
 
     // LACE form
     ['lace-liquid','lace-ammo','lace-equip','lace-cas'].forEach(id => {
       document.getElementById(id)?.addEventListener('input', () => Reports._updateLACEBars());
     });
     document.getElementById('btn-lace-submit')?.addEventListener('click', () => Reports.submitLACE());
+
+    // ACE form
+    ['ace-ammo','ace-equip'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', () => Reports._updateACEBars());
+    });
+    document.getElementById('btn-ace-submit')?.addEventListener('click', () => Reports.submitACE());
+
+    // NBC form
+    document.getElementById('sheet-nbc')?.addEventListener('click', e => {
+      const btn = e.target.closest('.nbc-type-btn');
+      if (!btn) return;
+      document.querySelectorAll('.nbc-type-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      Reports._nbcType = btn.dataset.type;
+    });
+    document.getElementById('btn-nbc-submit')?.addEventListener('click', () => Reports.submitNBC());
 
     // SPOTREP form
     document.getElementById('btn-spotrep-submit')?.addEventListener('click', () => Reports.submitSPOTREP());
@@ -692,6 +779,28 @@ const App = {
 
     // SITREP form
     document.getElementById('btn-sitrep-submit')?.addEventListener('click', () => Reports.submitSITREP());
+
+    // PACE plan
+    document.getElementById('btn-pace-save')?.addEventListener('click', () => App._savePACE());
+
+    // Force status
+    document.getElementById('btn-force-status-close')?.addEventListener('click', () =>
+      UI.closeSheet('sheet-force-status'));
+
+    // Symbol scale
+    document.querySelectorAll('.scale-btn').forEach(btn => {
+      const s = parseFloat(btn.dataset.scale);
+      const cur = MapCtrl._symbolScale;
+      btn.classList.toggle('active', Math.abs(s - cur) < 0.05);
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        MapCtrl.setSymbolScale(s);
+      });
+    });
+
+    // Pin tool — clear pins button in context if needed
+    // (pins removed by long-press/right-click on them already)
 
     // Context menu (long-press on map)
     document.getElementById('ctx-spotrep')?.addEventListener('click', () => {
@@ -840,6 +949,84 @@ const App = {
     UI.toast(`Plotting: ${toMGRS(result.lat, result.lng, 5)}${note}`, 'info');
   },
 
+  _savePACE() {
+    const pace = {
+      p: { method: document.getElementById('pace-p-method')?.value.trim(), freq: document.getElementById('pace-p-freq')?.value.trim() },
+      a: { method: document.getElementById('pace-a-method')?.value.trim(), freq: document.getElementById('pace-a-freq')?.value.trim() },
+      c: { method: document.getElementById('pace-c-method')?.value.trim(), freq: document.getElementById('pace-c-freq')?.value.trim() },
+      e: { method: document.getElementById('pace-e-method')?.value.trim(), freq: document.getElementById('pace-e-freq')?.value.trim() },
+    };
+    const key = Mission.active ? `cop_pace_${Mission.current.id}` : 'cop_pace_offline';
+    localStorage.setItem(key, JSON.stringify(pace));
+    UI.closeSheet('sheet-pace');
+    UI.toast('PACE plan saved', 'success');
+  },
+
+  _loadPACE() {
+    const key  = Mission.active ? `cop_pace_${Mission.current.id}` : 'cop_pace_offline';
+    const raw  = localStorage.getItem(key);
+    const pace = raw ? JSON.parse(raw) : {};
+    ['p','a','c','e'].forEach(l => {
+      document.getElementById(`pace-${l}-method`).value = pace[l]?.method || '';
+      document.getElementById(`pace-${l}-freq`).value   = pace[l]?.freq   || '';
+    });
+  },
+
+  _showForceStatus() {
+    const list  = document.getElementById('force-status-list');
+    const units = Object.values(MapCtrl._units);
+    if (!units.length) {
+      list.innerHTML = '<p class="empty-msg">No units placed</p>';
+      UI.showSheet('sheet-force-status');
+      return;
+    }
+    list.innerHTML = units.map(({ data: u }) => {
+      const rc    = u.redcon || 5;
+      const col   = REDCON_COLORS[rc];
+      const opst  = u.opstat || 'FMC';
+      const opCls = opst.toLowerCase();
+      const laceStr = u.lace ? `L${u.lace.l}% A${u.lace.a}% E${u.lace.e}%` : '';
+      return `<div class="fstat-item">
+        <div class="fstat-callsign">${_escH(u.callsign || '—')}</div>
+        ${laceStr ? `<div class="fstat-lace">${laceStr}</div>` : ''}
+        <div class="fstat-rc" style="color:${col};border-color:${col}">RC${rc}</div>
+        <div class="fstat-opstat ${opCls}">${opst}</div>
+      </div>`;
+    }).join('');
+    UI.showSheet('sheet-force-status');
+  },
+
+  _exportCoT() {
+    const units = Object.values(MapCtrl._units);
+    const now   = new Date().toISOString();
+    const stale = new Date(Date.now() + 5 * 60000).toISOString();
+
+    const typeMap = { 'H': 'a-h-G-U-C', 'N': 'a-n-G', 'U': 'a-u-G' };
+    const events  = units.map(({ data: u }) => {
+      const aff = (u.sidc || '')[3] === 'H' ? 'h' : (u.sidc || '')[3] === 'N' ? 'n' : (u.sidc || '')[3] === 'U' ? 'u' : 'f';
+      const type = `a-${aff}-G-U-C`;
+      const cs   = (u.callsign || 'UNKNOWN').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+      return `<event version="2.0" uid="${u.id}" type="${type}" time="${u.updated_at || now}" start="${u.updated_at || now}" stale="${stale}" how="h-g-i-g-o">` +
+        `<point lat="${u.lat.toFixed(6)}" lon="${u.lng.toFixed(6)}" hae="0" ce="9999" le="9999"/>` +
+        `<detail><contact callsign="${cs}"/><uid Droid="${cs}"/>` +
+        `<remarks>REDCON:${u.redcon||5} OPSTAT:${u.opstat||'FMC'}${u.lace ? ` LACE:${u.lace.l}/${u.lace.a}/${u.lace.c}/${u.lace.e}` : ''}</remarks>` +
+        `</detail></event>`;
+    }).join('\n');
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<events>\n${events}\n</events>`;
+    try {
+      const blob = new Blob([xml], { type: 'text/xml' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = `cop-cot-${new Date().toISOString().slice(0,10)}.xml`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      UI.toast(`CoT export: ${units.length} units`, 'success');
+    } catch {
+      navigator.clipboard?.writeText(xml).then(() => UI.toast('CoT XML copied to clipboard', 'success'));
+    }
+  },
+
   _exportPlan() {
     const units = Object.values(MapCtrl._units).map(u => ({
       id:       u.data.id,
@@ -906,7 +1093,14 @@ const App = {
           const now = Date.now();
           if (now - this._lastBFT > 15000) {
             this._lastBFT = now;
-            BFT.broadcast(lat, lng, heading, speed);
+            // Include own-unit status if we have a unit with matching callsign
+            const myUnit = Object.values(MapCtrl._units).find(u => u.data.callsign === Auth.callsign);
+            const status = myUnit?.data.lace ? {
+              fuel_pct: myUnit.data.lace.l,
+              ammo_pct: myUnit.data.lace.a,
+              opstat:   myUnit.data.opstat || 'FMC'
+            } : {};
+            BFT.broadcast(lat, lng, heading, speed, status);
           }
         }
       },

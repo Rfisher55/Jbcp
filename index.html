@@ -74,7 +74,7 @@
     <button class="tool-btn" data-tool="measure" title="Measure distance / azimuth">
       <svg viewBox="0 0 24 24"><path d="M21 6.5l-4-4-14 14 4 4 14-14zM7 18l-1.5-1.5L17 5.5 18.5 7 7 18z" fill="currentColor"/></svg>
     </button>
-    <button class="tool-btn" data-tool="plot-grid" title="Go to MGRS grid">
+    <button class="tool-btn" data-tool="pin" title="Drop pin — get MGRS grid">
       <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/></svg>
     </button>
     <div class="toolbar-divider"></div>
@@ -222,6 +222,15 @@
         <div id="basemap-grid" class="basemap-grid"></div>
       </div>
       <div class="layers-section">
+        <h4>Symbol Size</h4>
+        <div id="scale-bar" class="scale-bar">
+          <button class="scale-btn" data-scale="0.6">S</button>
+          <button class="scale-btn active" data-scale="1.0">M</button>
+          <button class="scale-btn" data-scale="1.5">L</button>
+          <button class="scale-btn" data-scale="2.0">XL</button>
+        </div>
+      </div>
+      <div class="layers-section">
         <h4>Overlays</h4>
         <div id="overlay-list"></div>
       </div>
@@ -288,12 +297,16 @@
       <p class="sheet-hint">Select report type to file</p>
       <div class="rpt-menu">
         <button class="rpt-menu-btn" id="btn-rpt-lace">
-          <div class="rpt-icon lace">L A C E</div>
-          <div class="rpt-info"><div class="rpt-name">LACE Report</div><div class="rpt-desc">Liquid · Ammo · Casualties · Equipment</div></div>
+          <div class="rpt-icon lace">LACE</div>
+          <div class="rpt-info"><div class="rpt-name">LACE Report</div><div class="rpt-desc">Liquid · Ammo · Cas · Equipment</div></div>
+        </button>
+        <button class="rpt-menu-btn" id="btn-rpt-ace">
+          <div class="rpt-icon ace">ACE</div>
+          <div class="rpt-info"><div class="rpt-name">ACE Report</div><div class="rpt-desc">Ammo · Casualties · Equipment</div></div>
         </button>
         <button class="rpt-menu-btn" id="btn-rpt-spotrep">
           <div class="rpt-icon hostile">✕</div>
-          <div class="rpt-info"><div class="rpt-name">SPOTREP</div><div class="rpt-desc">Enemy spot report (SALUTE format)</div></div>
+          <div class="rpt-info"><div class="rpt-name">SPOTREP</div><div class="rpt-desc">Enemy spot report (SALUTE)</div></div>
         </button>
         <button class="rpt-menu-btn" id="btn-rpt-9line">
           <div class="rpt-icon medevac">✚</div>
@@ -302,6 +315,10 @@
         <button class="rpt-menu-btn" id="btn-rpt-sitrep">
           <div class="rpt-icon sitrep">SIT</div>
           <div class="rpt-info"><div class="rpt-name">SITREP</div><div class="rpt-desc">Situation report to higher</div></div>
+        </button>
+        <button class="rpt-menu-btn" id="btn-rpt-nbc">
+          <div class="rpt-icon nbc">NBC</div>
+          <div class="rpt-info"><div class="rpt-name">NBC Warning</div><div class="rpt-desc">CBRN hazard report</div></div>
         </button>
       </div>
       <div class="rpt-log-row">
@@ -612,7 +629,155 @@
         <dt>Heading</dt><dd id="bft-card-hdg">—</dd>
         <dt>Speed</dt><dd id="bft-card-spd">—</dd>
         <dt>Last update</dt><dd id="bft-card-age">—</dd>
+        <dt id="bft-card-fuel-row">Fuel</dt><dd id="bft-card-fuel">—</dd>
+        <dt id="bft-card-ammo-row">Ammo</dt><dd id="bft-card-ammo">—</dd>
+        <dt id="bft-card-stat-row">Status</dt><dd id="bft-card-opstat">—</dd>
       </dl>
+    </div>
+  </div>
+
+  <!-- ── ACE Report sheet ─────────────────────────────────── -->
+  <div id="sheet-ace" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-ace-close">✕</button>
+      <h3>ACE Report</h3>
+      <p class="sheet-hint">Ammunition · Casualties · Equipment</p>
+
+      <div class="lace-form-row">
+        <div class="lace-form-label"><span class="lace-key-lg">A</span><span>Ammunition</span></div>
+        <div class="lace-slider-wrap">
+          <input id="ace-ammo" type="range" min="0" max="100" value="100" class="lace-slider">
+          <div class="lace-bar-bg"><div id="ace-ammo-fill" class="lace-fill green" style="width:100%"></div></div>
+          <span id="ace-ammo-val" class="lace-pct">100%</span>
+        </div>
+      </div>
+
+      <div class="ace-cas-section">
+        <div class="lace-form-label" style="margin-bottom:8px"><span class="lace-key-lg">C</span><span>Casualties</span></div>
+        <div class="ace-cas-grid">
+          <div class="ace-cas-item"><label>KIA</label><input id="ace-kia" type="number" min="0" max="999" value="0" class="ace-num"></div>
+          <div class="ace-cas-item"><label>WIA</label><input id="ace-wia" type="number" min="0" max="999" value="0" class="ace-num"></div>
+          <div class="ace-cas-item"><label>MIA</label><input id="ace-mia" type="number" min="0" max="999" value="0" class="ace-num"></div>
+        </div>
+      </div>
+
+      <div class="lace-form-row">
+        <div class="lace-form-label"><span class="lace-key-lg">E</span><span>Equipment</span></div>
+        <div class="lace-slider-wrap">
+          <input id="ace-equip" type="range" min="0" max="100" value="100" class="lace-slider">
+          <div class="lace-bar-bg"><div id="ace-equip-fill" class="lace-fill green" style="width:100%"></div></div>
+          <span id="ace-equip-val" class="lace-pct">100%</span>
+        </div>
+      </div>
+
+      <div class="lace-legend">
+        <span class="ll-dot green"></span>75–100%
+        <span class="ll-dot amber"></span>50–75%
+        <span class="ll-dot red"></span>25–50%
+        <span class="ll-dot black"></span>0–25%
+      </div>
+      <button class="btn-primary btn-full" id="btn-ace-submit" style="margin-top:16px">File ACE Report</button>
+    </div>
+  </div>
+
+  <!-- ── NBC Warning sheet ─────────────────────────────────── -->
+  <div id="sheet-nbc" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <h3>NBC Warning</h3>
+        <button class="btn-close" id="btn-nbc-close">✕</button>
+      </div>
+      <p class="sheet-hint">CBRN hazard warning — report immediately to higher</p>
+
+      <div class="field-group">
+        <label>Hazard Type</label>
+        <div class="nbc-type-row">
+          <button class="nbc-type-btn" data-type="C">C — Chemical</button>
+          <button class="nbc-type-btn" data-type="B">B — Biological</button>
+          <button class="nbc-type-btn" data-type="R">R — Radiological</button>
+          <button class="nbc-type-btn" data-type="N">N — Nuclear</button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label for="nbc-loc">Location (MGRS) <span class="req">*</span></label>
+        <input id="nbc-loc" type="text" placeholder="6-digit MGRS" autocapitalize="characters">
+      </div>
+      <div class="field-group">
+        <label for="nbc-dtg">Date-Time Group</label>
+        <input id="nbc-dtg" type="text" autocapitalize="characters">
+      </div>
+      <div class="field-group">
+        <label for="nbc-wind">Wind Direction (from)</label>
+        <input id="nbc-wind" type="text" placeholder="e.g. 270° W" autocapitalize="characters">
+      </div>
+      <div class="field-group">
+        <label for="nbc-hazard">Hazard Area / Extent</label>
+        <input id="nbc-hazard" type="text" placeholder="e.g. 500m radius" autocapitalize="sentences">
+      </div>
+      <div class="field-group">
+        <label for="nbc-actions">Protective Actions</label>
+        <input id="nbc-actions" type="text" placeholder="e.g. MOPP 4, evacuate 1km" autocapitalize="sentences">
+      </div>
+      <button class="btn-primary btn-full" id="btn-nbc-submit">Send NBC Warning</button>
+    </div>
+  </div>
+
+  <!-- ── PACE Plan sheet ───────────────────────────────────── -->
+  <div id="sheet-pace" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <h3>PACE Plan</h3>
+        <button class="btn-close" id="btn-pace-close">✕</button>
+      </div>
+      <p class="sheet-hint">Primary · Alternate · Contingency · Emergency comms</p>
+
+      <div class="pace-item">
+        <div class="pace-letter pace-p">P</div>
+        <div class="pace-fields">
+          <input id="pace-p-method" type="text" placeholder="Primary method (e.g. SINCGARS)" autocapitalize="words">
+          <input id="pace-p-freq" type="text" placeholder="Freq / net / channel" autocapitalize="characters">
+        </div>
+      </div>
+      <div class="pace-item">
+        <div class="pace-letter pace-a">A</div>
+        <div class="pace-fields">
+          <input id="pace-a-method" type="text" placeholder="Alternate method" autocapitalize="words">
+          <input id="pace-a-freq" type="text" placeholder="Freq / net / channel" autocapitalize="characters">
+        </div>
+      </div>
+      <div class="pace-item">
+        <div class="pace-letter pace-c">C</div>
+        <div class="pace-fields">
+          <input id="pace-c-method" type="text" placeholder="Contingency method" autocapitalize="words">
+          <input id="pace-c-freq" type="text" placeholder="Freq / net / channel" autocapitalize="characters">
+        </div>
+      </div>
+      <div class="pace-item">
+        <div class="pace-letter pace-e">E</div>
+        <div class="pace-fields">
+          <input id="pace-e-method" type="text" placeholder="Emergency method" autocapitalize="words">
+          <input id="pace-e-freq" type="text" placeholder="Freq / net / channel" autocapitalize="characters">
+        </div>
+      </div>
+      <button class="btn-primary btn-full" id="btn-pace-save" style="margin-top:4px">Save PACE Plan</button>
+    </div>
+  </div>
+
+  <!-- ── Force Status sheet ────────────────────────────────── -->
+  <div id="sheet-force-status" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <h3>Force Status</h3>
+        <button class="btn-close" id="btn-force-status-close">✕</button>
+      </div>
+      <div id="force-status-list" class="force-status-list">
+        <p class="empty-msg">No units placed</p>
+      </div>
     </div>
   </div>
 

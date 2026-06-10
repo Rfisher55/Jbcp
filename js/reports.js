@@ -185,6 +185,81 @@ const Reports = {
     UI.toast('SITREP sent', 'success');
   },
 
+  // ── ACE Report ────────────────────────────────────────────
+  openACE(unitId) {
+    this._ctx = { type: 'ACE', unitId };
+    document.getElementById('ace-ammo').value  = 100;
+    document.getElementById('ace-equip').value = 100;
+    document.getElementById('ace-kia').value   = 0;
+    document.getElementById('ace-wia').value   = 0;
+    document.getElementById('ace-mia').value   = 0;
+    this._updateACEBars();
+    UI.showSheet('sheet-ace');
+  },
+
+  _updateACEBars() {
+    ['ammo', 'equip'].forEach(k => {
+      const pct  = +(document.getElementById(`ace-${k}`)?.value || 0);
+      const fill = document.getElementById(`ace-${k}-fill`);
+      const val  = document.getElementById(`ace-${k}-val`);
+      if (fill) { fill.style.width = pct + '%'; fill.className = `lace-fill ${this.laceColor(pct)}`; }
+      if (val)  val.textContent = pct + '%';
+    });
+  },
+
+  submitACE() {
+    const a = +(document.getElementById('ace-ammo').value);
+    const e = +(document.getElementById('ace-equip').value);
+    const kia = +(document.getElementById('ace-kia').value);
+    const wia = +(document.getElementById('ace-wia').value);
+    const mia = +(document.getElementById('ace-mia').value);
+    LocalStore.upsertReport({
+      id: crypto.randomUUID(), type: 'ACE', reporter: Auth.callsign,
+      unit_id: this._ctx?.unitId, mgrs: document.getElementById('coord-mgrs')?.textContent || '',
+      data: { a, e, kia, wia, mia }, created_at: new Date().toISOString()
+    });
+    if (Chat.isJoined()) Chat.send(`ACE: Ammo ${a}% Equip ${e}% — KIA:${kia} WIA:${wia} MIA:${mia}`);
+    UI.closeSheet('sheet-ace');
+    UI.toast('ACE report filed', 'success');
+    this._ctx = null;
+  },
+
+  // ── NBC Warning ───────────────────────────────────────────
+  _nbcType: 'C',
+
+  openNBC(lat, lng) {
+    this._ctx    = { type: 'NBC', lat, lng };
+    this._nbcType = 'C';
+    document.querySelectorAll('.nbc-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === 'C'));
+    document.getElementById('nbc-loc').value     = toMGRS(lat, lng, 5) || '';
+    document.getElementById('nbc-dtg').value     = this._dtg();
+    document.getElementById('nbc-wind').value    = '';
+    document.getElementById('nbc-hazard').value  = '';
+    document.getElementById('nbc-actions').value = '';
+    UI.showSheet('sheet-nbc');
+  },
+
+  submitNBC() {
+    const loc     = document.getElementById('nbc-loc').value.trim();
+    const dtg     = document.getElementById('nbc-dtg').value.trim();
+    const wind    = document.getElementById('nbc-wind').value.trim();
+    const hazard  = document.getElementById('nbc-hazard').value.trim();
+    const actions = document.getElementById('nbc-actions').value.trim();
+    if (!loc) { UI.toast('Location required', 'error'); return; }
+    const rpt = {
+      id: crypto.randomUUID(), type: 'NBC', reporter: Auth.callsign,
+      lat: this._ctx?.lat, lng: this._ctx?.lng, mgrs: loc,
+      data: { type: this._nbcType, loc, dtg, wind, hazard, actions },
+      created_at: new Date().toISOString()
+    };
+    LocalStore.upsertReport(rpt);
+    if (this._ctx?.lat != null) MapCtrl.placeReportMarker(rpt);
+    if (Chat.isJoined()) Chat.send(`⚠ NBC WARNING (${this._nbcType}): ${loc} DTG ${dtg} — ${hazard}`);
+    UI.closeSheet('sheet-nbc');
+    UI.toast('NBC warning sent', 'success');
+    this._ctx = null;
+  },
+
   // ── Reports Log ────────────────────────────────────────────
   openLog() {
     this._renderLog();
@@ -229,6 +304,8 @@ const Reports = {
     if (r.type === '9LINE')   return `L1:${r.data.line1 || ''} L3:${r.data.line3 || ''} L5:${r.data.line5 || ''}`;
     if (r.type === 'SITREP')  return `${r.data.unit || ''} — ${(r.data.friendly || '').slice(0,80)}`;
     if (r.type === 'LACE')    return `L:${r.data.l}% A:${r.data.a}% C:${r.data.c} E:${r.data.e}%`;
+    if (r.type === 'ACE')     return `A:${r.data.a}% E:${r.data.e}% KIA:${r.data.kia} WIA:${r.data.wia} MIA:${r.data.mia}`;
+    if (r.type === 'NBC')     return `${r.data.type} — ${r.mgrs || ''} DTG ${r.data.dtg || ''}`;
     return '';
   },
 
@@ -275,6 +352,20 @@ const Reports = {
       lines.push(`Ammo:        ${r.data.a}%`);
       lines.push(`Casualties:  ${r.data.c}`);
       lines.push(`Equipment:   ${r.data.e}%`);
+    } else if (r.type === 'ACE') {
+      lines.push(`ACE REPORT — ${r.reporter} — ${dtg}`);
+      lines.push(`Ammo:        ${r.data.a}%`);
+      lines.push(`Casualties:  KIA:${r.data.kia}  WIA:${r.data.wia}  MIA:${r.data.mia}`);
+      lines.push(`Equipment:   ${r.data.e}%`);
+      if (r.mgrs) lines.push(`Location:    ${r.mgrs}`);
+    } else if (r.type === 'NBC') {
+      const typeNames = { N:'Nuclear', B:'Biological', C:'Chemical', R:'Radiological' };
+      lines.push(`NBC WARNING — ${typeNames[r.data.type] || r.data.type} — ${r.reporter} — ${dtg}`);
+      lines.push(`Location:    ${r.data.loc || r.mgrs || 'Unknown'}`);
+      lines.push(`DTG:         ${r.data.dtg || dtg}`);
+      if (r.data.wind)    lines.push(`Wind (from): ${r.data.wind}`);
+      if (r.data.hazard)  lines.push(`Hazard Area: ${r.data.hazard}`);
+      if (r.data.actions) lines.push(`Actions:     ${r.data.actions}`);
     }
     return lines.join('\n');
   },
