@@ -639,7 +639,7 @@ const MapCtrl = {
       if (center) {
         group.addLayer(L.marker(center, {
           icon: L.divIcon({
-            html: `<div class="graphic-label" style="color:${lineOpts.color}">${name}</div>`,
+            html: `<div class="graphic-label" style="color:${lineOpts.color}">${_escH(name)}</div>`,
             className: '', iconSize: null,
           }),
           interactive: false,
@@ -652,7 +652,7 @@ const MapCtrl = {
     group.on('click', e => {
       if (this._activeTool !== 'select') return;
       L.DomEvent.stopPropagation(e);
-      const nameHtml = name ? `<div style="font-weight:700;margin-bottom:8px;font-size:14px">${name}</div>` : '';
+      const nameHtml = name ? `<div style="font-weight:700;margin-bottom:8px;font-size:14px">${_escH(name)}</div>` : '';
       L.popup({ closeButton: true, autoPan: false })
         .setLatLng(e.latlng)
         .setContent(
@@ -864,8 +864,8 @@ const MapCtrl = {
     marker.on('click', () => {
       if (this._activeTool !== 'select') return;
       const d = report.data || {};
-      let body = `<div class="popup-body"><div class="popup-name">${report.type}</div>`;
-      if (report.mgrs) body += `<div class="popup-mgrs">${report.mgrs}</div>`;
+      let body = `<div class="popup-body"><div class="popup-name">${_escH(report.type)}</div>`;
+      if (report.mgrs) body += `<div class="popup-mgrs">${_escH(report.mgrs)}</div>`;
       if (report.type === 'SPOTREP') {
         body += `<table class="popup-table">`;
         if (d.size)     body += `<tr><td>S</td><td>${_escH(d.size)}</td></tr>`;
@@ -882,7 +882,7 @@ const MapCtrl = {
       } else if (report.type === 'NBC') {
         const NBC_NAMES = { N: 'Nuclear', B: 'Biological', C: 'Chemical', R: 'Radiological' };
         body += `<table class="popup-table">`;
-        body += `<tr><td>Type</td><td>${NBC_NAMES[d.type] || d.type}</td></tr>`;
+        body += `<tr><td>Type</td><td>${_escH(NBC_NAMES[d.type] || d.type)}</td></tr>`;
         if (d.dtg)     body += `<tr><td>DTG</td><td>${_escH(d.dtg)}</td></tr>`;
         if (d.wind)    body += `<tr><td>Wind</td><td>${_escH(d.wind)}</td></tr>`;
         if (d.hazard)  body += `<tr><td>Hazard</td><td>${_escH(d.hazard)}</td></tr>`;

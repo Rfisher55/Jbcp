@@ -172,8 +172,8 @@ const UI = {
       <div class="unit-header">
         <img src="${sym.toDataURL()}" alt="symbol">
         <div class="unit-header-info">
-          <div class="unit-title" id="ud-title">${unit.callsign || 'Unit'}</div>
-          <div class="unit-meta">${unit.sidc}</div>
+          <div class="unit-title" id="ud-title">${_escH(unit.callsign || 'Unit')}</div>
+          <div class="unit-meta">${_escH(unit.sidc)}</div>
           <div class="redcon-badge" id="ud-rcbadge"
             style="background:${col}22;border-color:${col}66;color:${col}">RC${rc} — ${REDCON_LABELS[rc]}</div>
         </div>
@@ -420,8 +420,8 @@ const UI = {
       ${Mission.active ? `
         <div class="mission-card" style="border-color:rgba(63,185,80,0.4)">
           <div class="mission-card-info">
-            <div class="mission-card-name">${Mission.current.name}</div>
-            <div class="mission-card-meta">Code: ${Mission.current.id.slice(0,8).toUpperCase()}</div>
+            <div class="mission-card-name">${_escH(Mission.current.name)}</div>
+            <div class="mission-card-meta">Code: ${_escH(Mission.current.id.slice(0,8).toUpperCase())}</div>
           </div>
           <span class="badge">Active</span>
         </div>
@@ -462,8 +462,8 @@ const UI = {
           ${missions.map(m => `
             <div class="mission-card" data-id="${m.id}">
               <div class="mission-card-info">
-                <div class="mission-card-name">${m.name}</div>
-                <div class="mission-card-meta">Code: ${m.id.slice(0,8).toUpperCase()}</div>
+                <div class="mission-card-name">${_escH(m.name)}</div>
+                <div class="mission-card-meta">Code: ${_escH(m.id.slice(0,8).toUpperCase())}</div>
               </div>
             </div>
           `).join('')}
@@ -733,7 +733,8 @@ const App = {
 
     // Mission chip
     document.getElementById('mission-chip').addEventListener('click', async () => {
-      const missions = Auth.signedIn ? await DB.getUserMissions(Auth.user.id) : [];
+      let missions = [];
+      try { missions = Auth.signedIn ? await DB.getUserMissions(Auth.user.id) : []; } catch {}
       UI.showMissionSheet(missions);
       UI.showSheet('sheet-mission');
     });
@@ -929,7 +930,7 @@ const App = {
     const cannedContainer = document.getElementById('chat-canned');
     if (cannedContainer) {
       cannedContainer.innerHTML = Chat.CANNED.map(m =>
-        `<button class="canned-btn" data-msg="${m.replace(/"/g,'&quot;')}">${m}</button>`
+        `<button class="canned-btn" data-msg="${m.replace(/"/g,'&quot;')}">${_escH(m)}</button>`
       ).join('');
     }
 
@@ -987,6 +988,10 @@ const App = {
       Reports._nbcType = btn.dataset.type;
     });
     document.getElementById('btn-nbc-submit')?.addEventListener('click', () => Reports.submitNBC());
+    document.getElementById('btn-nbcdtg-now')?.addEventListener('click', () => {
+      const el = document.getElementById('nbc-dtg');
+      if (el) el.value = Reports._dtg();
+    });
 
     // SPOTREP form
     document.getElementById('btn-spotrep-submit')?.addEventListener('click', () => Reports.submitSPOTREP());
@@ -996,9 +1001,12 @@ const App = {
 
     // SITREP form
     document.getElementById('btn-sitrep-submit')?.addEventListener('click', () => Reports.submitSITREP());
+    document.getElementById('btn-dtg-now')?.addEventListener('click', () => {
+      const el = document.getElementById('sit-dtg');
+      if (el) el.value = Reports._dtg();
+    });
     document.getElementById('btn-sitrep-autofill')?.addEventListener('click', () => {
       const units = Object.values(MapCtrl._units).map(u => u.data);
-      if (!units.length) return;
       const friendly = units
         .filter(u => {
           const s = u.sidc || '';
@@ -1008,6 +1016,17 @@ const App = {
         .join(', ');
       const el = document.getElementById('sit-friendly');
       if (el && friendly) el.value = friendly;
+
+      // Auto-fill enemy situation from recent SPOTREPs
+      const enemyEl = document.getElementById('sit-enemy');
+      if (enemyEl && !enemyEl.value) {
+        const rpts = LocalStore.getReports()
+          .filter(r => r.type === 'SPOTREP')
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 3)
+          .map(r => `${r.data?.size || ''} ${r.data?.activity || ''} @ ${r.mgrs || ''}`.trim());
+        if (rpts.length) enemyEl.value = rpts.join(' / ');
+      }
     });
 
     // PACE plan
@@ -1378,8 +1397,8 @@ const App = {
 
   _loadPACE() {
     const key  = Mission.active ? `cop_pace_${Mission.current.id}` : 'cop_pace_offline';
-    const raw  = localStorage.getItem(key);
-    const pace = raw ? JSON.parse(raw) : {};
+    let pace = {};
+    try { pace = JSON.parse(localStorage.getItem(key) || '{}'); } catch {}
     ['p','a','c','e'].forEach(l => {
       document.getElementById(`pace-${l}-method`).value = pace[l]?.method || '';
       document.getElementById(`pace-${l}-freq`).value   = pace[l]?.freq   || '';
