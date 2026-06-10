@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0d1117">
+  <title>Tactical COP</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- NOT FOR OPERATIONAL USE -->
+  <div id="disclaimer">⚠ NOT FOR OPERATIONAL USE — TRAINING / EXERCISE ONLY</div>
+
+  <!-- Full-screen map -->
+  <div id="map"></div>
+
+  <!-- Exit fullscreen button (visible only in fullmap mode) -->
+  <button id="btn-exit-fullmap" title="Exit fullscreen">
+    <svg viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>
+  </button>
+
+  <!-- Draw toolbar (appears during active draw) -->
+  <div id="draw-toolbar" class="draw-toolbar hidden">
+    <span id="draw-type-label" class="draw-type-label"></span>
+    <span id="draw-vertex-count" class="draw-vertex-count">0 pts</span>
+    <button id="btn-draw-undo"   class="dtb-btn">Undo</button>
+    <button id="btn-draw-finish" class="dtb-btn dtb-finish">Finish ✓</button>
+    <button id="btn-draw-cancel" class="dtb-btn dtb-cancel">✕</button>
+  </div>
+
+  <!-- Top bar -->
+  <header id="top-bar">
+    <div id="mission-chip" class="chip" role="button" tabindex="0" aria-label="Mission">
+      <span id="mission-chip-label">No Mission</span>
+      <span class="chip-caret">▾</span>
+    </div>
+    <div id="mgrs-display">──────────────</div>
+    <div id="top-actions">
+      <button class="icon-btn" id="btn-layers" title="Layers">
+        <svg viewBox="0 0 24 24"><path d="M11.99 18.54L4.62 11.17 3 12.79l9 9 9-9-1.63-1.62-7.38 7.37zm.01-2.08l7.37-7.37L21 7.46 12 .45l-9 7.01 1.63 1.63z"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-fullmap" title="Full map">
+        <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Left toolbar -->
+  <aside id="toolbar-left">
+    <button class="tool-btn active" data-tool="select" title="Select / Pan">
+      <svg viewBox="0 0 24 24"><path d="M4 0l16 12.5-7 1.5 4.5 9-2 1-4.5-9-4 5z" fill="currentColor"/></svg>
+    </button>
+    <button class="tool-btn" data-tool="place-unit" title="Place unit symbol">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="7" width="18" height="10" rx="2"/>
+        <line x1="3" y1="7" x2="12" y2="3"/><line x1="21" y1="7" x2="12" y2="3"/>
+        <line x1="12" y1="12" x2="12" y2="17"/>
+      </svg>
+    </button>
+    <button class="tool-btn" data-tool="draw-graphic" title="Draw tactical graphic">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <polyline points="2,18 7,8 12,13 17,5 22,9"/>
+        <circle cx="2" cy="18" r="2" fill="currentColor"/>
+        <circle cx="22" cy="9" r="2" fill="currentColor"/>
+      </svg>
+    </button>
+    <div class="toolbar-divider"></div>
+    <button class="tool-btn" data-tool="measure" title="Measure distance / azimuth">
+      <svg viewBox="0 0 24 24"><path d="M21 6.5l-4-4-14 14 4 4 14-14zM7 18l-1.5-1.5L17 5.5 18.5 7 7 18z" fill="currentColor"/></svg>
+    </button>
+    <button class="tool-btn" data-tool="pin" title="Drop pin — get MGRS grid">
+      <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/></svg>
+    </button>
+    <button class="tool-btn" id="btn-goto-grid-toolbar" title="Go to grid">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
+    </button>
+    <div class="toolbar-divider"></div>
+    <button class="tool-btn" data-tool="reports" title="Reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <rect x="4" y="3" width="16" height="18" rx="2"/>
+        <line x1="8" y1="8" x2="16" y2="8"/>
+        <line x1="8" y1="12" x2="16" y2="12"/>
+        <line x1="8" y1="16" x2="12" y2="16"/>
+      </svg>
+    </button>
+  </aside>
+
+  <!-- Roster panel -->
+  <aside id="panel-roster" class="side-panel collapsed">
+    <button class="panel-toggle" id="btn-roster-toggle" title="Toggle roster">
+      <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" fill="currentColor"/></svg>
+    </button>
+    <div class="panel-content">
+      <h3>Roster</h3>
+      <div id="roster-list"><p class="empty-msg">No members yet</p></div>
+    </div>
+  </aside>
+
+  <!-- Bottom bar -->
+  <nav id="bottom-bar">
+    <button class="icon-btn" id="btn-locate" title="My position">
+      <svg viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z" fill="currentColor"/></svg>
+    </button>
+    <div id="coord-chip" class="coord-chip" title="Tap to copy MGRS">
+      <span id="coord-mgrs">No position</span>
+    </div>
+    <button class="icon-btn" id="btn-chat" title="GeoChat" style="position:relative">
+      <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="currentColor"/></svg>
+      <span id="chat-badge" class="chat-badge" style="display:none">0</span>
+    </button>
+  </nav>
+
+  <!-- ── SHEETS ────────────────────────────────────────────── -->
+
+  <!-- Auth sheet -->
+  <div id="sheet-auth" class="sheet" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <h2>Tactical COP</h2>
+      <p class="sheet-sub">Training &amp; Exercise Use Only — Unclassified</p>
+      <div class="field-group">
+        <label for="auth-callsign">Callsign <span class="req">*</span></label>
+        <input id="auth-callsign" type="text" placeholder="e.g. ALPHA-6" maxlength="20"
+               autocomplete="off" autocapitalize="characters" spellcheck="false">
+      </div>
+      <div class="field-group">
+        <label for="auth-email">Email <span class="opt">(optional — for sync)</span></label>
+        <input id="auth-email" type="email" placeholder="Leave blank for anonymous">
+      </div>
+      <button class="btn-primary btn-full" id="btn-auth-submit">Continue →</button>
+      <div id="auth-error" class="error-msg" hidden></div>
+    </div>
+  </div>
+
+  <!-- Mission sheet -->
+  <div id="sheet-mission" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-mission-close">✕</button>
+      <div id="mission-content"></div>
+    </div>
+  </div>
+
+  <!-- Symbol picker sheet -->
+  <div id="sheet-symbols" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-symbols-close">✕</button>
+      <h3>Select Symbol</h3>
+      <input id="symbol-search" type="search" placeholder="Search symbols…" autocomplete="off">
+      <div class="symbol-filter-bar" id="symbol-filters">
+        <button class="filter-btn active" data-filter="F">Friendly</button>
+        <button class="filter-btn" data-filter="H">Hostile</button>
+        <button class="filter-btn" data-filter="N">Neutral</button>
+        <button class="filter-btn" data-filter="U">Unknown</button>
+      </div>
+      <div id="echelon-bar" class="echelon-bar">
+        <span class="echelon-label">Size:</span>
+        <button class="ech-btn active" data-ech="">—</button>
+        <button class="ech-btn" data-ech="B">Squad</button>
+        <button class="ech-btn" data-ech="D">Platoon</button>
+        <button class="ech-btn" data-ech="E">Company</button>
+        <button class="ech-btn" data-ech="F">Bn</button>
+        <button class="ech-btn" data-ech="H">Brigade</button>
+        <button class="ech-btn" data-ech="I">Div</button>
+      </div>
+      <div id="symbol-grid" class="symbol-grid"></div>
+    </div>
+  </div>
+
+  <!-- Tactical graphic picker sheet -->
+  <div id="sheet-graphic-picker" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-graphic-picker-close">✕</button>
+      <h3>Tactical Graphics</h3>
+      <div id="graphic-tabs" class="graphic-tabs">
+        <button class="graphic-tab active" data-tab="LN">Lines</button>
+        <button class="graphic-tab" data-tab="AR">Areas</button>
+      </div>
+      <div id="graphic-grid" class="graphic-grid"></div>
+    </div>
+  </div>
+
+  <!-- Unit detail sheet -->
+  <div id="sheet-unit" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-unit-close">✕</button>
+      <div id="unit-detail-content"></div>
+    </div>
+  </div>
+
+  <!-- Plot grid sheet -->
+  <div id="sheet-plot-grid" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-plot-close">✕</button>
+      <h3>Plot Grid Reference</h3>
+      <div class="field-group">
+        <label for="plot-input">MGRS / Grid</label>
+        <input id="plot-input" type="text" placeholder="16TDL 123 456 or just 123456"
+               autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <span class="field-hint">Accepts full MGRS or 4–10 digit local grid (Camp Grayling AO)</span>
+      </div>
+      <button class="btn-primary btn-full" id="btn-plot-go">Go to Grid ↗</button>
+      <div id="plot-error" class="error-msg" hidden></div>
+    </div>
+  </div>
+
+  <!-- Layers sheet -->
+  <div id="sheet-layers" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-layers-close">✕</button>
+      <h3>Layers &amp; Basemap</h3>
+      <div class="layers-section">
+        <h4>Basemap</h4>
+        <div id="basemap-grid" class="basemap-grid"></div>
+      </div>
+      <div class="layers-section">
+        <h4>Symbol Size</h4>
+        <div id="scale-bar" class="scale-bar">
+          <button class="scale-btn" data-scale="0.6">S</button>
+          <button class="scale-btn active" data-scale="1.0">M</button>
+          <button class="scale-btn" data-scale="1.5">L</button>
+          <button class="scale-btn" data-scale="2.0">XL</button>
+        </div>
+      </div>
+      <div class="layers-section">
+        <h4>Overlays</h4>
+        <div id="overlay-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Measure sheet -->
+  <div id="sheet-measure" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-measure-close">✕</button>
+      <h3>Measurement</h3>
+      <p class="sheet-hint">Click two points on the map to measure.</p>
+      <div class="measure-grid">
+        <dt>Distance</dt><dd id="m-distance">—</dd>
+        <dt>Azimuth</dt><dd id="m-azimuth">—</dd>
+        <dt>From</dt><dd id="m-from">—</dd>
+        <dt>To</dt><dd id="m-to">—</dd>
+      </div>
+      <button class="btn-secondary btn-full" id="btn-measure-clear" style="margin-top:16px">Clear</button>
+    </div>
+  </div>
+
+  <!-- Label input sheet -->
+  <div id="sheet-label" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-label-close">✕</button>
+      <h3 id="sheet-label-title">Label</h3>
+      <div class="field-group">
+        <label for="label-input">Label text</label>
+        <input id="label-input" type="text" placeholder="Optional label…"
+               autocomplete="off" autocapitalize="characters" spellcheck="false">
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" id="btn-label-done">Done ✓</button>
+        <button class="btn-secondary" id="btn-label-skip">No Label</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── GeoChat sheet ─────────────────────────────────────── -->
+  <div id="sheet-chat" class="sheet sheet-tall hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner sheet-inner-chat">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-chat-close">✕</button>
+      <h3>GeoChat</h3>
+      <div id="chat-msgs" class="chat-msgs"></div>
+      <div id="chat-canned" class="chat-canned"></div>
+      <div class="chat-input-row">
+        <input id="chat-input" type="text" placeholder="Send message…"
+               autocomplete="off" autocapitalize="sentences" maxlength="500">
+        <button class="btn-primary" id="btn-chat-send">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Reports menu sheet ───────────────────────────────── -->
+  <div id="sheet-reports-menu" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-reports-menu-close">✕</button>
+      <h3>Reports</h3>
+      <p class="sheet-hint">Select report type to file</p>
+      <div class="rpt-menu">
+        <button class="rpt-menu-btn" id="btn-rpt-lace">
+          <div class="rpt-icon lace">LACE</div>
+          <div class="rpt-info"><div class="rpt-name">LACE Report</div><div class="rpt-desc">Liquid · Ammo · Cas · Equipment</div></div>
+        </button>
+        <button class="rpt-menu-btn" id="btn-rpt-ace">
+          <div class="rpt-icon ace">ACE</div>
+          <div class="rpt-info"><div class="rpt-name">ACE Report</div><div class="rpt-desc">Ammo · Casualties · Equipment</div></div>
+        </button>
+        <button class="rpt-menu-btn" id="btn-rpt-spotrep">
+          <div class="rpt-icon hostile">✕</div>
+          <div class="rpt-info"><div class="rpt-name">SPOTREP</div><div class="rpt-desc">Enemy spot report (SALUTE)</div></div>
+        </button>
+        <button class="rpt-menu-btn" id="btn-rpt-9line">
+          <div class="rpt-icon medevac">✚</div>
+          <div class="rpt-info"><div class="rpt-name">9-Line MEDEVAC</div><div class="rpt-desc">Medical evacuation request</div></div>
+        </button>
+        <button class="rpt-menu-btn" id="btn-rpt-sitrep">
+          <div class="rpt-icon sitrep">SIT</div>
+          <div class="rpt-info"><div class="rpt-name">SITREP</div><div class="rpt-desc">Situation report to higher</div></div>
+        </button>
+        <button class="rpt-menu-btn" id="btn-rpt-nbc">
+          <div class="rpt-icon nbc">NBC</div>
+          <div class="rpt-info"><div class="rpt-name">NBC Warning</div><div class="rpt-desc">CBRN hazard report</div></div>
+        </button>
+      </div>
+      <div class="rpt-log-row">
+        <button class="btn-secondary btn-full" id="btn-rpt-log">View Reports Log</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Reports log sheet ─────────────────────────────────── -->
+  <div id="sheet-reports-log" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <h3>Reports Log</h3>
+        <button class="btn-close" id="btn-reports-log-close">✕</button>
+      </div>
+      <div id="reports-log-list" class="reports-log-list"><p class="empty-msg">No reports filed yet</p></div>
+    </div>
+  </div>
+
+  <!-- ── LACE report sheet ────────────────────────────────── -->
+  <div id="sheet-lace" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-lace-close">✕</button>
+      <h3>LACE Report</h3>
+      <p class="sheet-hint">Liquid · Ammo · Casualties · Equipment — all measured as % of basic load</p>
+
+      <div class="lace-form-row">
+        <div class="lace-form-label">
+          <span class="lace-key-lg">L</span>
+          <span>Liquid / Fuel</span>
+        </div>
+        <div class="lace-slider-wrap">
+          <input id="lace-liquid" type="range" min="0" max="100" value="100" class="lace-slider">
+          <div class="lace-bar-bg"><div id="lace-liquid-fill" class="lace-fill green" style="width:100%"></div></div>
+          <span id="lace-liquid-val" class="lace-pct">100%</span>
+        </div>
+      </div>
+
+      <div class="lace-form-row">
+        <div class="lace-form-label">
+          <span class="lace-key-lg">A</span>
+          <span>Ammunition</span>
+        </div>
+        <div class="lace-slider-wrap">
+          <input id="lace-ammo" type="range" min="0" max="100" value="100" class="lace-slider">
+          <div class="lace-bar-bg"><div id="lace-ammo-fill" class="lace-fill green" style="width:100%"></div></div>
+          <span id="lace-ammo-val" class="lace-pct">100%</span>
+        </div>
+      </div>
+
+      <div class="lace-form-row">
+        <div class="lace-form-label">
+          <span class="lace-key-lg">C</span>
+          <span>Casualties</span>
+        </div>
+        <div class="lace-slider-wrap">
+          <input id="lace-cas" type="range" min="0" max="50" value="0" class="lace-slider">
+          <span id="lace-cas-val" class="lace-pct" style="color:var(--text-dim)">0 casualties</span>
+        </div>
+      </div>
+
+      <div class="lace-form-row">
+        <div class="lace-form-label">
+          <span class="lace-key-lg">E</span>
+          <span>Equipment</span>
+        </div>
+        <div class="lace-slider-wrap">
+          <input id="lace-equip" type="range" min="0" max="100" value="100" class="lace-slider">
+          <div class="lace-bar-bg"><div id="lace-equip-fill" class="lace-fill green" style="width:100%"></div></div>
+          <span id="lace-equip-val" class="lace-pct">100%</span>
+        </div>
+      </div>
+
+      <div class="lace-legend">
+        <span class="ll-dot green"></span>75–100% Green
+        <span class="ll-dot amber"></span>50–75% Amber
+        <span class="ll-dot red"></span>25–50% Red
+        <span class="ll-dot black"></span>0–25% Black
+      </div>
+
+      <button class="btn-primary btn-full" id="btn-lace-submit" style="margin-top:16px">File LACE Report</button>
+    </div>
+  </div>
+
+  <!-- ── SPOTREP sheet ─────────────────────────────────────── -->
+  <div id="sheet-spotrep" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <h3>SPOTREP — Enemy Contact</h3>
+        <button class="btn-close" id="btn-spotrep-close">✕</button>
+      </div>
+      <p class="sheet-hint">SALUTE format: Size · Activity · Location · Unit · Time · Equipment</p>
+
+      <div class="field-group">
+        <label for="spot-size">S — Size <span class="req">*</span></label>
+        <input id="spot-size" type="text" placeholder="e.g. 8-10 dismounts, 2 trucks"
+               autocomplete="off" autocapitalize="sentences">
+      </div>
+      <div class="field-group">
+        <label for="spot-activity">A — Activity <span class="req">*</span></label>
+        <input id="spot-activity" type="text" placeholder="e.g. Moving east on MSR IRON"
+               autocomplete="off" autocapitalize="sentences">
+      </div>
+      <div class="field-group">
+        <label for="spot-location">L — Location (MGRS)</label>
+        <input id="spot-location" type="text" placeholder="16TDL 123 456"
+               autocomplete="off" autocapitalize="characters">
+      </div>
+      <div class="field-group">
+        <label for="spot-unit-id">U — Unit / Description</label>
+        <input id="spot-unit-id" type="text" placeholder="e.g. Irregular forces, dark uniforms"
+               autocomplete="off" autocapitalize="sentences">
+      </div>
+      <div class="field-group">
+        <label for="spot-dtg">T — Time (DTG)</label>
+        <input id="spot-dtg" type="text" placeholder="DDHHMM Z MON YY"
+               autocomplete="off" autocapitalize="characters">
+      </div>
+      <div class="field-group">
+        <label for="spot-equip">E — Equipment</label>
+        <input id="spot-equip" type="text" placeholder="e.g. AK-74, PKM, RPG"
+               autocomplete="off" autocapitalize="sentences">
+      </div>
+      <div class="field-group">
+        <label for="spot-assessment">Assessment</label>
+        <input id="spot-assessment" type="text" placeholder="Commander's assessment"
+               autocomplete="off" autocapitalize="sentences">
+      </div>
+      <button class="btn-primary btn-full" id="btn-spotrep-submit">File SPOTREP</button>
+    </div>
+  </div>
+
+  <!-- ── 9-Line MEDEVAC sheet ──────────────────────────────── -->
+  <div id="sheet-9line" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <h3>9-Line MEDEVAC</h3>
+        <button class="btn-close" id="btn-9line-close">✕</button>
+      </div>
+
+      <div class="field-group">
+        <label for="m9-loc">Line 1 — Pickup site location <span class="req">*</span></label>
+        <input id="m9-loc" type="text" placeholder="6-digit MGRS"
+               autocomplete="off" autocapitalize="characters">
+      </div>
+      <div class="field-group">
+        <label for="m9-freq">Line 2 — Radio freq / callsign</label>
+        <input id="m9-freq" type="text" placeholder="e.g. 46.35 DUSTOFF"
+               autocomplete="off">
+      </div>
+      <div class="field-group">
+        <label for="m9-prec">Line 3 — Precedence</label>
+        <select id="m9-prec">
+          <option value="A">A — Urgent (2h)</option>
+          <option value="B">B — Urgent Surgical</option>
+          <option value="C">C — Priority (4h)</option>
+          <option value="D">D — Routine (24h)</option>
+          <option value="E">E — Convenience</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label for="m9-equip">Line 4 — Special equipment</label>
+        <select id="m9-equip">
+          <option value="A">A — None</option>
+          <option value="B">B — Hoist</option>
+          <option value="C">C — Extraction equipment</option>
+          <option value="D">D — Ventilator</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label for="m9-patients">Line 5 — Patients by type</label>
+        <select id="m9-patients">
+          <option value="A">A — Litter</option>
+          <option value="B">B — Ambulatory</option>
+          <option value="L">L — Litter &amp; Ambulatory</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label for="m9-security">Line 6 — Security at pickup</label>
+        <select id="m9-security">
+          <option value="N">N — No enemy</option>
+          <option value="P">P — Possible enemy</option>
+          <option value="E">E — Enemy troops nearby</option>
+          <option value="X">X — Enemy armed escort needed</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label for="m9-marking">Line 7 — Marking pickup site</label>
+        <select id="m9-marking">
+          <option value="A">A — Panels</option>
+          <option value="B">B — Pyrotechnic signal</option>
+          <option value="C">C — Smoke</option>
+          <option value="D">D — None</option>
+          <option value="E">E — Other</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label for="m9-national">Line 8 — Patient nationality</label>
+        <select id="m9-national">
+          <option value="A">A — US military</option>
+          <option value="B">B — US civilian</option>
+          <option value="C">C — Non-US military</option>
+          <option value="D">D — Non-US civilian</option>
+          <option value="E">E — EPW</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label for="m9-nbc">Line 9 — NBC contamination</label>
+        <select id="m9-nbc">
+          <option value="N">N — None</option>
+          <option value="B">B — Biological</option>
+          <option value="C">C — Chemical</option>
+          <option value="R">R — Radiological</option>
+          <option value="E">E — Explosive hazard</option>
+        </select>
+      </div>
+      <button class="btn-primary btn-full" id="btn-9line-submit">Send 9-Line</button>
+    </div>
+  </div>
+
+  <!-- ── SITREP sheet ──────────────────────────────────────── -->
+  <div id="sheet-sitrep" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <h3>SITREP</h3>
+        <button class="btn-close" id="btn-sitrep-close">✕</button>
+      </div>
+
+      <div class="field-group">
+        <label for="sit-unit">Unit / Callsign</label>
+        <input id="sit-unit" type="text" autocomplete="off" autocapitalize="characters">
+      </div>
+      <div class="field-group">
+        <label for="sit-dtg">Date-Time Group</label>
+        <input id="sit-dtg" type="text" autocomplete="off" autocapitalize="characters">
+      </div>
+      <div class="field-group">
+        <label for="sit-loc">Present Location (MGRS)</label>
+        <input id="sit-loc" type="text" autocomplete="off" autocapitalize="characters">
+      </div>
+      <div class="field-group">
+        <label for="sit-friendly">Friendly Situation</label>
+        <input id="sit-friendly" type="text" placeholder="Current operations, position, status"
+               autocomplete="off" autocapitalize="sentences">
+      </div>
+      <div class="field-group">
+        <label for="sit-enemy">Enemy Situation</label>
+        <input id="sit-enemy" type="text" placeholder="Known/suspected enemy activity"
+               autocomplete="off" autocapitalize="sentences">
+      </div>
+      <div class="field-group">
+        <label for="sit-log">Logistics Status</label>
+        <input id="sit-log" type="text" placeholder="Brief LACE summary"
+               autocomplete="off" autocapitalize="sentences">
+      </div>
+      <div class="field-group">
+        <label for="sit-assess">Commander's Assessment</label>
+        <input id="sit-assess" type="text" placeholder="Assessment and intent"
+               autocomplete="off" autocapitalize="sentences">
+      </div>
+      <button class="btn-primary btn-full" id="btn-sitrep-submit">Send SITREP</button>
+    </div>
+  </div>
+
+  <!-- ── Long-press context menu sheet ────────────────────── -->
+  <div id="sheet-context" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-context-close">✕</button>
+      <div class="ctx-grid-label" id="ctx-mgrs">——</div>
+      <div class="ctx-menu">
+        <button class="ctx-btn hostile-btn" id="ctx-spotrep">
+          <span class="ctx-icon">✕</span>
+          <span>SPOTREP Here</span>
+        </button>
+        <button class="ctx-btn medevac-btn" id="ctx-9line">
+          <span class="ctx-icon">✚</span>
+          <span>MEDEVAC Here</span>
+        </button>
+        <button class="ctx-btn waypoint-btn" id="ctx-waypoint">
+          <span class="ctx-icon">📍</span>
+          <span>Place Waypoint</span>
+        </button>
+        <button class="ctx-btn chat-btn" id="ctx-chat-grid">
+          <span class="ctx-icon">💬</span>
+          <span>Chat This Grid</span>
+        </button>
+        <button class="ctx-btn nav-btn" id="ctx-goto-grid">
+          <span class="ctx-icon">🔭</span>
+          <span>Go to Grid</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Go to Grid sheet ──────────────────────────────────── -->
+  <div id="sheet-goto-grid" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-goto-close">✕</button>
+      <h3>Go to Grid</h3>
+      <p class="sheet-hint">Enter MGRS or abbreviated grid (e.g. 38SMB1234 or 12345678)</p>
+      <input id="goto-grid-input" class="text-input" type="text" placeholder="38SMB12345678"
+             autocomplete="off" autocorrect="off" autocapitalize="characters"
+             style="font-size:18px; letter-spacing:0.05em; margin-bottom:12px">
+      <div id="goto-grid-note" style="font-size:12px; color:var(--text-dim); min-height:16px; margin-bottom:12px"></div>
+      <button class="btn-primary btn-full" id="btn-goto-go">Navigate</button>
+    </div>
+  </div>
+
+  <!-- ── BFT track detail card ─────────────────────────────── -->
+  <div id="sheet-bft-card" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-bft-card-close">✕</button>
+      <div class="bft-card-header">
+        <div class="bft-card-avatar" id="bft-card-cs">——</div>
+        <span id="bft-card-stale" class="bft-status-badge live">LIVE</span>
+      </div>
+      <dl class="detail-dl" style="margin-top:16px">
+        <dt>MGRS</dt><dd id="bft-card-mgrs">—</dd>
+        <dt>Heading</dt><dd id="bft-card-hdg">—</dd>
+        <dt>Speed</dt><dd id="bft-card-spd">—</dd>
+        <dt>Last update</dt><dd id="bft-card-age">—</dd>
+        <dt id="bft-card-fuel-row">Fuel</dt><dd id="bft-card-fuel">—</dd>
+        <dt id="bft-card-ammo-row">Ammo</dt><dd id="bft-card-ammo">—</dd>
+        <dt id="bft-card-stat-row">Status</dt><dd id="bft-card-opstat">—</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- ── ACE Report sheet ─────────────────────────────────── -->
+  <div id="sheet-ace" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-ace-close">✕</button>
+      <h3>ACE Report</h3>
+      <p class="sheet-hint">Ammunition · Casualties · Equipment</p>
+
+      <div class="lace-form-row">
+        <div class="lace-form-label"><span class="lace-key-lg">A</span><span>Ammunition</span></div>
+        <div class="lace-slider-wrap">
+          <input id="ace-ammo" type="range" min="0" max="100" value="100" class="lace-slider">
+          <div class="lace-bar-bg"><div id="ace-ammo-fill" class="lace-fill green" style="width:100%"></div></div>
+          <span id="ace-ammo-val" class="lace-pct">100%</span>
+        </div>
+      </div>
+
+      <div class="ace-cas-section">
+        <div class="lace-form-label" style="margin-bottom:8px"><span class="lace-key-lg">C</span><span>Casualties</span></div>
+        <div class="ace-cas-grid">
+          <div class="ace-cas-item"><label>KIA</label><input id="ace-kia" type="number" min="0" max="999" value="0" class="ace-num"></div>
+          <div class="ace-cas-item"><label>WIA</label><input id="ace-wia" type="number" min="0" max="999" value="0" class="ace-num"></div>
+          <div class="ace-cas-item"><label>MIA</label><input id="ace-mia" type="number" min="0" max="999" value="0" class="ace-num"></div>
+        </div>
+      </div>
+
+      <div class="lace-form-row">
+        <div class="lace-form-label"><span class="lace-key-lg">E</span><span>Equipment</span></div>
+        <div class="lace-slider-wrap">
+          <input id="ace-equip" type="range" min="0" max="100" value="100" class="lace-slider">
+          <div class="lace-bar-bg"><div id="ace-equip-fill" class="lace-fill green" style="width:100%"></div></div>
+          <span id="ace-equip-val" class="lace-pct">100%</span>
+        </div>
+      </div>
+
+      <div class="lace-legend">
+        <span class="ll-dot green"></span>75–100%
+        <span class="ll-dot amber"></span>50–75%
+        <span class="ll-dot red"></span>25–50%
+        <span class="ll-dot black"></span>0–25%
+      </div>
+      <button class="btn-primary btn-full" id="btn-ace-submit" style="margin-top:16px">File ACE Report</button>
+    </div>
+  </div>
+
+  <!-- ── NBC Warning sheet ─────────────────────────────────── -->
+  <div id="sheet-nbc" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <h3>NBC Warning</h3>
+        <button class="btn-close" id="btn-nbc-close">✕</button>
+      </div>
+      <p class="sheet-hint">CBRN hazard warning — report immediately to higher</p>
+
+      <div class="field-group">
+        <label>Hazard Type</label>
+        <div class="nbc-type-row">
+          <button class="nbc-type-btn" data-type="C">C — Chemical</button>
+          <button class="nbc-type-btn" data-type="B">B — Biological</button>
+          <button class="nbc-type-btn" data-type="R">R — Radiological</button>
+          <button class="nbc-type-btn" data-type="N">N — Nuclear</button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label for="nbc-loc">Location (MGRS) <span class="req">*</span></label>
+        <input id="nbc-loc" type="text" placeholder="6-digit MGRS" autocapitalize="characters">
+      </div>
+      <div class="field-group">
+        <label for="nbc-dtg">Date-Time Group</label>
+        <input id="nbc-dtg" type="text" autocapitalize="characters">
+      </div>
+      <div class="field-group">
+        <label for="nbc-wind">Wind Direction (from)</label>
+        <input id="nbc-wind" type="text" placeholder="e.g. 270° W" autocapitalize="characters">
+      </div>
+      <div class="field-group">
+        <label for="nbc-hazard">Hazard Area / Extent</label>
+        <input id="nbc-hazard" type="text" placeholder="e.g. 500m radius" autocapitalize="sentences">
+      </div>
+      <div class="field-group">
+        <label for="nbc-actions">Protective Actions</label>
+        <input id="nbc-actions" type="text" placeholder="e.g. MOPP 4, evacuate 1km" autocapitalize="sentences">
+      </div>
+      <button class="btn-primary btn-full" id="btn-nbc-submit">Send NBC Warning</button>
+    </div>
+  </div>
+
+  <!-- ── PACE Plan sheet ───────────────────────────────────── -->
+  <div id="sheet-pace" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <h3>PACE Plan</h3>
+        <button class="btn-close" id="btn-pace-close">✕</button>
+      </div>
+      <p class="sheet-hint">Primary · Alternate · Contingency · Emergency comms</p>
+
+      <div class="pace-item">
+        <div class="pace-letter pace-p">P</div>
+        <div class="pace-fields">
+          <input id="pace-p-method" type="text" placeholder="Primary method (e.g. SINCGARS)" autocapitalize="words">
+          <input id="pace-p-freq" type="text" placeholder="Freq / net / channel" autocapitalize="characters">
+        </div>
+      </div>
+      <div class="pace-item">
+        <div class="pace-letter pace-a">A</div>
+        <div class="pace-fields">
+          <input id="pace-a-method" type="text" placeholder="Alternate method" autocapitalize="words">
+          <input id="pace-a-freq" type="text" placeholder="Freq / net / channel" autocapitalize="characters">
+        </div>
+      </div>
+      <div class="pace-item">
+        <div class="pace-letter pace-c">C</div>
+        <div class="pace-fields">
+          <input id="pace-c-method" type="text" placeholder="Contingency method" autocapitalize="words">
+          <input id="pace-c-freq" type="text" placeholder="Freq / net / channel" autocapitalize="characters">
+        </div>
+      </div>
+      <div class="pace-item">
+        <div class="pace-letter pace-e">E</div>
+        <div class="pace-fields">
+          <input id="pace-e-method" type="text" placeholder="Emergency method" autocapitalize="words">
+          <input id="pace-e-freq" type="text" placeholder="Freq / net / channel" autocapitalize="characters">
+        </div>
+      </div>
+      <button class="btn-primary btn-full" id="btn-pace-save" style="margin-top:4px">Save PACE Plan</button>
+    </div>
+  </div>
+
+  <!-- ── Force Status sheet ────────────────────────────────── -->
+  <div id="sheet-force-status" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <h3>Force Status</h3>
+        <button class="btn-close" id="btn-force-status-close">✕</button>
+      </div>
+      <div id="force-status-list" class="force-status-list">
+        <p class="empty-msg">No units placed</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toasts" aria-live="polite"></div>
+
+  <!-- ── SCRIPTS ────────────────────────────────── -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+  <script src="https://unpkg.com/mgrs/mgrs.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/milsymbol@2.2.0/dist/milsymbol.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+  <script src="js/config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/mission.js"></script>
+  <script src="js/mgrs-grid.js"></script>
+  <script src="js/symbols.js"></script>
+  <script src="js/bft.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/reports.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>
