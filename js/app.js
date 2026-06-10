@@ -188,6 +188,11 @@ const UI = {
           <div class="redcon-badge" id="ud-rcbadge"
             style="background:${col}22;border-color:${col}66;color:${col}">RC${rc} — ${REDCON_LABELS[rc]}</div>
         </div>
+        <button class="btn-unit-trash" id="btn-unit-delete" title="Delete unit" aria-label="Delete unit">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9"/>
+          </svg>
+        </button>
       </div>
 
       <div class="redcon-row">
@@ -255,7 +260,6 @@ const UI = {
       <div class="btn-row" style="margin-bottom:8px">
         <button class="btn-secondary btn-full" id="btn-unit-share">Share Status to Chat</button>
       </div>
-      <button class="btn-secondary btn-danger btn-full" id="btn-unit-delete">Delete</button>
     `;
 
     // Op Status selector
@@ -424,11 +428,11 @@ const UI = {
       deleteStep++;
       if (deleteStep === 1) {
         const btn = document.getElementById('btn-unit-delete');
-        if (btn) { btn.textContent = 'Tap again to confirm'; btn.style.background = 'rgba(248,81,73,0.4)'; }
+        if (btn) { btn.classList.add('btn-unit-trash--confirm'); btn.title = 'Tap again to confirm delete'; }
         setTimeout(() => {
           deleteStep = 0;
           const b = document.getElementById('btn-unit-delete');
-          if (b) { b.textContent = 'Delete'; b.style.background = ''; }
+          if (b) { b.classList.remove('btn-unit-trash--confirm'); b.title = 'Delete unit'; }
         }, 3000);
       } else {
         onDelete();
