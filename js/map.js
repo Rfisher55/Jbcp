@@ -441,6 +441,7 @@ const MapCtrl = {
     marker.on('dragend', e => this._onUnitDrag(unit.id, e));
 
     this._units[unit.id] = { data: unit, marker };
+    this.updateUnitCount();
   },
 
   _openUnitDetail(id) {
@@ -468,6 +469,7 @@ const MapCtrl = {
     if (!entry) return;
     this._unitLayer.removeLayer(entry.marker);
     delete this._units[id];
+    this.updateUnitCount();
     LocalStore.deleteUnit(id);
     if (Mission.active) {
       DB.deleteUnit(id).catch(e => UI.toast('Delete failed: ' + e.message, 'error'));
@@ -493,7 +495,7 @@ const MapCtrl = {
     const { eventType, new: row, old } = payload;
     if (eventType === 'DELETE') {
       const entry = this._units[old.id];
-      if (entry) { this._unitLayer.removeLayer(entry.marker); delete this._units[old.id]; }
+      if (entry) { this._unitLayer.removeLayer(entry.marker); delete this._units[old.id]; this.updateUnitCount(); }
     } else {
       const existing = this._units[row.id];
       if (existing) {
@@ -759,13 +761,26 @@ const MapCtrl = {
   },
 
   // ── Report markers ────────────────────────────────────────
+  updateUnitCount() {
+    const chip = document.getElementById('unit-count-chip');
+    if (!chip) return;
+    const units = Object.values(this._units).map(u => u.data);
+    const f = units.filter(u => u.sidc?.[1] === 'F' || (u.sidc?.length >= 20 && u.sidc[3] === '3')).length;
+    const h = units.filter(u => u.sidc?.[1] === 'H' || (u.sidc?.length >= 20 && u.sidc[3] === '6')).length;
+    const bft = BFT.count();
+    chip.innerHTML = f > 0 || h > 0 || bft > 0
+      ? `<span class="uc-f">${f}F</span><span class="uc-h">${h}H</span>${bft > 0 ? `<span class="uc-bft">${bft}▲</span>` : ''}`
+      : '';
+  },
+
   placeReportMarker(report) {
     if (report.lat == null || report.lng == null) return;
 
     const isHostile = report.type === 'SPOTREP';
     const isMedevac = report.type === '9LINE';
-    const cls       = isHostile ? 'hostile' : isMedevac ? 'medevac' : 'generic';
-    const glyph     = isHostile ? '✕' : isMedevac ? '✚' : '!';
+    const isNBC     = report.type === 'NBC';
+    const cls       = isHostile ? 'hostile' : isMedevac ? 'medevac' : isNBC ? 'nbc' : 'generic';
+    const glyph     = isHostile ? '✕' : isMedevac ? '✚' : isNBC ? (report.data?.type || '☢') : '!';
 
     const icon = L.divIcon({
       html:       `<div class="report-pin ${cls}">${glyph}</div>`,
@@ -775,6 +790,19 @@ const MapCtrl = {
     });
 
     const marker = L.marker([report.lat, report.lng], { icon, zIndexOffset: 600, interactive: true });
+
+    // NBC hazard circle
+    if (isNBC) {
+      const NBC_COL = { N: '#ff8c00', B: '#3fb950', C: '#d2a91b', R: '#58a6ff' };
+      const NBC_RAD = { N: 500, B: 1000, C: 500, R: 300 };
+      const t   = report.data?.type || 'C';
+      const col = NBC_COL[t] || '#d2a91b';
+      const rad = NBC_RAD[t] || 500;
+      marker._nbcCircle = L.circle([report.lat, report.lng], {
+        radius: rad, color: col, fillColor: col, fillOpacity: 0.08,
+        weight: 2, dashArray: '6,4', interactive: false,
+      }).addTo(this._reportLayer);
+    }
 
     marker.on('click', () => {
       if (this._activeTool !== 'select') return;
@@ -794,6 +822,15 @@ const MapCtrl = {
         body += `<tr><td>L3</td><td>${_escH(d.line3 || '')}</td></tr>`;
         body += `<tr><td>L5</td><td>${_escH(d.line5 || '')}</td></tr>`;
         body += `</table>`;
+      } else if (report.type === 'NBC') {
+        const NBC_NAMES = { N: 'Nuclear', B: 'Biological', C: 'Chemical', R: 'Radiological' };
+        body += `<table class="popup-table">`;
+        body += `<tr><td>Type</td><td>${NBC_NAMES[d.type] || d.type}</td></tr>`;
+        if (d.dtg)     body += `<tr><td>DTG</td><td>${_escH(d.dtg)}</td></tr>`;
+        if (d.wind)    body += `<tr><td>Wind</td><td>${_escH(d.wind)}</td></tr>`;
+        if (d.hazard)  body += `<tr><td>Hazard</td><td>${_escH(d.hazard)}</td></tr>`;
+        if (d.actions) body += `<tr><td>Actions</td><td>${_escH(d.actions)}</td></tr>`;
+        body += `</table>`;
       }
       body += `<button class="btn-del-report" data-rid="${report.id}" style="font-size:11px;margin-top:8px;padding:4px 12px;` +
               `background:rgba(248,81,73,0.2);color:#f85149;border:1px solid rgba(248,81,73,0.4);border-radius:6px;cursor:pointer">Remove</button>`;
@@ -808,6 +845,7 @@ const MapCtrl = {
       setTimeout(() => {
         document.querySelectorAll(`.btn-del-report[data-rid="${report.id}"]`).forEach(btn => {
           btn.addEventListener('click', () => {
+            if (marker._nbcCircle) this._reportLayer.removeLayer(marker._nbcCircle);
             this._reportLayer.removeLayer(marker);
             LocalStore.deleteReport(report.id);
             this._map.closePopup();
