@@ -189,9 +189,10 @@ const BFT = {
     if (ammoEl && t.ammo_pct != null) ammoEl.textContent = t.ammo_pct + '%';
     if (statEl && t.opstat)           statEl.textContent = t.opstat;
 
-    // Fly-to and share buttons
-    const flyBtn   = document.getElementById('btn-bft-fly');
-    const shareBtn = document.getElementById('btn-bft-share-pos');
+    // Fly-to, share, and adopt buttons
+    const flyBtn    = document.getElementById('btn-bft-fly');
+    const shareBtn  = document.getElementById('btn-bft-share-pos');
+    const adoptBtn  = document.getElementById('btn-bft-adopt');
     if (flyBtn) {
       flyBtn.onclick = () => {
         UI.closeSheet('sheet-bft-card');
@@ -205,6 +206,30 @@ const BFT = {
         Chat.send(`BFT TRACK: ${cs} @ ${t.mgrs || `${t.lat.toFixed(5)},${t.lng.toFixed(5)}`} HDG ${t.heading || 0}° ${t.speed || 0}kph`);
         UI.closeSheet('sheet-bft-card');
         UI.toast('Position shared to chat', 'success', 2000);
+      };
+    }
+    if (adoptBtn) {
+      adoptBtn.onclick = () => {
+        const unit = {
+          id:         uid,
+          mission_id: (typeof Mission !== 'undefined' && Mission.active) ? Mission.current.id : null,
+          sidc:       'SFGPUC-----',
+          callsign:   String(t.callsign || 'BFT').slice(0, 24),
+          lat:        t.lat,
+          lng:        t.lng,
+          notes:      'Adopted from BFT track',
+          updated_at: new Date().toISOString(),
+        };
+        if (MapCtrl._units[uid]) {
+          MapCtrl._updateUnit(uid, { lat: t.lat, lng: t.lng, callsign: unit.callsign });
+          UI.toast(`Unit ${unit.callsign} updated`, 'success', 2000);
+        } else {
+          MapCtrl._addUnitMarker(unit);
+          LocalStore.upsertUnit(unit);
+          if (Mission.active) DB.upsertUnit(unit).catch(() => {});
+          UI.toast(`${unit.callsign} placed as unit`, 'success', 2000);
+        }
+        UI.closeSheet('sheet-bft-card');
       };
     }
 
