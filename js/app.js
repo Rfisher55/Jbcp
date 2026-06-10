@@ -1507,11 +1507,12 @@ const App = {
     if (summaryEl) summaryEl.innerHTML = rcBar + laceBar;
 
     list.innerHTML = units.map(({ data: u }) => {
-      const rc    = u.redcon || 5;
+      const rc    = Math.max(1, Math.min(5, +u.redcon || 5));
       const col   = REDCON_COLORS[rc];
-      const opst  = u.opstat || 'FMC';
-      const opCls = opst.toLowerCase();
-      const laceStr = u.lace ? `L${u.lace.l}% A${u.lace.a}% E${u.lace.e}%` : '';
+      const opst  = ['FMC','PMC','NMC'].includes(u.opstat) ? u.opstat : 'FMC';
+      const laceStr = u.lace
+        ? `L${+u.lace.l || 0}% A${+u.lace.a || 0}% E${+u.lace.e || 0}%`
+        : '';
       const mgrs    = toMGRS(u.lat, u.lng, 5) || `${u.lat.toFixed(4)},${u.lng.toFixed(4)}`;
       const ago     = u.updated_at ? _timeAgo(new Date(u.updated_at)) : '';
       return `<div class="fstat-item" data-uid="${_escH(u.id)}">
@@ -1520,7 +1521,7 @@ const App = {
         ${laceStr ? `<div class="fstat-lace">${laceStr}</div>` : ''}
         ${ago ? `<div class="fstat-ago">${_escH(ago)}</div>` : ''}
         <div class="fstat-rc" style="color:${col};border-color:${col}">RC${rc}</div>
-        <div class="fstat-opstat ${opCls}">${opst}</div>
+        <div class="fstat-opstat ${opst.toLowerCase()}">${opst}</div>
       </div>`;
     }).join('');
     UI.showSheet('sheet-force-status');
@@ -1611,19 +1612,21 @@ const App = {
   },
 
   _openCotImport() {
-    // Create a hidden file input and trigger it
     const fi = document.createElement('input');
     fi.type   = 'file';
     fi.accept = '.xml,.cot';
     fi.style.display = 'none';
+    const cleanup = () => { if (fi.parentNode) fi.remove(); };
     fi.addEventListener('change', () => {
       const file = fi.files[0];
+      cleanup();
       if (!file) return;
       const reader = new FileReader();
       reader.onload = e => this._parseCot(e.target.result);
       reader.readAsText(file);
-      fi.remove();
     });
+    fi.addEventListener('cancel', cleanup);
+    setTimeout(cleanup, 5 * 60 * 1000);
     document.body.appendChild(fi);
     fi.click();
     UI.toast('Select a CoT XML or .cot file', 'info', 2500);
@@ -1680,10 +1683,10 @@ const App = {
           callsign:   callsign.slice(0, 24),
           lat, lng,
           notes:      existing ? existing.data.notes : 'Imported from CoT',
-          redcon:     rcMatch ? parseInt(rcMatch[1], 10) : (existing?.data.redcon || 5),
+          redcon:     rcMatch ? Math.max(1, Math.min(5, parseInt(rcMatch[1], 10))) : (existing?.data.redcon || 5),
           opstat:     osMatch ? osMatch[1] : (existing?.data.opstat || 'FMC'),
           updated_at: ev.getAttribute('time') || new Date().toISOString(),
-          ...(laceMatch ? { lace: { l: laceMatch[1], a: laceMatch[2], c: laceMatch[3], e: laceMatch[4] } } : {}),
+          ...(laceMatch ? { lace: { l: +laceMatch[1], a: +laceMatch[2], c: +laceMatch[3], e: +laceMatch[4] } } : {}),
         };
 
         if (existing) {
@@ -1751,14 +1754,17 @@ const App = {
   _openPlanImport() {
     const fi = document.createElement('input');
     fi.type = 'file'; fi.accept = '.json'; fi.style.display = 'none';
+    const cleanup = () => { if (fi.parentNode) fi.remove(); };
     fi.addEventListener('change', () => {
       const file = fi.files[0];
+      cleanup();
       if (!file) return;
       const reader = new FileReader();
       reader.onload = e => this._parsePlan(e.target.result);
       reader.readAsText(file);
-      fi.remove();
     });
+    fi.addEventListener('cancel', cleanup);
+    setTimeout(cleanup, 5 * 60 * 1000);
     document.body.appendChild(fi);
     fi.click();
     UI.toast('Select a plan .json file', 'info', 2500);
@@ -1783,8 +1789,8 @@ const App = {
           lat:        u.lat,
           lng:        u.lng,
           notes:      u.notes || '',
-          redcon:     u.redcon || 5,
-          opstat:     u.opstat || 'FMC',
+          redcon:     Math.max(1, Math.min(5, +u.redcon || 5)),
+          opstat:     ['FMC','PMC','NMC'].includes(u.opstat) ? u.opstat : 'FMC',
           lace:       u.lace || null,
           updated_at: new Date().toISOString(),
         };
