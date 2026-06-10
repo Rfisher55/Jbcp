@@ -204,6 +204,14 @@ const UI = {
         <input id="edit-notes" type="text" value="${(unit.notes || '').replace(/"/g,'&quot;')}"
                placeholder="Optional remarks">
       </div>
+      <div class="field-group" style="margin-bottom:6px">
+        <label for="unit-move-mgrs" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Reposition Unit</span>
+          <button class="btn-secondary" id="btn-unit-move" style="font-size:10px;padding:2px 8px;margin:0">Move</button>
+        </label>
+        <input id="unit-move-mgrs" type="text" value="${mgrsStr}" placeholder="Enter MGRS to move unit"
+               autocomplete="off" autocapitalize="characters" spellcheck="false" style="font-family:'SF Mono',monospace">
+      </div>
       <dl class="detail-dl">
         <dt>MGRS</dt><dd class="mgrs-tap-link" data-mgrs="${mgrsStr}">${mgrsStr}</dd>
         ${(() => {
@@ -268,6 +276,9 @@ const UI = {
         badge.style.color       = c;
         badge.textContent       = `RC${curRC} — ${REDCON_LABELS[curRC]}`;
       }
+      // Auto-save REDCON immediately — critical tactical status
+      onEdit({ redcon: curRC, callsign: document.getElementById('edit-callsign')?.value.trim() || unit.callsign,
+               notes: document.getElementById('edit-notes')?.value.trim() ?? unit.notes, opstat: curOpStat });
     });
 
     document.getElementById('btn-file-lace').addEventListener('click', () => {
@@ -298,6 +309,21 @@ const UI = {
       UI.buildSymbolGrid(App._symFilter, App._symEchelon);
       UI.closeSheet('sheet-unit');
       UI.showSheet('sheet-symbols');
+    });
+
+    document.getElementById('btn-unit-move').addEventListener('click', () => {
+      const raw = document.getElementById('unit-move-mgrs')?.value.trim();
+      if (!raw) return;
+      const result = parseMGRS(raw);
+      if (!result.valid) { UI.toast('Invalid MGRS grid', 'error'); return; }
+      onEdit({ lat: result.lat, lng: result.lng });
+      UI.closeSheet('sheet-unit');
+      MapCtrl.flyToGrid(result.lat, result.lng);
+      UI.toast('Unit moved', 'success', 1500);
+    });
+
+    document.getElementById('unit-move-mgrs')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btn-unit-move')?.click();
     });
 
     document.getElementById('btn-unit-dupe').addEventListener('click', () => {
@@ -1115,6 +1141,14 @@ const App = {
       MapCtrl._reportLayer?.clearLayers();
       LocalStore.clearReports?.();
       UI.toast('Report markers cleared', 'info');
+    });
+    document.getElementById('btn-clear-units')?.addEventListener('click', () => {
+      if (!confirm('Remove all local units from map? Cannot be undone.')) return;
+      MapCtrl._unitLayer?.clearLayers();
+      MapCtrl._units = {};
+      MapCtrl.updateUnitCount();
+      LocalStore._set('cop_units', []);
+      UI.toast('All units cleared', 'info');
     });
     document.getElementById('btn-clear-all-data')?.addEventListener('click', () => {
       if (!confirm('Delete all local data? This cannot be undone.')) return;

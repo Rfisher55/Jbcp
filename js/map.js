@@ -493,6 +493,9 @@ const MapCtrl = {
     if (!entry) return;
     Object.assign(entry.data, updates, { updated_at: new Date().toISOString() });
     if (updates.sidc) entry.marker.setIcon(makeMilIcon(updates.sidc, this._getIconSize()));
+    if (updates.lat !== undefined || updates.lng !== undefined) {
+      entry.marker.setLatLng([entry.data.lat, entry.data.lng]);
+    }
     if (updates.callsign !== undefined || updates.redcon !== undefined) {
       entry.marker.unbindTooltip();
       this._bindUnitTooltip(entry.marker, entry.data);
