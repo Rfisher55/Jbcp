@@ -68,7 +68,9 @@ const MapCtrl = {
     this._pinLayer     = L.featureGroup().addTo(this._map);
     this._previewGroup = L.featureGroup().addTo(this._map);
 
-    this._symbolScale  = parseFloat(localStorage.getItem('cop_symbol_scale') || '1.0');
+    let _scaleRaw = '1.0';
+    try { _scaleRaw = localStorage.getItem('cop_symbol_scale') || '1.0'; } catch {}
+    this._symbolScale = parseFloat(_scaleRaw) || 1.0;
 
     BFT.init(this._map);
 
@@ -144,7 +146,7 @@ const MapCtrl = {
 
   setSymbolScale(s) {
     this._symbolScale = s;
-    localStorage.setItem('cop_symbol_scale', String(s));
+    try { localStorage.setItem('cop_symbol_scale', String(s)); } catch {}
     this._refreshIconSizes();
   },
 

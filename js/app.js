@@ -1140,10 +1140,11 @@ const App = {
       const item = e.target.closest('[data-uid]');
       if (!item) return;
       const entry = MapCtrl._units[item.dataset.uid];
-      if (entry) {
-        UI.closeSheet('sheet-force-status');
-        MapCtrl.flyToGrid(entry.data.lat, entry.data.lng);
-      }
+      if (!entry) return;
+      UI.closeSheet('sheet-force-status');
+      // Open unit detail; fly to unit in the background
+      MapCtrl._openUnitDetail(item.dataset.uid);
+      MapCtrl.flyToGrid(entry.data.lat, entry.data.lng);
     });
 
     // Symbol scale
