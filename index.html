@@ -891,6 +891,26 @@
       </div>
 
       <div class="layers-section" style="margin-top:16px">
+        <h4>Area of Operations</h4>
+        <p class="sheet-hint" style="margin-bottom:6px">Short MGRS grids (e.g. 12345678) expand using this 100km square.</p>
+        <div class="field-group" style="margin-bottom:6px">
+          <label for="settings-ao-name">AO Name</label>
+          <input id="settings-ao-name" type="text" placeholder="e.g. Camp Grayling"
+                 autocomplete="off" autocapitalize="words">
+        </div>
+        <div class="field-group" style="margin-bottom:6px">
+          <label for="settings-ao-mgrs">Center (full MGRS)</label>
+          <input id="settings-ao-mgrs" type="text" placeholder="e.g. 16TDL50005000"
+                 autocomplete="off" autocapitalize="characters" spellcheck="false"
+                 style="font-family:'SF Mono',monospace">
+        </div>
+        <div class="btn-row" style="margin-bottom:8px">
+          <button class="btn-secondary" id="btn-ao-use-map">Use Map Center</button>
+          <button class="btn-primary" id="btn-ao-save">Save AO</button>
+        </div>
+      </div>
+
+      <div class="layers-section" style="margin-top:16px">
         <h4>Data Management</h4>
         <button class="btn-secondary btn-full" id="btn-clear-reports" style="margin-bottom:8px">Clear Report Markers</button>
         <button class="btn-secondary btn-full" id="btn-clear-units" style="margin-bottom:8px">Clear All Units (local)</button>

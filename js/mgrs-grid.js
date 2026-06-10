@@ -33,12 +33,15 @@ function parseMGRS(raw) {
     if (isFinite(lat) && isFinite(lng)) return { lat, lng, valid: true };
   } catch {}
 
-  // Try abbreviated numeric grid — assume AO 100km square
+  // Try abbreviated numeric grid — expand using configured AO 100km square
   if (/^\d{4,10}$/.test(s) && s.length % 2 === 0) {
-    const h = s.length / 2;
-    const e = s.slice(0, h).padEnd(5, '0');
-    const n = s.slice(h).padEnd(5, '0');
-    const full = AO.mgrs100k + e + n;
+    const h      = s.length / 2;
+    const e      = s.slice(0, h).padEnd(5, '0');
+    const n      = s.slice(h).padEnd(5, '0');
+    const sq100k = (() => {
+      try { return JSON.parse(localStorage.getItem('cop_ao') || 'null')?.mgrs100k || AO.mgrs100k; } catch { return AO.mgrs100k; }
+    })();
+    const full = sq100k + e + n;
     try {
       const [lng, lat] = mgrs.toPoint(full);
       if (isFinite(lat) && isFinite(lng))

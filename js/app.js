@@ -1254,6 +1254,11 @@ const App = {
       const cur = BFT.STALE_MS;
       document.querySelectorAll('.scale-btn[data-stale]').forEach(b =>
         b.classList.toggle('active', +b.dataset.stale === cur));
+      // Populate AO fields from saved or default
+      const savedAO = App._loadSavedAO();
+      document.getElementById('settings-ao-name').value = savedAO.name || AO.name || '';
+      const aoCenter = toMGRS(savedAO.center[0], savedAO.center[1], 5) || '';
+      document.getElementById('settings-ao-mgrs').value = aoCenter;
       UI.showSheet('sheet-settings');
     });
     document.getElementById('btn-settings-close')?.addEventListener('click', () =>
@@ -1276,6 +1281,27 @@ const App = {
       document.querySelectorAll('.scale-btn[data-stale]').forEach(b =>
         b.classList.toggle('active', +b.dataset.stale === ms));
     });
+    document.getElementById('btn-ao-use-map')?.addEventListener('click', () => {
+      const c    = MapCtrl.map?.getCenter();
+      if (!c) return;
+      const mgrs = toMGRS(c.lat, c.lng, 5) || '';
+      document.getElementById('settings-ao-mgrs').value = mgrs;
+    });
+    document.getElementById('btn-ao-save')?.addEventListener('click', () => {
+      const name = document.getElementById('settings-ao-name')?.value.trim();
+      const raw  = document.getElementById('settings-ao-mgrs')?.value.trim();
+      if (!raw) { UI.toast('Enter a center MGRS coordinate', 'error'); return; }
+      const result = parseMGRS(raw);
+      if (!result.valid) { UI.toast('Invalid MGRS — enter a full grid like 16TDL50005000', 'error'); return; }
+      // Extract 100km square prefix from full MGRS string
+      const sq = raw.replace(/\s+/g, '').toUpperCase().match(/^(\d{1,2}[C-HJ-NP-X][A-Z]{2})/)?.[1];
+      if (!sq) { UI.toast('Could not determine 100km square from MGRS', 'error'); return; }
+      const aoData = { name: name || AO.name, center: [result.lat, result.lng], mgrs100k: sq, zoom: AO.zoom };
+      localStorage.setItem('cop_ao', JSON.stringify(aoData));
+      Object.assign(AO, aoData);
+      UI.toast(`AO set: ${name || aoData.name} (${sq})`, 'success');
+    });
+
     document.getElementById('btn-clear-reports')?.addEventListener('click', () => {
       MapCtrl._reportLayer?.clearLayers();
       LocalStore.clearReports?.();
@@ -1327,6 +1353,10 @@ const App = {
       UI.closeSheet('sheet-hhour');
     });
     HHour.init();
+
+    // Apply saved AO settings before map init (AO.center/zoom used as fallback start position)
+    const savedAO = App._loadSavedAO();
+    Object.assign(AO, savedAO);
 
     // Init map
     MapCtrl.init();
@@ -1477,6 +1507,14 @@ const App = {
       const pace = JSON.parse(raw);
       return { p_freq: pace.p?.freq || '', p_method: pace.p?.method || '' };
     } catch { return null; }
+  },
+
+  _loadSavedAO() {
+    try {
+      const raw = localStorage.getItem('cop_ao');
+      if (!raw) return { name: AO.name, center: AO.center, mgrs100k: AO.mgrs100k, zoom: AO.zoom };
+      return JSON.parse(raw);
+    } catch { return { name: AO.name, center: AO.center, mgrs100k: AO.mgrs100k, zoom: AO.zoom }; }
   },
 
   _showForceStatus() {
