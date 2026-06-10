@@ -185,6 +185,110 @@ const Reports = {
     UI.toast('SITREP sent', 'success');
   },
 
+  // ── Reports Log ────────────────────────────────────────────
+  openLog() {
+    this._renderLog();
+    UI.showSheet('sheet-reports-log');
+  },
+
+  _renderLog() {
+    const list    = document.getElementById('reports-log-list');
+    const reports = LocalStore.getReports()
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    if (!reports.length) {
+      list.innerHTML = '<p class="empty-msg">No reports filed yet</p>';
+      return;
+    }
+
+    list.innerHTML = reports.map(r => {
+      const dt      = new Date(r.created_at);
+      const dtLabel = dt.toLocaleDateString([], {month:'short', day:'numeric'}) +
+                      ' ' + dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      const preview = this._reportPreview(r);
+      return `<div class="rpt-log-entry">
+        <div class="rpt-log-header">
+          <span class="rpt-log-badge ${r.type.toLowerCase()}">${r.type}</span>
+          <span class="rpt-log-meta">${r.reporter || '—'} · ${dtLabel}</span>
+          <button class="rpt-log-copy" data-id="${r.id}">Copy</button>
+        </div>
+        <div class="rpt-log-preview">${preview}</div>
+      </div>`;
+    }).join('');
+
+    list.querySelectorAll('.rpt-log-copy').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const r = reports.find(x => x.id === btn.dataset.id);
+        if (r) this._copyReport(r);
+      });
+    });
+  },
+
+  _reportPreview(r) {
+    if (r.type === 'SPOTREP') return `${r.data.size || ''} — ${r.data.activity || ''} @ ${r.mgrs || ''}`.trim();
+    if (r.type === '9LINE')   return `L1:${r.data.line1 || ''} L3:${r.data.line3 || ''} L5:${r.data.line5 || ''}`;
+    if (r.type === 'SITREP')  return `${r.data.unit || ''} — ${(r.data.friendly || '').slice(0,80)}`;
+    if (r.type === 'LACE')    return `L:${r.data.l}% A:${r.data.a}% C:${r.data.c} E:${r.data.e}%`;
+    return '';
+  },
+
+  _copyReport(r) {
+    const text = this._formatReport(r);
+    navigator.clipboard?.writeText(text)
+      .then(() => UI.toast('Report copied to clipboard', 'success'))
+      .catch(() => UI.toast('Copy failed — check browser permissions', 'error'));
+  },
+
+  _formatReport(r) {
+    const dtg = r.data?.time || this._dtgFromISO(r.created_at);
+    const lines = [];
+    if (r.type === 'SPOTREP') {
+      lines.push(`SPOTREP — ${r.reporter} — ${dtg}`);
+      lines.push(`S - Size:       ${r.data.size || 'Unknown'}`);
+      lines.push(`A - Activity:   ${r.data.activity || 'Unknown'}`);
+      lines.push(`L - Location:   ${r.mgrs || 'Unknown'}`);
+      lines.push(`U - Unit:       ${r.data.unit || 'Unknown'}`);
+      lines.push(`T - Time:       ${dtg}`);
+      lines.push(`E - Equipment:  ${r.data.equip || 'Unknown'}`);
+      if (r.data.assess) lines.push(`Assessment:     ${r.data.assess}`);
+    } else if (r.type === '9LINE') {
+      lines.push(`9-LINE MEDEVAC — ${r.reporter} — ${dtg}`);
+      lines.push(`L1  Location:   ${r.data.line1 || ''}`);
+      lines.push(`L2  Frequency:  ${r.data.line2 || ''}`);
+      lines.push(`L3  Precedence: ${r.data.line3 || ''}`);
+      lines.push(`L4  Equipment:  ${r.data.line4 || ''}`);
+      lines.push(`L5  Patients:   ${r.data.line5 || ''}`);
+      lines.push(`L6  Security:   ${r.data.line6 || ''}`);
+      lines.push(`L7  Marking:    ${r.data.line7 || ''}`);
+      lines.push(`L8  Nationality:${r.data.line8 || ''}`);
+      lines.push(`L9  NBC:        ${r.data.line9 || ''}`);
+    } else if (r.type === 'SITREP') {
+      lines.push(`SITREP — ${r.data.unit || r.reporter} — ${r.data.dtg || dtg}`);
+      lines.push(`Location:  ${r.data.location || ''}`);
+      lines.push(`Friendly:  ${r.data.friendly || 'NTR'}`);
+      lines.push(`Enemy:     ${r.data.enemy || 'NTR'}`);
+      if (r.data.log)    lines.push(`Logistics: ${r.data.log}`);
+      if (r.data.assess) lines.push(`Assessment: ${r.data.assess}`);
+    } else if (r.type === 'LACE') {
+      lines.push(`LACE REPORT — ${r.reporter} — ${dtg}`);
+      lines.push(`Liquid:      ${r.data.l}%`);
+      lines.push(`Ammo:        ${r.data.a}%`);
+      lines.push(`Casualties:  ${r.data.c}`);
+      lines.push(`Equipment:   ${r.data.e}%`);
+    }
+    return lines.join('\n');
+  },
+
+  _dtgFromISO(iso) {
+    if (!iso) return '——';
+    const d  = new Date(iso);
+    const dd = String(d.getUTCDate()).padStart(2,'0');
+    const hh = String(d.getUTCHours()).padStart(2,'0');
+    const mm = String(d.getUTCMinutes()).padStart(2,'0');
+    const mo = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][d.getUTCMonth()];
+    return `${dd}${hh}${mm}Z ${mo} ${String(d.getUTCFullYear()).slice(2)}`;
+  },
+
   _dtg() {
     const d   = new Date();
     const dd  = String(d.getUTCDate()).padStart(2, '0');

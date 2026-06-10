@@ -267,11 +267,19 @@ const UI = {
           </div>
           <span class="badge">Active</span>
         </div>
-        <div class="btn-row" style="margin-bottom:16px">
+        <div class="btn-row" style="margin-bottom:8px">
           <button class="btn-secondary" id="btn-copy-code">Copy Join Code</button>
+          <button class="btn-secondary" id="btn-share-mission">Share</button>
+        </div>
+        <div class="btn-row" style="margin-bottom:16px">
+          <button class="btn-secondary" id="btn-export-plan">Export Plan</button>
           <button class="btn-secondary btn-danger" id="btn-leave-mission">Leave</button>
         </div>
-      ` : ''}
+      ` : `
+        <div class="btn-row" style="margin-bottom:16px">
+          <button class="btn-secondary btn-full" id="btn-export-plan">Export Plan (offline)</button>
+        </div>
+      `}
       ${missions.length ? `
         <h4>Your Missions</h4>
         <div class="mission-list" id="mission-list">
@@ -324,6 +332,24 @@ const UI = {
     document.getElementById('btn-copy-code')?.addEventListener('click', () => {
       navigator.clipboard?.writeText(Mission.current.id.slice(0,8).toUpperCase());
       UI.toast('Code copied!', 'success');
+    });
+
+    document.getElementById('btn-share-mission')?.addEventListener('click', () => {
+      const code = Mission.current.id.slice(0,8).toUpperCase();
+      const name = Mission.current.name;
+      const url  = location.origin + location.pathname;
+      const text = `Join mission "${name}" on Tactical COP\nCode: ${code}\n${url}`;
+      if (navigator.share) {
+        navigator.share({ title: `Mission: ${name}`, text }).catch(() => {});
+      } else {
+        navigator.clipboard?.writeText(text);
+        UI.toast('Invite text copied!', 'success');
+      }
+    });
+
+    document.getElementById('btn-export-plan')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-mission');
+      App._exportPlan();
     });
 
     let leaveStep = 0;
@@ -629,6 +655,10 @@ const App = {
     }
 
     // Reports menu
+    document.getElementById('btn-rpt-log')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-reports-menu');
+      Reports.openLog();
+    });
     document.getElementById('btn-rpt-lace')?.addEventListener('click', () => {
       UI.closeSheet('sheet-reports-menu');
       Reports.openLACE(null);
@@ -759,7 +789,12 @@ const App = {
     const m = await Mission.restore();
     if (m) {
       UI.setMissionLabel(m.name);
-      await MapCtrl.loadMission(m.id);
+      if (DB.online) {
+        await MapCtrl.loadMission(m.id);
+      } else {
+        MapCtrl.loadLocalData();
+        UI.toast('Offline — using local data', 'info', 2000);
+      }
       BFT.joinMission(m.id);
       Chat.join(m.id);
       UI.toast(`Welcome back, ${Auth.callsign}`, 'success');
@@ -803,6 +838,50 @@ const App = {
 
     const note = result.note ? ` (${result.note})` : '';
     UI.toast(`Plotting: ${toMGRS(result.lat, result.lng, 5)}${note}`, 'info');
+  },
+
+  _exportPlan() {
+    const units = Object.values(MapCtrl._units).map(u => ({
+      id:       u.data.id,
+      sidc:     u.data.sidc,
+      callsign: u.data.callsign,
+      lat:      u.data.lat,
+      lng:      u.data.lng,
+      notes:    u.data.notes,
+      redcon:   u.data.redcon,
+      lace:     u.data.lace,
+    }));
+    const graphics = Object.values(MapCtrl._graphics).map(g => ({
+      id:       g.data.id,
+      type:     g.data.type,
+      geometry: g.data.geometry,
+      style:    g.data.style,
+      label:    g.data.label,
+    }));
+    const plan = {
+      exported_at: new Date().toISOString(),
+      mission: Mission.current ? { id: Mission.current.id, name: Mission.current.name } : null,
+      units,
+      graphics,
+    };
+    const json = JSON.stringify(plan, null, 2);
+    try {
+      const blob = new Blob([json], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `plan-${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      UI.toast('Plan exported', 'success');
+    } catch {
+      // iOS Safari fallback: copy to clipboard
+      navigator.clipboard?.writeText(json).then(() =>
+        UI.toast('Plan copied to clipboard (JSON)', 'success')
+      );
+    }
   },
 
   _toggleTracking() {

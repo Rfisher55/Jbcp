@@ -27,9 +27,15 @@ const Mission = {
     const stored = localStorage.getItem('cop_mission');
     if (!stored) return null;
     try {
-      const { id } = JSON.parse(stored);
-      const m = await DB.getMission(id);
-      if (m) return this._activate(m, { silent: true });
+      const saved = JSON.parse(stored);
+      if (DB.online) {
+        const m = await DB.getMission(saved.id);
+        if (m) return this._activate(m, { silent: true });
+      }
+      // Offline fallback: use stored mission object directly
+      if (saved.id && saved.name) {
+        return this._activate(saved, { silent: true });
+      }
     } catch {}
     localStorage.removeItem('cop_mission');
     return null;
@@ -43,7 +49,7 @@ const Mission = {
 
   _activate(m, { silent = false } = {}) {
     this.current = m;
-    localStorage.setItem('cop_mission', JSON.stringify({ id: m.id }));
+    localStorage.setItem('cop_mission', JSON.stringify({ id: m.id, name: m.name, status: m.status }));
 
     // Subscribe to live changes
     if (this._unsub) this._unsub();
