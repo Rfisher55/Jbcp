@@ -320,7 +320,8 @@ const UI = {
           <button class="btn-secondary" id="btn-force-status">Force Status</button>
         </div>
         <div class="btn-row" style="margin-bottom:16px">
-          <button class="btn-secondary btn-full" id="btn-cot-export">Export CoT (ATAK)</button>
+          <button class="btn-secondary" id="btn-cot-export">Export CoT</button>
+          <button class="btn-secondary" id="btn-cot-import">Import CoT</button>
         </div>
       ` : `
         <div class="btn-row" style="margin-bottom:8px">
@@ -439,6 +440,11 @@ const UI = {
     document.getElementById('btn-cot-export')?.addEventListener('click', () => {
       UI.closeSheet('sheet-mission');
       App._exportCoT();
+    });
+
+    document.getElementById('btn-cot-import')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-mission');
+      App._openCotImport();
     });
 
     document.querySelectorAll('#mission-list .mission-card').forEach(card => {
@@ -1149,6 +1155,74 @@ const App = {
       UI.toast(`CoT export: ${units.length} units`, 'success');
     } catch {
       navigator.clipboard?.writeText(xml).then(() => UI.toast('CoT XML copied to clipboard', 'success'));
+    }
+  },
+
+  _openCotImport() {
+    // Create a hidden file input and trigger it
+    const fi = document.createElement('input');
+    fi.type   = 'file';
+    fi.accept = '.xml,.cot';
+    fi.style.display = 'none';
+    fi.addEventListener('change', () => {
+      const file = fi.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => this._parseCot(e.target.result);
+      reader.readAsText(file);
+      fi.remove();
+    });
+    document.body.appendChild(fi);
+    fi.click();
+    UI.toast('Select a CoT XML or .cot file', 'info', 2500);
+  },
+
+  _parseCot(xmlStr) {
+    try {
+      const parser = new DOMParser();
+      const doc    = parser.parseFromString(xmlStr, 'text/xml');
+      const events = Array.from(doc.querySelectorAll('event'));
+      if (!events.length) { UI.toast('No CoT events found in file', 'error'); return; }
+
+      const COT_AFFIL = { f: 'SFGPUC-----', h: 'SHGPUC-----', n: 'SNGPUC-----', u: 'SUGPUC-----' };
+      let placed = 0;
+
+      events.forEach(ev => {
+        const type = ev.getAttribute('type') || '';
+        // Only import ground units (a-*-G-*)
+        if (!type.startsWith('a-') || !type.includes('-G-')) return;
+
+        const pt  = ev.querySelector('point');
+        if (!pt) return;
+        const lat = parseFloat(pt.getAttribute('lat'));
+        const lng = parseFloat(pt.getAttribute('lon') || pt.getAttribute('lng'));
+        if (!isFinite(lat) || !isFinite(lng)) return;
+
+        const detail   = ev.querySelector('detail');
+        const contact  = detail?.querySelector('contact');
+        const callsign = contact?.getAttribute('callsign') || ev.getAttribute('uid') || 'IMPORT';
+
+        const aff  = type.split('-')[1] || 'f';
+        const sidc = COT_AFFIL[aff] || COT_AFFIL.f;
+
+        const unit = {
+          id:         ev.getAttribute('uid') || crypto.randomUUID(),
+          sidc,
+          callsign:   callsign.slice(0, 24),
+          lat, lng,
+          notes:      'Imported from CoT',
+          redcon:     5,
+          updated_at: new Date().toISOString(),
+        };
+
+        MapCtrl._addUnitMarker(unit);
+        LocalStore.upsertUnit(unit);
+        placed++;
+      });
+
+      UI.toast(`Imported ${placed} unit${placed !== 1 ? 's' : ''} from CoT`, 'success');
+    } catch(e) {
+      UI.toast('CoT parse error: ' + e.message, 'error');
     }
   },
 
