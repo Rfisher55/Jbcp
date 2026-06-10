@@ -138,7 +138,9 @@ const UI = {
   showUnitDetail(unit, { onEdit, onDelete }) {
     const sidc    = unit.sidc || 'SFGPUC-----';
     const sym     = new ms.Symbol(sidc, { size: 50 });
-    const mgrsStr = toMGRS(unit.lat, unit.lng, 5) || `${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}`;
+    const mgrsStr = (isFinite(unit.lat) && isFinite(unit.lng))
+      ? (toMGRS(unit.lat, unit.lng, 5) || `${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}`)
+      : '—';
     const rc      = unit.redcon || 5;
     const col     = REDCON_COLORS[rc];
 
@@ -1622,7 +1624,7 @@ const App = {
       const laceStr = u.lace
         ? `L${+u.lace.l || 0}% A${+u.lace.a || 0}% E${+u.lace.e || 0}%`
         : '';
-      const mgrs    = toMGRS(u.lat, u.lng, 5) || `${u.lat.toFixed(4)},${u.lng.toFixed(4)}`;
+      const mgrs    = (isFinite(u.lat) && isFinite(u.lng)) ? (toMGRS(u.lat, u.lng, 5) || `${u.lat.toFixed(4)},${u.lng.toFixed(4)}`) : '—';
       const ago     = u.updated_at ? _timeAgo(new Date(u.updated_at)) : '';
       const isStale = u.updated_at && (Date.now() - new Date(u.updated_at).getTime()) > 3600000;
       return `<div class="fstat-item${isStale ? ' is-stale' : ''}" data-uid="${_escH(u.id)}">
@@ -1696,7 +1698,7 @@ const App = {
       .sort((a, b) => (a.data.redcon || 5) - (b.data.redcon || 5))
       .map(({ data: u }) => {
         const cs    = String(u.callsign || 'UNKNOWN').toUpperCase();
-        const mgrs  = u.lat && u.lng ? (toMGRS(u.lat, u.lng, 5) || `${u.lat.toFixed(4)}N ${u.lng.toFixed(4)}E`) : 'NO POS';
+        const mgrs  = (isFinite(u.lat) && isFinite(u.lng)) ? (toMGRS(u.lat, u.lng, 5) || `${u.lat.toFixed(4)}N ${u.lng.toFixed(4)}E`) : 'NO POS';
         const rc    = `RC${u.redcon || 5}`;
         const os    = u.opstat || 'FMC';
         const fuel  = u.lace?.l  != null ? ` FUEL:${u.lace.l}%`   : '';
