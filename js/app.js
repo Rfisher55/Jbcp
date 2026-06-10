@@ -197,6 +197,10 @@ const UI = {
         <button class="btn-primary" id="btn-unit-save">Save</button>
         <button class="btn-secondary" id="btn-file-lace">File LACE</button>
       </div>
+      <div class="btn-row" style="margin-bottom:8px">
+        <button class="btn-secondary" id="btn-unit-fly">Go to Unit</button>
+        <button class="btn-secondary" id="btn-unit-rings">Range Rings</button>
+      </div>
       <button class="btn-secondary btn-danger btn-full" id="btn-unit-delete">Delete</button>
     `;
 
@@ -238,6 +242,17 @@ const UI = {
     document.getElementById('btn-file-lace').addEventListener('click', () => {
       UI.closeSheet('sheet-unit');
       Reports.openLACE(unit.id, unit.lace);
+    });
+
+    document.getElementById('btn-unit-fly').addEventListener('click', () => {
+      UI.closeSheet('sheet-unit');
+      MapCtrl.flyToGrid(unit.lat, unit.lng);
+    });
+
+    document.getElementById('btn-unit-rings').addEventListener('click', () => {
+      const added = MapCtrl.toggleRangeRings(unit.id, unit.lat, unit.lng);
+      UI.closeSheet('sheet-unit');
+      UI.toast(added ? 'Range rings: 1 / 3 / 5 km (tap again to remove)' : 'Range rings cleared', 'info', 2200);
     });
 
     document.getElementById('btn-unit-save').addEventListener('click', () => {
