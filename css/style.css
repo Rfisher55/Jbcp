@@ -994,6 +994,20 @@ body.fullmap #btn-exit-fullmap { display: flex; }
 .report-pin.generic {
   background: rgba(210,153,34,0.25); border-color: var(--yellow); color: var(--yellow);
 }
+.report-pin.nbc {
+  background: rgba(255,165,0,0.25); border-color: #ffa500; color: #ffa500;
+  font-size: 10px; font-weight: 800; letter-spacing: -0.5px;
+}
+
+/* ── Unit count chip ─────────────────────────────────── */
+.unit-count-chip {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700; letter-spacing: .03em;
+}
+.unit-count-chip:empty { display: none; }
+.uc-f { color: #58a6ff; }
+.uc-h { color: var(--red); }
+.uc-bft { color: #3fb950; }
 .popup-table {
   font-size: 11px; margin-top: 6px; border-collapse: collapse; width: 100%;
 }
