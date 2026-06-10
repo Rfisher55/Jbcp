@@ -314,12 +314,13 @@ const Reports = {
   },
 
   _reportPreview(r) {
-    if (r.type === 'SPOTREP') return `${r.data.size || ''} — ${r.data.activity || ''} @ ${r.mgrs || ''}`.trim();
-    if (r.type === '9LINE')   return `L1:${r.data.line1 || ''} L3:${r.data.line3 || ''} L5:${r.data.line5 || ''}`;
-    if (r.type === 'SITREP')  return `${r.data.unit || ''} — ${(r.data.friendly || '').slice(0,80)}`;
-    if (r.type === 'LACE')    return `L:${r.data.l}% A:${r.data.a}% C:${r.data.c} E:${r.data.e}%`;
-    if (r.type === 'ACE')     return `A:${r.data.a}% E:${r.data.e}% KIA:${r.data.kia} WIA:${r.data.wia} MIA:${r.data.mia}`;
-    if (r.type === 'NBC')     return `${r.data.type} — ${r.mgrs || ''} DTG ${r.data.dtg || ''}`;
+    const h = s => _escH(String(s ?? ''));
+    if (r.type === 'SPOTREP') return `${h(r.data.size)} — ${h(r.data.activity)} @ ${h(r.mgrs)}`.trim();
+    if (r.type === '9LINE')   return `L1:${h(r.data.line1)} L3:${h(r.data.line3)} L5:${h(r.data.line5)}`;
+    if (r.type === 'SITREP')  return `${h(r.data.unit)} — ${h((r.data.friendly || '').slice(0,80))}`;
+    if (r.type === 'LACE')    return `L:${h(r.data.l)}% A:${h(r.data.a)}% C:${h(r.data.c)} E:${h(r.data.e)}%`;
+    if (r.type === 'ACE')     return `A:${h(r.data.a)}% E:${h(r.data.e)}% KIA:${h(r.data.kia)} WIA:${h(r.data.wia)} MIA:${h(r.data.mia)}`;
+    if (r.type === 'NBC')     return `${h(r.data?.type)} — ${h(r.mgrs)} DTG ${h(r.data?.dtg)}`;
     return '';
   },
 

@@ -304,9 +304,23 @@ const UI = {
 
     document.getElementById('btn-unit-chgsym').addEventListener('click', () => {
       MapCtrl._editUnitSymbolId = unit.id;
-      App._symFilter  = unit.sidc?.[1] === 'H' || (unit.sidc?.length >= 20 && unit.sidc[3] === '6') ? 'H' : 'F';
-      App._symEchelon = '';
+      const s = unit.sidc || '';
+      App._symFilter = s[1] === 'H' || (s.length >= 20 && s[3] === '6') ? 'H' : 'F';
+      // Infer echelon from current SIDC to pre-select in picker
+      let ech = '';
+      if (s.length >= 20 && typeof ECHELONS_2525D !== 'undefined') {
+        const code = s.slice(8, 10);
+        const found = Object.entries(ECHELONS_2525D).find(([, v]) => v === code);
+        ech = found ? found[0] : '';
+      } else if (s.length >= 11 && typeof ECHELONS !== 'undefined') {
+        const c = s[10] || '-';
+        const found = Object.entries(ECHELONS).find(([, v]) => v === c);
+        ech = found ? found[0] : '';
+      }
+      App._symEchelon = ech;
       UI.buildSymbolGrid(App._symFilter, App._symEchelon);
+      // Update echelon button active state in picker
+      document.querySelectorAll('.ech-btn').forEach(b => b.classList.toggle('active', b.dataset.ech === ech));
       UI.closeSheet('sheet-unit');
       UI.showSheet('sheet-symbols');
     });
@@ -1248,7 +1262,13 @@ const App = {
     if (m) {
       UI.setMissionLabel(m.name);
       if (DB.online) {
-        await MapCtrl.loadMission(m.id);
+        try {
+          await MapCtrl.loadMission(m.id);
+        } catch (e) {
+          // Mission may have been deleted; fall back to local data
+          MapCtrl.loadLocalData();
+          UI.toast('Mission unavailable — using local data', 'info', 3000);
+        }
       } else {
         MapCtrl.loadLocalData();
         UI.toast('Offline — using local data', 'info', 2000);
