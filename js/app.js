@@ -431,12 +431,6 @@ const UI = {
       }
     });
 
-    // Tap MGRS in unit detail to fly there
-    document.getElementById('unit-detail-content')?.querySelector('[data-mgrs]')?.addEventListener('click', function() {
-      const result = parseMGRS(this.dataset.mgrs);
-      if (result.valid) { UI.closeSheet('sheet-unit'); MapCtrl.flyToGrid(result.lat, result.lng); }
-    });
-
     this.showSheet('sheet-unit');
   },
 
@@ -926,6 +920,8 @@ const App = {
           App._symEchelon = '';
           UI.buildSymbolGrid('F', '');
           UI.showSheet('sheet-symbols');
+          MapCtrl.setTool('place-unit');
+          UI.toolBtn('place-unit');
         } else if (tool === 'draw-line' || tool === 'draw-area') {
           MapCtrl.setTool(tool);
           UI.toolBtn(tool);
@@ -1160,12 +1156,13 @@ const App = {
     });
 
     document.getElementById('force-status-list')?.addEventListener('click', e => {
+      // mgrs-tap-link clicks are handled by the body delegate — don't double-handle
+      if (e.target.closest('.mgrs-tap-link')) return;
       const item = e.target.closest('[data-uid]');
       if (!item) return;
       const entry = MapCtrl._units[item.dataset.uid];
       if (!entry) return;
       UI.closeSheet('sheet-force-status');
-      // Open unit detail; fly to unit in the background
       MapCtrl._openUnitDetail(item.dataset.uid);
       MapCtrl.flyToGrid(entry.data.lat, entry.data.lng);
     });
@@ -1304,13 +1301,7 @@ const App = {
     document.getElementById('btn-bft-card-close')?.addEventListener('click', () =>
       UI.closeSheet('sheet-bft-card'));
 
-    // Tap any MGRS link in chat or BFT card → fly to that grid
-    document.getElementById('chat-msgs')?.addEventListener('click', e => {
-      const el = e.target.closest('[data-mgrs]');
-      if (!el) return;
-      const result = parseMGRS(el.dataset.mgrs);
-      if (result.valid) { UI.closeSheet('sheet-chat'); MapCtrl.flyToGrid(result.lat, result.lng); }
-    });
+    // BFT card MGRS tap → fly (uses textContent, not data-mgrs, so needs its own handler)
     document.getElementById('bft-card-mgrs')?.addEventListener('click', () => {
       const mgrs = document.getElementById('bft-card-mgrs')?.textContent;
       if (!mgrs || mgrs === '—') return;

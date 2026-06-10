@@ -393,6 +393,7 @@ const MapCtrl = {
     this._drawPoints = [];
     this._activeGraphicType = null;
     document.getElementById('draw-toolbar')?.classList.add('hidden');
+    UI.closeSheet('sheet-graphic-picker');
     this.setTool('select');
     UI.toolBtn('select');
   },
