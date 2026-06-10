@@ -1385,6 +1385,7 @@ const App = {
     });
     document.getElementById('btn-clear-units')?.addEventListener('click', () => {
       if (!confirm('Remove all local units from map? Cannot be undone.')) return;
+      MapCtrl.clearRangeRings();
       MapCtrl._unitLayer?.clearLayers();
       MapCtrl._units = {};
       MapCtrl.updateUnitCount();
@@ -1853,7 +1854,12 @@ const App = {
           redcon:     rcMatch ? Math.max(1, Math.min(5, parseInt(rcMatch[1], 10))) : (existing?.data.redcon || 5),
           opstat:     osMatch ? osMatch[1] : (existing?.data.opstat || 'FMC'),
           updated_at: ev.getAttribute('time') || new Date().toISOString(),
-          ...(laceMatch ? { lace: { l: parseInt(laceMatch[1],10)||0, a: parseInt(laceMatch[2],10)||0, c: parseInt(laceMatch[3],10)||0, e: parseInt(laceMatch[4],10)||0 } } : {}),
+          ...(laceMatch ? { lace: {
+            l: Math.max(0, Math.min(100, parseInt(laceMatch[1],10)||0)),
+            a: Math.max(0, Math.min(100, parseInt(laceMatch[2],10)||0)),
+            c: Math.max(0,              parseInt(laceMatch[3],10)||0),
+            e: Math.max(0, Math.min(100, parseInt(laceMatch[4],10)||0)),
+          } } : {}),
         };
 
         if (existing) {
