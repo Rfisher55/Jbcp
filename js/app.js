@@ -763,8 +763,20 @@ const App = {
       document.body.classList.remove('fullmap');
     });
 
-    // ESC key
+    // Keyboard shortcuts
     document.addEventListener('keydown', e => {
+      // Ignore when typing in an input/textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        if (e.key === 'Escape') {
+          e.target.blur();
+          UI.closeAllSheets();
+        }
+        return;
+      }
+
+      const TOOLS = { 's': 'select', 'u': 'place-unit', 'm': 'measure', 'p': 'pin',
+                      'l': 'draw-line', 'a': 'draw-area' };
+
       if (e.key === 'Escape') {
         if (document.body.classList.contains('fullmap')) {
           document.body.classList.remove('fullmap');
@@ -777,6 +789,23 @@ const App = {
           UI.closeAllSheets();
           MapCtrl.setTool('select');
           UI.toolBtn('select');
+        }
+      } else if (e.key === 'f' || e.key === 'F') {
+        document.body.classList.toggle('fullmap');
+      } else if (TOOLS[e.key.toLowerCase()] && !e.ctrlKey && !e.metaKey) {
+        const tool = TOOLS[e.key.toLowerCase()];
+        if (tool === 'place-unit') {
+          App._symFilter  = 'F';
+          App._symEchelon = '';
+          UI.buildSymbolGrid('F', '');
+          UI.showSheet('sheet-symbols');
+        } else if (tool === 'draw-line' || tool === 'draw-area') {
+          MapCtrl.setTool(tool);
+          UI.toolBtn(tool);
+        } else {
+          MapCtrl.setTool(tool);
+          UI.toolBtn(tool);
+          if (tool === 'measure') UI.showSheet('sheet-measure');
         }
       }
     });
