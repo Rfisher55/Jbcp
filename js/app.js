@@ -491,16 +491,10 @@ const UI = {
       e.target.checked ? bftLayer.addTo(MapCtrl.map) : MapCtrl.map.removeLayer(bftLayer);
     });
 
-    // Symbol scale buttons (initialize active state from current scale)
+    // Symbol scale buttons — update active state to match stored scale
     const curScale = MapCtrl._symbolScale;
     document.querySelectorAll('.scale-btn').forEach(btn => {
-      const s = parseFloat(btn.dataset.scale);
-      btn.classList.toggle('active', Math.abs(s - curScale) < 0.05);
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        MapCtrl.setSymbolScale(parseFloat(btn.dataset.scale));
-      });
+      btn.classList.toggle('active', Math.abs(parseFloat(btn.dataset.scale) - curScale) < 0.05);
     });
   }
 };
