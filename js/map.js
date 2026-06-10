@@ -443,6 +443,7 @@ const MapCtrl = {
     };
 
     this._addUnitMarker(unit);
+    LocalStore.upsertUnit(unit);
     if (Mission.active) {
       DB.upsertUnit(unit).catch(e => UI.toast('Save failed: ' + e.message, 'error'));
     }
