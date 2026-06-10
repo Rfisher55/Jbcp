@@ -1423,6 +1423,19 @@ const App = {
     });
     HHour.init();
 
+    // Detect OTP / magic-link sign-in completing while app is already open
+    DB.onAuthChange(async (event, session) => {
+      if (event !== 'SIGNED_IN' || !session?.user) return;
+      if (!document.getElementById('sheet-auth')?.classList.contains('hidden')) {
+        // We're on the auth screen — complete sign-in
+        Auth.user     = session.user;
+        Auth.callsign = session.user.user_metadata?.callsign || Auth.callsign || 'UNKNOWN';
+        Auth._save();
+        UI.closeSheet('sheet-auth');
+        await App._postAuth();
+      }
+    });
+
     // Apply saved AO settings before map init (AO.center/zoom used as fallback start position)
     const savedAO = App._loadSavedAO();
     Object.assign(AO, savedAO);
