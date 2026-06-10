@@ -94,10 +94,15 @@ const BFT = {
   },
 
   _icon(data, stale) {
-    const init = (data.callsign || '??').slice(0, 2).toUpperCase();
+    const init    = (data.callsign || '??').slice(0, 2).toUpperCase();
+    const hdg     = data.heading || 0;
+    const moving  = (data.speed || 0) > 1;
+    const arrow   = `<svg class="bft-hdg-arrow${moving ? '' : ' bft-hdg-hidden'}" ` +
+                    `style="transform:rotate(${hdg}deg)" viewBox="0 0 10 10" width="10" height="10">` +
+                    `<polygon points="5,0 10,10 5,7 0,10"/></svg>`;
     return L.divIcon({
       html:       `<div class="bft-wrap${stale ? ' bft-stale' : ''}">` +
-                  `<div class="bft-dot"><span>${_escH(init)}</span></div>` +
+                  `<div class="bft-dot">${arrow}<span>${_escH(init)}</span></div>` +
                   `<div class="bft-cs">${_escH(data.callsign || '')}</div></div>`,
       className:  '',
       iconSize:   [52, 48],

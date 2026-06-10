@@ -77,6 +77,12 @@
     <button class="tool-btn" data-tool="pin" title="Drop pin — get MGRS grid">
       <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/></svg>
     </button>
+    <button class="tool-btn" id="btn-goto-grid-toolbar" title="Go to grid">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
+    </button>
     <div class="toolbar-divider"></div>
     <button class="tool-btn" data-tool="reports" title="Reports">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -611,7 +617,26 @@
           <span class="ctx-icon">💬</span>
           <span>Chat This Grid</span>
         </button>
+        <button class="ctx-btn nav-btn" id="ctx-goto-grid">
+          <span class="ctx-icon">🔭</span>
+          <span>Go to Grid</span>
+        </button>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Go to Grid sheet ──────────────────────────────────── -->
+  <div id="sheet-goto-grid" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <button class="btn-close" id="btn-goto-close">✕</button>
+      <h3>Go to Grid</h3>
+      <p class="sheet-hint">Enter MGRS or abbreviated grid (e.g. 38SMB1234 or 12345678)</p>
+      <input id="goto-grid-input" class="text-input" type="text" placeholder="38SMB12345678"
+             autocomplete="off" autocorrect="off" autocapitalize="characters"
+             style="font-size:18px; letter-spacing:0.05em; margin-bottom:12px">
+      <div id="goto-grid-note" style="font-size:12px; color:var(--text-dim); min-height:16px; margin-bottom:12px"></div>
+      <button class="btn-primary btn-full" id="btn-goto-go">Navigate</button>
     </div>
   </div>
 

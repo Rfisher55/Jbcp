@@ -830,6 +830,43 @@ const App = {
       }
     });
 
+    document.getElementById('ctx-goto-grid')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-context');
+      const input = document.getElementById('goto-grid-input');
+      if (input) input.value = '';
+      document.getElementById('goto-grid-note').textContent = '';
+      UI.showSheet('sheet-goto-grid');
+      setTimeout(() => input?.focus(), 320);
+    });
+
+    document.getElementById('btn-goto-close')?.addEventListener('click', () =>
+      UI.closeSheet('sheet-goto-grid'));
+
+    document.getElementById('btn-goto-go')?.addEventListener('click', () => {
+      const raw = document.getElementById('goto-grid-input')?.value?.trim();
+      if (!raw) return;
+      const result = parseMGRS(raw);
+      if (!result.valid) {
+        document.getElementById('goto-grid-note').textContent = 'Invalid grid — try full MGRS (e.g. 38SMB12345678)';
+        return;
+      }
+      if (result.note) document.getElementById('goto-grid-note').textContent = result.note;
+      UI.closeSheet('sheet-goto-grid');
+      MapCtrl.flyToGrid(result.lat, result.lng);
+    });
+
+    document.getElementById('goto-grid-input')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btn-goto-go')?.click();
+    });
+
+    document.getElementById('btn-goto-grid-toolbar')?.addEventListener('click', () => {
+      const input = document.getElementById('goto-grid-input');
+      if (input) input.value = '';
+      document.getElementById('goto-grid-note').textContent = '';
+      UI.showSheet('sheet-goto-grid');
+      setTimeout(() => input?.focus(), 320);
+    });
+
     // BFT card close
     document.getElementById('btn-bft-card-close')?.addEventListener('click', () =>
       UI.closeSheet('sheet-bft-card'));

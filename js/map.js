@@ -207,6 +207,13 @@ const MapCtrl = {
     this._pins = {};
   },
 
+  flyToGrid(lat, lng) {
+    const zoom = Math.max(this._map.getZoom(), 14);
+    this._map.flyTo([lat, lng], zoom, { animate: true, duration: 1.2 });
+    const mgrs = toMGRS(lat, lng, 5) || `${lat.toFixed(5)},${lng.toFixed(5)}`;
+    UI.toast('Navigating to ' + mgrs, 'info', 2000);
+  },
+
   // ── Map click ────────────────────────────────────────────
   _onMapClick(e) {
     if (this._activeTool === 'pin') {
