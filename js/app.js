@@ -189,7 +189,7 @@ const UI = {
                placeholder="Optional remarks">
       </div>
       <dl class="detail-dl">
-        <dt>MGRS</dt><dd>${mgrsStr}</dd>
+        <dt>MGRS</dt><dd class="mgrs-tap-link" data-mgrs="${mgrsStr}">${mgrsStr}</dd>
         <dt>Lat/Lng</dt><dd>${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}</dd>
         <dt>Updated</dt><dd>${unit.updated_at ? new Date(unit.updated_at).toLocaleTimeString() : '—'}</dd>
       </dl>
@@ -283,6 +283,12 @@ const UI = {
       } else {
         onDelete();
       }
+    });
+
+    // Tap MGRS in unit detail to fly there
+    document.getElementById('unit-detail-content')?.querySelector('[data-mgrs]')?.addEventListener('click', function() {
+      const result = parseMGRS(this.dataset.mgrs);
+      if (result.valid) { UI.closeSheet('sheet-unit'); MapCtrl.flyToGrid(result.lat, result.lng); }
     });
 
     this.showSheet('sheet-unit');
@@ -506,10 +512,26 @@ const UI = {
       e.target.checked ? bftLayer.addTo(MapCtrl.map) : MapCtrl.map.removeLayer(bftLayer);
     });
 
-    // Symbol scale buttons — update active state to match stored scale
+    // Symbol scale buttons — update active state
     const curScale = MapCtrl._symbolScale;
-    document.querySelectorAll('.scale-btn').forEach(btn => {
+    document.querySelectorAll('.scale-btn[data-scale]').forEach(btn => {
       btn.classList.toggle('active', Math.abs(parseFloat(btn.dataset.scale) - curScale) < 0.05);
+    });
+
+    // Map filter buttons
+    const mapEl = document.getElementById('map');
+    const filters = ['off', 'dim', 'night'];
+    const curFilter = mapEl?.classList.contains('map-night') ? 'night'
+                    : mapEl?.classList.contains('map-dim')   ? 'dim' : 'off';
+    filters.forEach(f => {
+      const btn = document.getElementById(`map-filter-${f}`);
+      if (!btn) return;
+      btn.classList.toggle('active', f === curFilter);
+      btn.addEventListener('click', () => {
+        mapEl.classList.remove('map-dim', 'map-night');
+        if (f !== 'off') mapEl.classList.add(`map-${f}`);
+        filters.forEach(x => document.getElementById(`map-filter-${x}`)?.classList.toggle('active', x === f));
+      });
     });
   }
 };
