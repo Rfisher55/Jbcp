@@ -88,9 +88,16 @@ const UI = {
           UI.toast(`Symbol changed to ${entry.name}`, 'success', 2000);
           return;
         }
-        MapCtrl.setActiveSIDC(entry, echelon);
-        UI.closeSheet('sheet-symbols');
-        UI.toast(`${entry.name} — click map to place (ESC to stop)`, 'info', 2500);
+        if (MapCtrl._pendingLatLng) {
+          // User clicked the map first, then picked a symbol — place immediately
+          MapCtrl.placeUnit(entry, echelon);
+          UI.closeSheet('sheet-symbols');
+          UI.toast(`${entry.name} placed`, 'success', 1500);
+        } else {
+          MapCtrl.setActiveSIDC(entry, echelon);
+          UI.closeSheet('sheet-symbols');
+          UI.toast(`${entry.name} — click map to place (ESC to stop)`, 'info', 2500);
+        }
       });
       grid.appendChild(div);
     });
@@ -1660,7 +1667,7 @@ const App = {
     const stale = new Date(Date.now() + 5 * 60000).toISOString();
 
     const xmlEsc = v => String(v).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
-    const events = units.map(({ data: u }) => {
+    const eventArr = units.map(({ data: u }) => {
       const s = u.sidc || '';
       let aff;
       if (s.length <= 15) {
@@ -1682,7 +1689,8 @@ const App = {
         `<detail sidc="${sidc}"><contact callsign="${cs}"/><uid Droid="${cs}"/>` +
         `<remarks>REDCON:${redcon} OPSTAT:${opstat}${laceStr}</remarks>` +
         `</detail></event>`;
-    }).filter(Boolean).join('\n');
+    }).filter(Boolean);
+    const events = eventArr.join('\n');
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<events>\n${events}\n</events>`;
     try {
@@ -1692,7 +1700,7 @@ const App = {
       a.href = url; a.download = `cop-cot-${new Date().toISOString().slice(0,10)}.xml`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
-      UI.toast(`CoT export: ${units.length} units`, 'success');
+      UI.toast(`CoT export: ${eventArr.length} units`, 'success');
     } catch {
       navigator.clipboard?.writeText(xml)
         .then(() => UI.toast('CoT XML copied to clipboard', 'success'))
@@ -1818,7 +1826,7 @@ const App = {
         const unit = {
           id:         uid,
           sidc,
-          callsign:   callsign.slice(0, 24),
+          callsign:   callsign.trim().slice(0, 24),
           lat, lng,
           notes:      existing ? existing.data.notes : 'Imported from CoT',
           redcon:     rcMatch ? Math.max(1, Math.min(5, parseInt(rcMatch[1], 10))) : (existing?.data.redcon || 5),
@@ -1924,7 +1932,7 @@ const App = {
         const unit = {
           id:         u.id,
           sidc:       u.sidc || 'SFGPUC-----',
-          callsign:   String(u.callsign || 'IMPORTED').slice(0, 24),
+          callsign:   String(u.callsign || 'IMPORTED').trim().slice(0, 24),
           lat:        u.lat,
           lng:        u.lng,
           notes:      u.notes || '',
