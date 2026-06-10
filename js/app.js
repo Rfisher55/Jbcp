@@ -1593,11 +1593,12 @@ const App = {
         : '';
       const mgrs    = toMGRS(u.lat, u.lng, 5) || `${u.lat.toFixed(4)},${u.lng.toFixed(4)}`;
       const ago     = u.updated_at ? _timeAgo(new Date(u.updated_at)) : '';
-      return `<div class="fstat-item" data-uid="${_escH(u.id)}">
+      const isStale = u.updated_at && (Date.now() - new Date(u.updated_at).getTime()) > 3600000;
+      return `<div class="fstat-item${isStale ? ' is-stale' : ''}" data-uid="${_escH(u.id)}">
         <div class="fstat-callsign">${_escH(u.callsign || '—')}</div>
         <div class="fstat-grid mgrs-tap-link" data-mgrs="${_escH(mgrs)}">${_escH(mgrs)}</div>
         ${laceStr ? `<div class="fstat-lace">${laceStr}</div>` : ''}
-        ${ago ? `<div class="fstat-ago">${_escH(ago)}</div>` : ''}
+        ${isStale ? '<div class="fstat-stale-badge">STALE</div>' : (ago ? `<div class="fstat-ago">${_escH(ago)}</div>` : '')}
         <div class="fstat-rc" style="color:${col};border-color:${col}">RC${rc}</div>
         <div class="fstat-opstat ${opst.toLowerCase()}">${opst}</div>
       </div>`;

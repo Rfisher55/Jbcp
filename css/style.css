@@ -1183,8 +1183,14 @@ kbd {
 .fstat-lace { font-size: 0.75rem; color: var(--text-dim); flex-shrink: 0; }
 .fstat-grid { font-size: 0.7rem; color: var(--blue); font-family: 'SF Mono', monospace; flex-shrink: 0; cursor: pointer; }
 .fstat-ago  { font-size: 0.7rem; color: var(--text-dim); flex-shrink: 0; }
+.fstat-stale-badge {
+  font-size: 0.65rem; font-weight: 700; padding: 1px 5px;
+  border-radius: 3px; flex-shrink: 0;
+  background: rgba(248,81,73,0.15); color: #f85149; border: 1px solid rgba(248,81,73,0.4);
+}
 .fstat-item { cursor: pointer; }
 .fstat-item:hover { background: rgba(255,255,255,0.04); border-radius: 4px; }
+.fstat-item.is-stale .fstat-callsign { opacity: 0.6; }
 
 /* ── Force Status summary ─────────────────────────────── */
 .fstat-rc-summary {
