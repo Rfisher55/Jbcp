@@ -1692,7 +1692,8 @@ const App = {
       return `${dd}${hh}${mm}Z${mon}${yr}`;
     })();
 
-    const header = `UNIT SUMMARY DTG ${dtg}\n` + '='.repeat(40) + '\n';
+    const msnName = Mission.active ? Mission.current.name : AO.name;
+    const header = `UNIT SUMMARY — ${msnName.toUpperCase()} DTG ${dtg}\n` + '='.repeat(40) + '\n';
 
     const lines = units
       .sort((a, b) => (a.data.redcon || 5) - (b.data.redcon || 5))
