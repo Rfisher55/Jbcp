@@ -217,7 +217,7 @@ const UI = {
           return `<dt>From self</dt><dd>${distStr} at ${brgStr}</dd>`;
         })()}
         <dt>Lat/Lng</dt><dd>${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}</dd>
-        <dt>Updated</dt><dd>${unit.updated_at ? new Date(unit.updated_at).toLocaleTimeString() : '—'}</dd>
+        <dt>Updated</dt><dd>${unit.updated_at ? _timeAgo(new Date(unit.updated_at)) : '—'}</dd>
       </dl>
       <div class="btn-row" style="margin-bottom:8px">
         <button class="btn-primary" id="btn-unit-save">Save</button>
@@ -228,6 +228,9 @@ const UI = {
         <button class="btn-secondary" id="btn-unit-fly">Go to Unit</button>
         <button class="btn-secondary" id="btn-unit-rings">Range Rings</button>
         <button class="btn-secondary" id="btn-unit-chgsym">Change Symbol</button>
+      </div>
+      <div class="btn-row" style="margin-bottom:8px">
+        <button class="btn-secondary" id="btn-unit-dupe">Duplicate</button>
       </div>
       <button class="btn-secondary btn-danger btn-full" id="btn-unit-delete">Delete</button>
     `;
@@ -295,6 +298,27 @@ const UI = {
       UI.buildSymbolGrid(App._symFilter, App._symEchelon);
       UI.closeSheet('sheet-unit');
       UI.showSheet('sheet-symbols');
+    });
+
+    document.getElementById('btn-unit-dupe').addEventListener('click', () => {
+      const dupe = {
+        id:         crypto.randomUUID(),
+        mission_id: unit.mission_id,
+        sidc:       unit.sidc,
+        callsign:   (unit.callsign || 'Unit') + ' (2)',
+        lat:        unit.lat + 0.002,
+        lng:        unit.lng,
+        notes:      unit.notes || '',
+        redcon:     unit.redcon || 5,
+        opstat:     unit.opstat || 'FMC',
+        created_by: unit.created_by,
+        updated_at: new Date().toISOString(),
+      };
+      MapCtrl._addUnitMarker(dupe);
+      LocalStore.upsertUnit(dupe);
+      if (Mission.active) DB.upsertUnit(dupe).catch(e => UI.toast('Save failed: ' + e.message, 'error'));
+      UI.closeSheet('sheet-unit');
+      UI.toast(`Duplicated as "${dupe.callsign}"`, 'success');
     });
 
     document.getElementById('btn-unit-save').addEventListener('click', () => {
@@ -1347,13 +1371,19 @@ const App = {
         const aff  = type.split('-')[1] || 'f';
         const sidc = COT_AFFIL[aff] || COT_AFFIL.f;
 
+        // Parse optional REDCON/OPSTAT from remarks
+        const remarks = detail?.querySelector('remarks')?.textContent || '';
+        const rcMatch = remarks.match(/REDCON:(\d)/);
+        const osMatch = remarks.match(/OPSTAT:(FMC|PMC|NMC)/);
+
         const unit = {
           id:         ev.getAttribute('uid') || crypto.randomUUID(),
           sidc,
           callsign:   callsign.slice(0, 24),
           lat, lng,
           notes:      'Imported from CoT',
-          redcon:     5,
+          redcon:     rcMatch ? parseInt(rcMatch[1], 10) : 5,
+          opstat:     osMatch ? osMatch[1] : 'FMC',
           updated_at: new Date().toISOString(),
         };
 
