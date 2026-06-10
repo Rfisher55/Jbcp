@@ -645,13 +645,15 @@ const MapCtrl = {
     };
 
     let geomLayer;
-    if (geo.type === 'LineString') {
-      geomLayer = L.polyline(geo.coordinates.map(c => [c[1], c[0]]), lineOpts);
-    } else if (geo.type === 'Polygon') {
-      geomLayer = L.polygon(geo.coordinates[0].map(c => [c[1], c[0]]), { ...lineOpts, fill: true });
-    } else {
-      return;
-    }
+    try {
+      if (geo.type === 'LineString') {
+        geomLayer = L.polyline(geo.coordinates.map(c => [c[1], c[0]]), lineOpts);
+      } else if (geo.type === 'Polygon') {
+        geomLayer = L.polygon(geo.coordinates[0].map(c => [c[1], c[0]]), { ...lineOpts, fill: true });
+      } else {
+        return;
+      }
+    } catch { return; }
 
     const group = L.featureGroup();
     group.addLayer(geomLayer);

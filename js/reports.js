@@ -288,7 +288,8 @@ const Reports = {
   },
 
   _renderLog() {
-    const list    = document.getElementById('reports-log-list');
+    const list = document.getElementById('reports-log-list');
+    if (!list) return;
     const all     = LocalStore.getReports()
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     const reports = (this._logFilter && this._logFilter !== 'ALL')

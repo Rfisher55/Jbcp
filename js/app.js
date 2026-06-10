@@ -1582,7 +1582,8 @@ const App = {
   },
 
   _showForceStatus() {
-    const list     = document.getElementById('force-status-list');
+    const list = document.getElementById('force-status-list');
+    if (!list) return;
     const allUnits = Object.values(MapCtrl._units)
       .sort((a, b) => (a.data.redcon || 5) - (b.data.redcon || 5));
     if (!allUnits.length) {

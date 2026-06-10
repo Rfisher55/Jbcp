@@ -118,6 +118,8 @@ const Chat = {
   _appendMsg(msg, container) {
     const list = container || document.getElementById('chat-msgs');
     if (!list) return;
+    const atBottom = !container &&
+      (list.scrollHeight - list.scrollTop - list.clientHeight < 60);
     const self = msg.callsign === Auth.callsign;
     const time = new Date(msg.ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
     const div  = document.createElement('div');
@@ -129,7 +131,7 @@ const Chat = {
       `<span class="chat-time">${time}</span></div>` +
       `<div class="chat-text">${_linkifyMGRS(msg.text)}</div>`;
     list.appendChild(div);
-    list.scrollTop = list.scrollHeight;
+    if (container || atBottom) list.scrollTop = list.scrollHeight;
   },
 
   // Detect MGRS-like tokens in message text and wrap them in tappable spans
