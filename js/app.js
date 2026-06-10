@@ -241,6 +241,9 @@ const UI = {
         <button class="btn-secondary" id="btn-unit-dupe">Duplicate</button>
         <button class="btn-secondary" id="btn-unit-9line">9-Line MEDEVAC</button>
       </div>
+      <div class="btn-row" style="margin-bottom:8px">
+        <button class="btn-secondary btn-full" id="btn-unit-share">Share Status to Chat</button>
+      </div>
       <button class="btn-secondary btn-danger btn-full" id="btn-unit-delete">Delete</button>
     `;
 
@@ -371,6 +374,20 @@ const UI = {
         const freqEl = document.getElementById('m9-freq');
         if (freqEl && !freqEl.value) freqEl.value = pace.p_freq;
       }
+    });
+
+    document.getElementById('btn-unit-share').addEventListener('click', () => {
+      if (!Chat.isJoined()) { UI.toast('Join a mission to share', 'info'); return; }
+      const cs   = String(unit.callsign || 'UNKNOWN').replace(/[|\x00-\x1f]/g, '').slice(0, 16) || 'UNKNOWN';
+      const grid = toMGRS(unit.lat, unit.lng, 5) || `${unit.lat.toFixed(4)},${unit.lng.toFixed(4)}`;
+      const rc   = unit.redcon || 5;
+      const os   = ['FMC','PMC','NMC'].includes(unit.opstat) ? unit.opstat : 'FMC';
+      const laceStr = unit.lace
+        ? ` FUEL:${+unit.lace.l || 0}% AMMO:${+unit.lace.a || 0}% CAS:${+unit.lace.c || 0}`
+        : '';
+      Chat.send(`UNIT STATUS: ${cs} @ ${grid} RC${rc}/${os}${laceStr}`);
+      UI.closeSheet('sheet-unit');
+      UI.toast('Status shared to chat', 'success', 2000);
     });
 
     document.getElementById('btn-unit-save').addEventListener('click', () => {
