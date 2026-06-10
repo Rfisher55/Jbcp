@@ -1980,9 +1980,9 @@ const App = {
 
     this._watchId = navigator.geolocation.watchPosition(
       pos => {
-        const { latitude: lat, longitude: lng, heading, speed } = pos.coords;
+        const { latitude: lat, longitude: lng, heading, speed, accuracy } = pos.coords;
         App._selfPos = { lat, lng };
-        MapCtrl.showSelf(lat, lng);
+        MapCtrl.showSelf(lat, lng, accuracy);
         if (App._followGPS) MapCtrl.panTo(lat, lng);
         btn.classList.toggle('active',     App._followGPS);
         btn.classList.toggle('active-dim', !App._followGPS);

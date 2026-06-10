@@ -788,7 +788,7 @@ const MapCtrl = {
   },
 
   // ── Self position ────────────────────────────────────────
-  showSelf(lat, lng) {
+  showSelf(lat, lng, accuracy) {
     const latlng = L.latLng(lat, lng);
     if (this._selfMarker) {
       this._selfMarker.setLatLng(latlng);
@@ -800,6 +800,16 @@ const MapCtrl = {
     }
     const mgrsStr = toMGRS(lat, lng, 5) || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     document.getElementById('coord-mgrs').textContent = mgrsStr;
+    const accEl = document.getElementById('coord-accuracy');
+    if (accEl) {
+      if (accuracy != null && isFinite(accuracy)) {
+        const accStr = accuracy < 1000 ? `±${Math.round(accuracy)}m` : `±${(accuracy/1000).toFixed(1)}km`;
+        accEl.textContent = accStr;
+        accEl.style.display = '';
+      } else {
+        accEl.style.display = 'none';
+      }
+    }
   },
 
   panTo(lat, lng, zoom) {
