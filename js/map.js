@@ -874,7 +874,8 @@ const MapCtrl = {
     const isMedevac = report.type === '9LINE';
     const isNBC     = report.type === 'NBC';
     const cls       = isHostile ? 'hostile' : isMedevac ? 'medevac' : isNBC ? 'nbc' : 'generic';
-    const glyph     = isHostile ? '✕' : isMedevac ? '✚' : isNBC ? (report.data?.type || '☢') : '!';
+    const nbcType   = ['N','B','C','R'].includes(report.data?.type) ? report.data.type : '☢';
+    const glyph     = isHostile ? '✕' : isMedevac ? '✚' : isNBC ? nbcType : '!';
 
     const icon = L.divIcon({
       html:       `<div class="report-pin ${cls}">${glyph}</div>`,
