@@ -41,6 +41,7 @@ const MapCtrl = {
   _activeCatalogEntry: null,
   _activeEchelon:    '',
   _activeGraphicType:null,
+  _editUnitSymbolId: null,
   _pendingLatLng:    null,
   _clickTimeout:     null,
   _ctxLatLng:        null,
@@ -87,6 +88,11 @@ const MapCtrl = {
     this._map.on('dblclick',    e => this._onMapDblClick(e));
     this._map.on('contextmenu', e => this._onMapContextMenu(e));
     this._map.on('zoomend',     () => this._refreshIconSizes());
+
+    // Refresh stale-opacity on all unit markers every 5 minutes
+    setInterval(() => {
+      Object.values(this._units).forEach(({ data, marker }) => this._applyStaleStyle(marker, data));
+    }, 300000);
 
     // Long-press for mobile context menu
     const mc = this._map.getContainer();
@@ -436,7 +442,7 @@ const MapCtrl = {
       .addTo(this._unitLayer);
 
     this._bindUnitTooltip(marker, unit);
-
+    this._applyStaleStyle(marker, unit);
 
     marker.on('click', () => {
       if (this._activeTool !== 'select') return;
@@ -446,6 +452,13 @@ const MapCtrl = {
 
     this._units[unit.id] = { data: unit, marker };
     this.updateUnitCount();
+  },
+
+  _applyStaleStyle(marker, unit) {
+    const el = marker.getElement?.();
+    if (!el) return;
+    const age = unit.updated_at ? Date.now() - new Date(unit.updated_at).getTime() : 0;
+    el.style.opacity = age > 1800000 ? '0.45' : '1';  // dim if > 30 min stale
   },
 
   _bindUnitTooltip(marker, unit) {
@@ -484,6 +497,7 @@ const MapCtrl = {
       entry.marker.unbindTooltip();
       this._bindUnitTooltip(entry.marker, entry.data);
     }
+    this._applyStaleStyle(entry.marker, entry.data);
     LocalStore.upsertUnit(entry.data);
     if (Mission.active) {
       DB.upsertUnit(entry.data).catch(e => UI.toast('Update failed: ' + e.message, 'error'));
@@ -528,6 +542,9 @@ const MapCtrl = {
         existing.data = row;
         existing.marker.setLatLng([row.lat, row.lng]);
         existing.marker.setIcon(makeMilIcon(row.sidc, this._getIconSize()));
+        existing.marker.unbindTooltip();
+        this._bindUnitTooltip(existing.marker, row);
+        this._applyStaleStyle(existing.marker, row);
       } else {
         this._addUnitMarker(row);
       }
@@ -885,21 +902,37 @@ const MapCtrl = {
 
   toggleRangeRings(unitId, lat, lng) {
     if (this._rangeRings[unitId]) {
-      this._rangeRings[unitId].forEach(c => this._measureLayer.removeLayer(c));
+      this._rangeRings[unitId].forEach(l => this._measureLayer.removeLayer(l));
       delete this._rangeRings[unitId];
       return false; // removed
     }
     const RINGS = [
-      { r: 1000,  color: '#58a6ff', label: '1km' },
-      { r: 3000,  color: '#d29922', label: '3km' },
-      { r: 5000,  color: '#ff8c00', label: '5km' },
+      { r: 1000, color: '#58a6ff', label: '1 km' },
+      { r: 3000, color: '#d29922', label: '3 km' },
+      { r: 5000, color: '#ff8c00', label: '5 km' },
     ];
-    this._rangeRings[unitId] = RINGS.map(({ r, color }) =>
-      L.circle([lat, lng], {
-        radius: r, color, fillOpacity: 0, weight: 1.5,
-        dashArray: '4,6', interactive: false,
-      }).addTo(this._measureLayer)
-    );
+    const layers = [];
+    RINGS.forEach(({ r, color, label }) => {
+      layers.push(
+        L.circle([lat, lng], {
+          radius: r, color, fillOpacity: 0, weight: 1.5,
+          dashArray: '4,6', interactive: false,
+        }).addTo(this._measureLayer)
+      );
+      const labelLat = lat + (r / 111320);
+      layers.push(
+        L.marker([labelLat, lng], {
+          icon: L.divIcon({
+            className: 'range-ring-label',
+            html: `<span style="color:${color}">${label}</span>`,
+            iconSize: [36, 16], iconAnchor: [18, 8],
+          }),
+          interactive: false,
+          zIndexOffset: -100,
+        }).addTo(this._measureLayer)
+      );
+    });
+    this._rangeRings[unitId] = layers;
     return true; // added
   },
 
