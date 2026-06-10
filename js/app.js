@@ -969,13 +969,13 @@ const App = {
     });
     document.getElementById('btn-rpt-spotrep')?.addEventListener('click', () => {
       UI.closeSheet('sheet-reports-menu');
-      const c = MapCtrl.map.getCenter();
-      Reports.openSPOTREP(c.lat, c.lng);
+      const pos = App._selfPos || MapCtrl.map.getCenter();
+      Reports.openSPOTREP(pos.lat, pos.lng);
     });
     document.getElementById('btn-rpt-9line')?.addEventListener('click', () => {
       UI.closeSheet('sheet-reports-menu');
-      const c = MapCtrl.map.getCenter();
-      Reports.open9Line(c.lat, c.lng);
+      const pos = App._selfPos || MapCtrl.map.getCenter();
+      Reports.open9Line(pos.lat, pos.lng);
     });
     document.getElementById('btn-rpt-sitrep')?.addEventListener('click', () => {
       UI.closeSheet('sheet-reports-menu');
@@ -983,9 +983,12 @@ const App = {
     });
     document.getElementById('btn-rpt-nbc')?.addEventListener('click', () => {
       UI.closeSheet('sheet-reports-menu');
-      const c = MapCtrl.map.getCenter();
-      Reports.openNBC(c.lat, c.lng);
+      const pos = App._selfPos || MapCtrl.map.getCenter();
+      Reports.openNBC(pos.lat, pos.lng);
     });
+
+    document.getElementById('btn-reports-export-all')?.addEventListener('click', () =>
+      Reports.exportAll());
 
     // LACE form
     ['lace-liquid','lace-ammo','lace-equip','lace-cas'].forEach(id => {

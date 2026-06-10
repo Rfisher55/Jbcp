@@ -331,6 +331,25 @@ const Reports = {
       .catch(() => UI.toast('Copy failed — check browser permissions', 'error'));
   },
 
+  exportAll() {
+    const reports = LocalStore.getReports()
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    if (!reports.length) { UI.toast('No reports to export', 'info'); return; }
+    const divider = '\n' + '─'.repeat(40) + '\n\n';
+    const text = reports.map(r => this._formatReport(r)).join(divider);
+    navigator.clipboard?.writeText(text)
+      .then(() => UI.toast(`${reports.length} report${reports.length !== 1 ? 's' : ''} copied to clipboard`, 'success'))
+      .catch(() => {
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = `reports-${new Date().toISOString().slice(0,10)}.txt`;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        UI.toast(`${reports.length} reports downloaded`, 'success');
+      });
+  },
+
   _formatReport(r) {
     const dtg = r.data?.time || this._dtgFromISO(r.created_at);
     const lines = [];
