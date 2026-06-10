@@ -25,6 +25,7 @@ const MapCtrl = {
   _graphicLayer:     null,
   _reportLayer:      null,
   _measureLayer:     null,
+  _rangeRingLayer:   null,  // separate from measure so clearMeasure() doesn't destroy rings
   _pinLayer:         null,
   _previewGroup:     null,
   _rangeRings:       {},   // unitId → array of Leaflet circle layers
@@ -65,8 +66,9 @@ const MapCtrl = {
     this._unitLayer    = L.featureGroup().addTo(this._map);
     this._graphicLayer = L.featureGroup().addTo(this._map);
     this._reportLayer  = L.featureGroup().addTo(this._map);
-    this._measureLayer = L.featureGroup().addTo(this._map);
-    this._pinLayer     = L.featureGroup().addTo(this._map);
+    this._measureLayer   = L.featureGroup().addTo(this._map);
+    this._rangeRingLayer = L.featureGroup().addTo(this._map);
+    this._pinLayer       = L.featureGroup().addTo(this._map);
     this._previewGroup = L.featureGroup().addTo(this._map);
 
     let _scaleRaw = '1.0';
@@ -164,6 +166,7 @@ const MapCtrl = {
     this._drawPoints = [];
     this._clearPreview();
     this._activeGraphicType = null;
+    if (tool !== 'place-unit') this._pendingLatLng = null;
 
     const mc = this._map.getContainer();
     mc.className = mc.className.replace(/cursor-\S+/g, '').trim();
@@ -516,6 +519,11 @@ const MapCtrl = {
     if (updates.sidc) entry.marker.setIcon(makeMilIcon(updates.sidc, this._getIconSize()));
     if (updates.lat !== undefined || updates.lng !== undefined) {
       entry.marker.setLatLng([entry.data.lat, entry.data.lng]);
+      if (this._rangeRings[id]) {
+        this._rangeRings[id].forEach(l => this._rangeRingLayer.removeLayer(l));
+        delete this._rangeRings[id];
+        this.toggleRangeRings(id, entry.data.lat, entry.data.lng);
+      }
     }
     if (updates.callsign !== undefined || updates.redcon !== undefined) {
       entry.marker.unbindTooltip();
@@ -533,7 +541,7 @@ const MapCtrl = {
     if (!entry) return;
     this._unitLayer.removeLayer(entry.marker);
     if (this._rangeRings[id]) {
-      this._rangeRings[id].forEach(l => this._measureLayer.removeLayer(l));
+      this._rangeRings[id].forEach(l => this._rangeRingLayer.removeLayer(l));
       delete this._rangeRings[id];
     }
     delete this._units[id];
@@ -553,7 +561,7 @@ const MapCtrl = {
     entry.data.lng = lng;
     entry.data.updated_at = new Date().toISOString();
     if (this._rangeRings[id]) {
-      this._rangeRings[id].forEach(l => this._measureLayer.removeLayer(l));
+      this._rangeRings[id].forEach(l => this._rangeRingLayer.removeLayer(l));
       delete this._rangeRings[id];
       this.toggleRangeRings(id, lat, lng);
     }
@@ -571,7 +579,7 @@ const MapCtrl = {
       if (entry) {
         this._unitLayer.removeLayer(entry.marker);
         if (this._rangeRings[old.id]) {
-          this._rangeRings[old.id].forEach(l => this._measureLayer.removeLayer(l));
+          this._rangeRings[old.id].forEach(l => this._rangeRingLayer.removeLayer(l));
           delete this._rangeRings[old.id];
         }
         delete this._units[old.id];
@@ -589,7 +597,7 @@ const MapCtrl = {
         this._bindUnitTooltip(existing.marker, row);
         this._applyStaleStyle(existing.marker, row);
         if (posChanged && this._rangeRings[row.id]) {
-          this._rangeRings[row.id].forEach(l => this._measureLayer.removeLayer(l));
+          this._rangeRings[row.id].forEach(l => this._rangeRingLayer.removeLayer(l));
           delete this._rangeRings[row.id];
           this.toggleRangeRings(row.id, row.lat, row.lng);
         }
@@ -799,7 +807,6 @@ const MapCtrl = {
   clearMeasure() {
     this._measureLayer.clearLayers();
     this._measurePts = [];
-    this._rangeRings = {};   // clearLayers() removed them; keep state consistent
     ['m-distance','m-azimuth','m-back-az','m-mils','m-from','m-to'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = '—';
@@ -993,7 +1000,7 @@ const MapCtrl = {
 
   toggleRangeRings(unitId, lat, lng) {
     if (this._rangeRings[unitId]) {
-      this._rangeRings[unitId].forEach(l => this._measureLayer.removeLayer(l));
+      this._rangeRings[unitId].forEach(l => this._rangeRingLayer.removeLayer(l));
       delete this._rangeRings[unitId];
       return false; // removed
     }
@@ -1008,7 +1015,7 @@ const MapCtrl = {
         L.circle([lat, lng], {
           radius: r, color, fillOpacity: 0, weight: 1.5,
           dashArray: '4,6', interactive: false,
-        }).addTo(this._measureLayer)
+        }).addTo(this._rangeRingLayer)
       );
       const labelLat = lat + (r / 111320);
       layers.push(
@@ -1020,7 +1027,7 @@ const MapCtrl = {
           }),
           interactive: false,
           zIndexOffset: -100,
-        }).addTo(this._measureLayer)
+        }).addTo(this._rangeRingLayer)
       );
     });
     this._rangeRings[unitId] = layers;
@@ -1028,7 +1035,7 @@ const MapCtrl = {
   },
 
   clearRangeRings() {
-    Object.values(this._rangeRings).flat().forEach(c => this._measureLayer.removeLayer(c));
+    Object.values(this._rangeRings).flat().forEach(c => this._rangeRingLayer.removeLayer(c));
     this._rangeRings = {};
   },
 
