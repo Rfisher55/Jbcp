@@ -1026,6 +1026,15 @@ const App = {
     document.getElementById('btn-reports-export-all')?.addEventListener('click', () =>
       Reports.exportAll());
 
+    document.getElementById('reports-log-filter')?.addEventListener('click', e => {
+      const btn = e.target.closest('.rpt-filter-btn');
+      if (!btn) return;
+      document.querySelectorAll('.rpt-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      Reports._logFilter = btn.dataset.type || 'ALL';
+      Reports._renderLog();
+    });
+
     // LACE form
     ['lace-liquid','lace-ammo','lace-equip','lace-cas'].forEach(id => {
       document.getElementById(id)?.addEventListener('input', () => Reports._updateLACEBars());

@@ -273,18 +273,30 @@ const Reports = {
   },
 
   // ── Reports Log ────────────────────────────────────────────
+  _logFilter: 'ALL',
+
   openLog() {
+    this._logFilter = 'ALL';
+    const bar = document.getElementById('reports-log-filter');
+    if (bar) bar.querySelectorAll('.rpt-filter-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.type === 'ALL');
+    });
     this._renderLog();
     UI.showSheet('sheet-reports-log');
   },
 
   _renderLog() {
     const list    = document.getElementById('reports-log-list');
-    const reports = LocalStore.getReports()
+    const all     = LocalStore.getReports()
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const reports = (this._logFilter && this._logFilter !== 'ALL')
+      ? all.filter(r => r.type === this._logFilter)
+      : all;
 
     if (!reports.length) {
-      list.innerHTML = '<p class="empty-msg">No reports filed yet</p>';
+      list.innerHTML = this._logFilter !== 'ALL'
+        ? `<p class="empty-msg">No ${_escH(this._logFilter)} reports</p>`
+        : '<p class="empty-msg">No reports filed yet</p>';
       return;
     }
 

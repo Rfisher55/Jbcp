@@ -959,6 +959,23 @@ body.fullmap #btn-exit-fullmap { display: flex; }
 .rpt-log-row { margin-top: 12px; }
 
 /* ── Reports log ─────────────────────────────────────── */
+.rpt-filter-bar {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.rpt-filter-btn {
+  font-size: 11px; font-weight: 600; letter-spacing: .4px;
+  padding: 4px 10px; border-radius: 12px; cursor: pointer; flex-shrink: 0;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-dim);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.rpt-filter-btn.active {
+  background: rgba(88,166,255,0.18);
+  border-color: rgba(88,166,255,0.5);
+  color: var(--blue);
+}
+.rpt-filter-btn:active { opacity: 0.7; }
 .reports-log-list { display: flex; flex-direction: column; gap: 8px; padding-bottom: 16px; }
 .rpt-log-entry {
   background: rgba(255,255,255,0.04);
