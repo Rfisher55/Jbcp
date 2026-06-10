@@ -3,6 +3,14 @@
 const REDCON_COLORS = ['', '#f85149', '#ff8c00', '#d29922', '#3fb950', '#58a6ff'];
 const REDCON_LABELS = ['', 'IMMEDIATE ACTION', 'READY TO FIGHT', '30 MIN READINESS', 'MIN ALERT', 'NORMAL'];
 
+function _timeAgo(date) {
+  const s = Math.floor((Date.now() - date) / 1000);
+  if (s < 60)   return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
 const UI = {
   toast(msg, type = 'info', duration = 3000) {
     const el = document.createElement('div');
@@ -72,6 +80,14 @@ const UI = {
       label.textContent = entry.name;
       div.appendChild(label);
       div.addEventListener('click', () => {
+        if (MapCtrl._editUnitSymbolId) {
+          const newSIDC = buildSIDC(entry.base, echelon);
+          MapCtrl._updateUnit(MapCtrl._editUnitSymbolId, { sidc: newSIDC });
+          MapCtrl._editUnitSymbolId = null;
+          UI.closeSheet('sheet-symbols');
+          UI.toast(`Symbol changed to ${entry.name}`, 'success', 2000);
+          return;
+        }
         MapCtrl.setActiveSIDC(entry, echelon);
         UI.closeSheet('sheet-symbols');
         UI.toast(`${entry.name} — click map to place (ESC to stop)`, 'info', 2500);
@@ -211,6 +227,7 @@ const UI = {
       <div class="btn-row" style="margin-bottom:8px">
         <button class="btn-secondary" id="btn-unit-fly">Go to Unit</button>
         <button class="btn-secondary" id="btn-unit-rings">Range Rings</button>
+        <button class="btn-secondary" id="btn-unit-chgsym">Change Symbol</button>
       </div>
       <button class="btn-secondary btn-danger btn-full" id="btn-unit-delete">Delete</button>
     `;
@@ -269,6 +286,15 @@ const UI = {
       const added = MapCtrl.toggleRangeRings(unit.id, unit.lat, unit.lng);
       UI.closeSheet('sheet-unit');
       UI.toast(added ? 'Range rings: 1 / 3 / 5 km (tap again to remove)' : 'Range rings cleared', 'info', 2200);
+    });
+
+    document.getElementById('btn-unit-chgsym').addEventListener('click', () => {
+      MapCtrl._editUnitSymbolId = unit.id;
+      App._symFilter  = unit.sidc?.[1] === 'H' || (unit.sidc?.length >= 20 && unit.sidc[3] === '6') ? 'H' : 'F';
+      App._symEchelon = '';
+      UI.buildSymbolGrid(App._symFilter, App._symEchelon);
+      UI.closeSheet('sheet-unit');
+      UI.showSheet('sheet-symbols');
     });
 
     document.getElementById('btn-unit-save').addEventListener('click', () => {
@@ -601,7 +627,10 @@ const App = {
     // Close buttons
     document.querySelectorAll('.btn-close').forEach(btn => {
       const sheet = btn.closest('.sheet');
-      if (sheet) btn.addEventListener('click', () => UI.closeSheet(sheet.id));
+      if (sheet) btn.addEventListener('click', () => {
+        UI.closeSheet(sheet.id);
+        if (sheet.id === 'sheet-symbols') MapCtrl._editUnitSymbolId = null;
+      });
     });
 
     // Auth
@@ -847,9 +876,18 @@ const App = {
     // PACE plan
     document.getElementById('btn-pace-save')?.addEventListener('click', () => App._savePACE());
 
-    // Force status
+    // Force status — close + tap unit to fly
     document.getElementById('btn-force-status-close')?.addEventListener('click', () =>
       UI.closeSheet('sheet-force-status'));
+    document.getElementById('force-status-list')?.addEventListener('click', e => {
+      const item = e.target.closest('[data-uid]');
+      if (!item) return;
+      const entry = MapCtrl._units[item.dataset.uid];
+      if (entry) {
+        UI.closeSheet('sheet-force-status');
+        MapCtrl.flyToGrid(entry.data.lat, entry.data.lng);
+      }
+    });
 
     // Symbol scale
     document.querySelectorAll('.scale-btn').forEach(btn => {
@@ -1161,7 +1199,8 @@ const App = {
 
   _showForceStatus() {
     const list  = document.getElementById('force-status-list');
-    const units = Object.values(MapCtrl._units);
+    const units = Object.values(MapCtrl._units)
+      .sort((a, b) => (a.data.redcon || 5) - (b.data.redcon || 5));
     if (!units.length) {
       list.innerHTML = '<p class="empty-msg">No units placed</p>';
       UI.showSheet('sheet-force-status');
@@ -1173,9 +1212,13 @@ const App = {
       const opst  = u.opstat || 'FMC';
       const opCls = opst.toLowerCase();
       const laceStr = u.lace ? `L${u.lace.l}% A${u.lace.a}% E${u.lace.e}%` : '';
-      return `<div class="fstat-item">
+      const mgrs    = toMGRS(u.lat, u.lng, 5) || `${u.lat.toFixed(4)},${u.lng.toFixed(4)}`;
+      const ago     = u.updated_at ? _timeAgo(new Date(u.updated_at)) : '';
+      return `<div class="fstat-item" data-uid="${_escH(u.id)}">
         <div class="fstat-callsign">${_escH(u.callsign || '—')}</div>
+        <div class="fstat-grid mgrs-tap-link">${_escH(mgrs)}</div>
         ${laceStr ? `<div class="fstat-lace">${laceStr}</div>` : ''}
+        ${ago ? `<div class="fstat-ago">${_escH(ago)}</div>` : ''}
         <div class="fstat-rc" style="color:${col};border-color:${col}">RC${rc}</div>
         <div class="fstat-opstat ${opCls}">${opst}</div>
       </div>`;

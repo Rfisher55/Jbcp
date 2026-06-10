@@ -1156,6 +1156,17 @@ body.fullmap #btn-exit-fullmap { display: flex; }
 .fstat-opstat.pmc  { background: rgba(210,153,34,0.2); color: #d29922; }
 .fstat-opstat.nmc  { background: rgba(248,81,73,0.2);  color: #f85149; }
 .fstat-lace { font-size: 0.75rem; color: var(--text-dim); flex-shrink: 0; }
+.fstat-grid { font-size: 0.7rem; color: var(--blue); font-family: 'SF Mono', monospace; flex-shrink: 0; cursor: pointer; }
+.fstat-ago  { font-size: 0.7rem; color: var(--text-dim); flex-shrink: 0; }
+.fstat-item { cursor: pointer; }
+.fstat-item:hover { background: rgba(255,255,255,0.04); border-radius: 4px; }
+
+/* ── Range ring labels ───────────────────────────────── */
+.range-ring-label {
+  background: transparent; border: none;
+  font-size: 10px; font-weight: 700; font-family: 'SF Mono', monospace;
+  text-shadow: 0 0 3px rgba(0,0,0,0.8); white-space: nowrap;
+}
 
 /* ── Operational status in unit detail ───────────────── */
 .opstat-row { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
