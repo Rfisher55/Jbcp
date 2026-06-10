@@ -217,5 +217,6 @@ const LocalStore = {
     list.push(r);
     this._set('cop_reports', list);
   },
-  deleteReport(id) { this._set('cop_reports', this.getReports().filter(r => r.id !== id)); },
+  deleteReport(id)  { this._set('cop_reports', this.getReports().filter(r => r.id !== id)); },
+  clearReports()    { this._set('cop_reports', []); },
 };

@@ -900,6 +900,49 @@ const App = {
       if (result.valid) { UI.closeSheet('sheet-bft-card'); MapCtrl.flyToGrid(result.lat, result.lng); }
     });
 
+    // Settings
+    document.getElementById('btn-settings')?.addEventListener('click', () => {
+      document.getElementById('settings-callsign').value = Auth.callsign || '';
+      const cur = BFT.STALE_MS;
+      document.querySelectorAll('.scale-btn[data-stale]').forEach(b =>
+        b.classList.toggle('active', +b.dataset.stale === cur));
+      UI.showSheet('sheet-settings');
+    });
+    document.getElementById('btn-settings-close')?.addEventListener('click', () =>
+      UI.closeSheet('sheet-settings'));
+    document.getElementById('btn-settings-callsign-save')?.addEventListener('click', () => {
+      const cs = document.getElementById('settings-callsign')?.value.trim()
+        .replace(/\s+/g, '-').toUpperCase();
+      if (!cs) return;
+      Auth.callsign = cs;
+      Auth._save();
+      UI.toast('Callsign updated to ' + cs, 'success');
+      UI.closeSheet('sheet-settings');
+    });
+    document.getElementById('stale-bar')?.addEventListener('click', e => {
+      const btn = e.target.closest('[data-stale]');
+      if (!btn) return;
+      const ms = +btn.dataset.stale;
+      BFT.STALE_MS = ms;
+      localStorage.setItem('cop_bft_stale', String(ms));
+      document.querySelectorAll('.scale-btn[data-stale]').forEach(b =>
+        b.classList.toggle('active', +b.dataset.stale === ms));
+    });
+    document.getElementById('btn-clear-reports')?.addEventListener('click', () => {
+      MapCtrl._reportLayer?.clearLayers();
+      LocalStore.clearReports?.();
+      UI.toast('Report markers cleared', 'info');
+    });
+    document.getElementById('btn-clear-all-data')?.addEventListener('click', () => {
+      if (!confirm('Delete all local data? This cannot be undone.')) return;
+      localStorage.clear();
+      UI.toast('Local data cleared — reload to restart', 'info', 5000);
+    });
+
+    // Restore BFT stale timeout from settings
+    const savedStale = parseInt(localStorage.getItem('cop_bft_stale'));
+    if (savedStale && !isNaN(savedStale)) BFT.STALE_MS = savedStale;
+
     // Init map
     MapCtrl.init();
 
