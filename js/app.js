@@ -587,7 +587,11 @@ const UI = {
       btn.classList.toggle('active', f === curFilter);
       btn.addEventListener('click', () => {
         mapEl.classList.remove('map-dim', 'map-night');
-        if (f !== 'off') mapEl.classList.add(`map-${f}`);
+        document.body.classList.remove('ui-dim', 'ui-night');
+        if (f !== 'off') {
+          mapEl.classList.add(`map-${f}`);
+          document.body.classList.add(`ui-${f}`);
+        }
         filters.forEach(x => document.getElementById(`map-filter-${x}`)?.classList.toggle('active', x === f));
       });
     });
@@ -872,13 +876,34 @@ const App = {
 
     // SITREP form
     document.getElementById('btn-sitrep-submit')?.addEventListener('click', () => Reports.submitSITREP());
+    document.getElementById('btn-sitrep-autofill')?.addEventListener('click', () => {
+      const units = Object.values(MapCtrl._units).map(u => u.data);
+      if (!units.length) return;
+      const friendly = units
+        .filter(u => {
+          const s = u.sidc || '';
+          return s[1] === 'F' || s[1] === 'S' || (s.length >= 20 && s[3] === '3');
+        })
+        .map(u => `${u.callsign || 'UNKNOWN'} RC${u.redcon || 5}/${u.opstat || 'FMC'}`)
+        .join(', ');
+      const el = document.getElementById('sit-friendly');
+      if (el && friendly) el.value = friendly;
+    });
 
     // PACE plan
     document.getElementById('btn-pace-save')?.addEventListener('click', () => App._savePACE());
 
-    // Force status — close + tap unit to fly
+    // Force status — close + share + tap unit to fly
     document.getElementById('btn-force-status-close')?.addEventListener('click', () =>
       UI.closeSheet('sheet-force-status'));
+    document.getElementById('btn-fstat-share')?.addEventListener('click', () => {
+      if (!Chat.isJoined()) { UI.toast('Join a mission to share', 'info'); return; }
+      const units = Object.values(MapCtrl._units)
+        .sort((a, b) => (a.data.redcon || 5) - (b.data.redcon || 5))
+        .map(({ data: u }) => `${u.callsign || '?'} RC${u.redcon || 5}/${u.opstat || 'FMC'}`)
+        .join(' | ');
+      if (units) { Chat.send('FORCE STATUS: ' + units); UI.toast('Force status shared to chat', 'success'); }
+    });
     document.getElementById('force-status-list')?.addEventListener('click', e => {
       const item = e.target.closest('[data-uid]');
       if (!item) return;
@@ -936,6 +961,18 @@ const App = {
       } else {
         UI.toast('Join a mission to use chat', 'info');
       }
+    });
+    document.getElementById('ctx-copy-grid')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-context');
+      const ll   = MapCtrl._ctxLatLng;
+      const mgrs = ll ? (toMGRS(ll.lat, ll.lng, 5) || `${ll.lat.toFixed(5)},${ll.lng.toFixed(5)}`) : '';
+      navigator.clipboard?.writeText(mgrs);
+      UI.toast('Grid copied: ' + mgrs, 'success', 2000);
+    });
+    document.getElementById('ctx-nbc')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-context');
+      const ll = MapCtrl._ctxLatLng;
+      if (ll) Reports.openNBC(ll.lat, ll.lng);
     });
 
     document.getElementById('ctx-goto-grid')?.addEventListener('click', () => {

@@ -155,6 +155,22 @@ const BFT = {
     stale.textContent = t.stale ? 'STALE' : 'LIVE';
     stale.className   = 'bft-status-badge ' + (t.stale ? 'stale' : 'live');
 
+    // Bearing/distance from own GPS position
+    const fromRow = document.getElementById('bft-card-from-row');
+    const fromEl  = document.getElementById('bft-card-from');
+    const selfPos = (typeof App !== 'undefined') ? App._selfPos : null;
+    if (selfPos && fromRow && fromEl) {
+      const dx = (t.lng - selfPos.lng) * Math.cos(selfPos.lat * Math.PI / 180) * 111320;
+      const dy = (t.lat - selfPos.lat) * 111320;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const az   = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+      const distStr = dist >= 1000 ? (dist / 1000).toFixed(1) + ' km' : Math.round(dist) + ' m';
+      fromEl.textContent = `${distStr} at ${az.toFixed(0)}° (${Math.round(az * 6400 / 360)} mil)`;
+      fromRow.style.display = '';
+    } else if (fromRow) {
+      fromRow.style.display = 'none';
+    }
+
     const fuelRow  = document.getElementById('bft-card-fuel-row');
     const ammoRow  = document.getElementById('bft-card-ammo-row');
     const statRow  = document.getElementById('bft-card-stat-row');

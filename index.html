@@ -587,7 +587,10 @@
         <input id="sit-loc" type="text" autocomplete="off" autocapitalize="characters">
       </div>
       <div class="field-group">
-        <label for="sit-friendly">Friendly Situation</label>
+        <label for="sit-friendly" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Friendly Situation</span>
+          <button class="btn-secondary" id="btn-sitrep-autofill" style="font-size:10px;padding:2px 8px;margin:0">Auto-fill</button>
+        </label>
         <input id="sit-friendly" type="text" placeholder="Current operations, position, status"
                autocomplete="off" autocapitalize="sentences">
       </div>
@@ -637,6 +640,14 @@
           <span class="ctx-icon">🔭</span>
           <span>Go to Grid</span>
         </button>
+        <button class="ctx-btn" id="ctx-copy-grid">
+          <span class="ctx-icon">📋</span>
+          <span>Copy Grid</span>
+        </button>
+        <button class="ctx-btn" id="ctx-nbc">
+          <span class="ctx-icon">☣</span>
+          <span>NBC Report</span>
+        </button>
       </div>
     </div>
   </div>
@@ -670,6 +681,7 @@
         <dt>Heading</dt><dd id="bft-card-hdg">—</dd>
         <dt>Speed</dt><dd id="bft-card-spd">—</dd>
         <dt>Last update</dt><dd id="bft-card-age">—</dd>
+        <dt id="bft-card-from-row" style="display:none">From self</dt><dd id="bft-card-from">—</dd>
         <dt id="bft-card-fuel-row">Fuel</dt><dd id="bft-card-fuel">—</dd>
         <dt id="bft-card-ammo-row">Ammo</dt><dd id="bft-card-ammo">—</dd>
         <dt id="bft-card-stat-row">Status</dt><dd id="bft-card-opstat">—</dd>
@@ -816,6 +828,7 @@
         <h3>Force Status</h3>
         <button class="btn-close" id="btn-force-status-close">✕</button>
       </div>
+      <button class="btn-secondary btn-full" id="btn-fstat-share" style="margin-bottom:10px">Share to Chat</button>
       <div id="force-status-list" class="force-status-list">
         <p class="empty-msg">No units placed</p>
       </div>
