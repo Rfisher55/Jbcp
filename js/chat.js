@@ -85,7 +85,7 @@ const Chat = {
   },
 
   _receive(msg) {
-    if (this._msgs.find(m => m.id === msg.id)) return;
+    if (msg.id && this._msgs.find(m => m.id === msg.id)) return;
     this._msgs.push(msg);
     if (this._msgs.length > this.MAX) this._msgs.shift();
     this._saveStored();

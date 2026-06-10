@@ -589,10 +589,13 @@ const MapCtrl = {
     ]);
 
     this._batchLoading = true;
-    for (const u of units)   this._addUnitMarker(u);
-    for (const g of graphics) this._renderGraphic(g);
-    for (const r of LocalStore.getReports()) this.placeReportMarker(r);
-    this._batchLoading = false;
+    try {
+      for (const u of units)   this._addUnitMarker(u);
+      for (const g of graphics) this._renderGraphic(g);
+      for (const r of LocalStore.getReports()) this.placeReportMarker(r);
+    } finally {
+      this._batchLoading = false;
+    }
     this.updateUnitCount();
     UI.toast(`Loaded ${units.length} unit${units.length !== 1 ? 's' : ''}`, 'info');
   },
@@ -802,10 +805,13 @@ const MapCtrl = {
     const graphics = LocalStore.getGraphics();
     const reports  = LocalStore.getReports();
     this._batchLoading = true;
-    for (const u of units)   this._addUnitMarker(u);
-    for (const g of graphics) this._renderGraphic(g);
-    for (const r of reports)  this.placeReportMarker(r);
-    this._batchLoading = false;
+    try {
+      for (const u of units)   this._addUnitMarker(u);
+      for (const g of graphics) this._renderGraphic(g);
+      for (const r of reports)  this.placeReportMarker(r);
+    } finally {
+      this._batchLoading = false;
+    }
     this.updateUnitCount();
     if (units.length || graphics.length) {
       UI.toast(`Loaded ${units.length} unit${units.length !== 1 ? 's' : ''}, ${graphics.length} graphic${graphics.length !== 1 ? 's' : ''}`, 'info');

@@ -1492,10 +1492,14 @@ const App = {
     // LACE aggregate
     const withLace = units.filter(u => u.data.lace);
     const laceBar = withLace.length ? (() => {
-      const avgFuel = Math.round(withLace.reduce((s, u) => s + (+u.data.lace.l || 0), 0) / withLace.length);
-      const avgAmmo = Math.round(withLace.reduce((s, u) => s + (+u.data.lace.a || 0), 0) / withLace.length);
-      const minFuel = Math.min(...withLace.map(u => +u.data.lace.l || 0));
-      const minAmmo = Math.min(...withLace.map(u => +u.data.lace.a || 0));
+      const finiteNum = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+      const fuelVals = withLace.map(u => finiteNum(u.data.lace.l)).filter(v => v !== null);
+      const ammoVals = withLace.map(u => finiteNum(u.data.lace.a)).filter(v => v !== null);
+      if (!fuelVals.length && !ammoVals.length) return '';
+      const avgFuel = fuelVals.length ? Math.round(fuelVals.reduce((s, v) => s + v, 0) / fuelVals.length) : '—';
+      const avgAmmo = ammoVals.length ? Math.round(ammoVals.reduce((s, v) => s + v, 0) / ammoVals.length) : '—';
+      const minFuel = fuelVals.length ? Math.min(...fuelVals) : '—';
+      const minAmmo = ammoVals.length ? Math.min(...ammoVals) : '—';
       return `<div class="fstat-lace-agg">Avg L:${avgFuel}% A:${avgAmmo}% · Min L:${minFuel}% A:${minAmmo}%</div>`;
     })() : '';
 
