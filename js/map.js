@@ -592,13 +592,18 @@ const MapCtrl = {
 
     this._batchLoading = true;
     try {
-      for (const u of units)   this._addUnitMarker(u);
+      for (const u of units)    this._addUnitMarker(u);
       for (const g of graphics) this._renderGraphic(g);
       for (const r of LocalStore.getReports()) this.placeReportMarker(r);
     } finally {
       this._batchLoading = false;
     }
     this.updateUnitCount();
+
+    // Mirror to localStorage so offline reload has current data
+    units.forEach(u => LocalStore.upsertUnit(u));
+    graphics.forEach(g => LocalStore.upsertGraphic(g));
+
     UI.toast(`Loaded ${units.length} unit${units.length !== 1 ? 's' : ''}`, 'info');
   },
 
