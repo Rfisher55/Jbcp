@@ -552,6 +552,7 @@ const MapCtrl = {
     if (eventType === 'DELETE') {
       const entry = this._units[old.id];
       if (entry) { this._unitLayer.removeLayer(entry.marker); delete this._units[old.id]; this.updateUnitCount(); }
+      LocalStore.deleteUnit(old.id);
     } else {
       const existing = this._units[row.id];
       if (existing) {
@@ -564,6 +565,7 @@ const MapCtrl = {
       } else {
         this._addUnitMarker(row);
       }
+      LocalStore.upsertUnit(row);
     }
   },
 
@@ -572,8 +574,10 @@ const MapCtrl = {
     if (eventType === 'DELETE') {
       const g = this._graphics[old.id];
       if (g) { this._graphicLayer.removeLayer(g.layer); delete this._graphics[old.id]; }
+      LocalStore.deleteGraphic(old.id);
     } else {
       this._renderGraphic(row);
+      LocalStore.upsertGraphic(row);
     }
   },
 
