@@ -13,8 +13,11 @@ const Mission = {
   },
 
   async join(code) {
-    code = code.trim();
-    const m = await DB.getMission(code);
+    code = code.trim().replace(/-/g, '');
+    // Short code (≤8 chars) is a join-code prefix; full UUID (>8) is used directly
+    const m = code.length <= 8
+      ? await DB.findMissionByCode(code)
+      : await DB.getMission(code);
     if (!m) throw new Error('Mission not found. Check the code and try again.');
     await DB.joinMission(m.id, Auth.user.id, Auth.callsign, 'editor');
     return this._activate(m);
@@ -41,12 +44,15 @@ const Mission = {
   _activate(m, { silent = false } = {}) {
     this.current = m;
     localStorage.setItem('cop_mission', JSON.stringify({ id: m.id }));
+
+    // Subscribe to live changes
     if (this._unsub) this._unsub();
     this._unsub = DB.subscribeMission(m.id, {
       onUnit:    p => MapCtrl.handleRemoteUnit(p),
       onGraphic: p => MapCtrl.handleRemoteGraphic(p),
       onPresence: s => UI.updateRoster(s),
     });
+
     if (!silent) App.onMissionActivated(m);
     return m;
   }
