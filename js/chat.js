@@ -10,10 +10,18 @@ const Chat = {
     'ROGER',
     'STAND BY',
     'MOVING NOW',
+    'IN POSITION',
+    'CONSOLIDATING',
     'CONTACT — WAIT OUT',
+    'BREAK BREAK BREAK',
+    'CEASE FIRE',
     'ALL CLEAR — SECURE',
+    'PUSH TO ALTERNATE',
+    'SEND YOUR TRAFFIC',
+    'AUTHENTICATE',
     'MEDEVAC REQUEST FOLLOWS',
     'AMMO LOW — REQUEST RESUPPLY',
+    'CASUALTY — WAIT OUT',
   ],
 
   join(missionId) {

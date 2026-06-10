@@ -504,6 +504,13 @@ const UI = {
           <span class="toggle-track"></span>
         </label>
       </div>
+      <div class="overlay-row">
+        <label for="tog-labels">Unit Labels</label>
+        <label class="toggle">
+          <input id="tog-labels" type="checkbox" ${document.getElementById('map')?.classList.contains('hide-unit-labels') ? '' : 'checked'}>
+          <span class="toggle-track"></span>
+        </label>
+      </div>
     `;
 
     document.getElementById('tog-grid').addEventListener('change', e =>
@@ -516,6 +523,9 @@ const UI = {
       const bftLayer = BFT._layer;
       if (!bftLayer) return;
       e.target.checked ? bftLayer.addTo(MapCtrl.map) : MapCtrl.map.removeLayer(bftLayer);
+    });
+    document.getElementById('tog-labels').addEventListener('change', e => {
+      document.getElementById('map')?.classList.toggle('hide-unit-labels', !e.target.checked);
     });
 
     // Symbol scale buttons — update active state
