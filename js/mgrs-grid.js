@@ -160,7 +160,7 @@ const MGRSGrid = L.Layer.extend({
   },
 
   _line(ctx, map, zone, isN, axis, fixed, vMin, vMax, digits) {
-    const steps = Math.max(5, 20);
+    const steps = 20;
     const pts   = [];
 
     for (let i = 0; i <= steps; i++) {

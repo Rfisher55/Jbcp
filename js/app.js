@@ -1000,7 +1000,7 @@ const App = {
     const cannedContainer = document.getElementById('chat-canned');
     if (cannedContainer) {
       cannedContainer.innerHTML = Chat.CANNED.map(m =>
-        `<button class="canned-btn" data-msg="${m.replace(/"/g,'&quot;')}">${_escH(m)}</button>`
+        `<button class="canned-btn" data-msg="${_escH(m)}">${_escH(m)}</button>`
       ).join('');
     }
 

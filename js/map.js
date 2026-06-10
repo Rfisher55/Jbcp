@@ -776,6 +776,7 @@ const MapCtrl = {
   clearMeasure() {
     this._measureLayer.clearLayers();
     this._measurePts = [];
+    this._rangeRings = {};   // clearLayers() removed them; keep state consistent
     ['m-distance','m-azimuth','m-back-az','m-mils','m-from','m-to'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = '—';
