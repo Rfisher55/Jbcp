@@ -1060,8 +1060,11 @@ const App = {
     document.getElementById('btn-pace-save')?.addEventListener('click', () => App._savePACE());
 
     // Force status — close + share + tap unit to fly
-    document.getElementById('btn-force-status-close')?.addEventListener('click', () =>
-      UI.closeSheet('sheet-force-status'));
+    document.getElementById('btn-force-status-close')?.addEventListener('click', () => {
+      document.getElementById('fstat-filter').value = '';
+      UI.closeSheet('sheet-force-status');
+    });
+    document.getElementById('fstat-filter')?.addEventListener('input', () => App._showForceStatus());
     document.getElementById('btn-fstat-share')?.addEventListener('click', () => {
       if (!Chat.isJoined()) { UI.toast('Join a mission to share', 'info'); return; }
       const safeCs = s => String(s || '?').replace(/[|\x00-\x1f]/g, '').slice(0, 16) || '?';
@@ -1477,16 +1480,19 @@ const App = {
   },
 
   _showForceStatus() {
-    const list  = document.getElementById('force-status-list');
-    const units = Object.values(MapCtrl._units)
+    const list     = document.getElementById('force-status-list');
+    const allUnits = Object.values(MapCtrl._units)
       .sort((a, b) => (a.data.redcon || 5) - (b.data.redcon || 5));
-    if (!units.length) {
+    if (!allUnits.length) {
       list.innerHTML = '<p class="empty-msg">No units placed</p>';
+      const summaryEl = document.getElementById('fstat-summary');
+      if (summaryEl) summaryEl.innerHTML = '';
       UI.showSheet('sheet-force-status');
       return;
     }
 
-    // REDCON summary bar
+    // REDCON summary always reflects full force (not filtered)
+    const units    = allUnits;
     const rcCounts = [1,2,3,4,5].map(r => units.filter(u => (u.data.redcon || 5) === r).length);
     const rcBar = `<div class="fstat-rc-summary">${
       [1,2,3,4,5].map((r, i) => rcCounts[i] > 0
@@ -1512,7 +1518,18 @@ const App = {
     const summaryEl = document.getElementById('fstat-summary');
     if (summaryEl) summaryEl.innerHTML = rcBar + laceBar;
 
-    list.innerHTML = units.map(({ data: u }) => {
+    const query = (document.getElementById('fstat-filter')?.value || '').toUpperCase().trim();
+    const displayUnits = query
+      ? allUnits.filter(u => (u.data.callsign || '').toUpperCase().includes(query))
+      : allUnits;
+
+    if (!displayUnits.length) {
+      list.innerHTML = '<p class="empty-msg">No units match filter</p>';
+      UI.showSheet('sheet-force-status');
+      return;
+    }
+
+    list.innerHTML = displayUnits.map(({ data: u }) => {
       const rc    = Math.max(1, Math.min(5, +u.redcon || 5));
       const col   = REDCON_COLORS[rc];
       const opst  = ['FMC','PMC','NMC'].includes(u.opstat) ? u.opstat : 'FMC';
