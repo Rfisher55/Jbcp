@@ -462,7 +462,7 @@ const MapCtrl = {
     marker.on('dragend', e => this._onUnitDrag(unit.id, e));
 
     this._units[unit.id] = { data: unit, marker };
-    this.updateUnitCount();
+    if (!this._batchLoading) this.updateUnitCount();
   },
 
   _applyStaleStyle(marker, unit) {
@@ -588,9 +588,11 @@ const MapCtrl = {
       DB.getGraphics(missionId),
     ]);
 
+    this._batchLoading = true;
     for (const u of units)   this._addUnitMarker(u);
     for (const g of graphics) this._renderGraphic(g);
     for (const r of LocalStore.getReports()) this.placeReportMarker(r);
+    this._batchLoading = false;
     this.updateUnitCount();
     UI.toast(`Loaded ${units.length} unit${units.length !== 1 ? 's' : ''}`, 'info');
   },
@@ -799,9 +801,12 @@ const MapCtrl = {
     const units    = LocalStore.getUnits();
     const graphics = LocalStore.getGraphics();
     const reports  = LocalStore.getReports();
+    this._batchLoading = true;
     for (const u of units)   this._addUnitMarker(u);
     for (const g of graphics) this._renderGraphic(g);
     for (const r of reports)  this.placeReportMarker(r);
+    this._batchLoading = false;
+    this.updateUnitCount();
     if (units.length || graphics.length) {
       UI.toast(`Loaded ${units.length} unit${units.length !== 1 ? 's' : ''}, ${graphics.length} graphic${graphics.length !== 1 ? 's' : ''}`, 'info');
     }

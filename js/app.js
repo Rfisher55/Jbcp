@@ -1435,6 +1435,29 @@ const App = {
       UI.showSheet('sheet-force-status');
       return;
     }
+
+    // REDCON summary bar
+    const rcCounts = [1,2,3,4,5].map(r => units.filter(u => (u.data.redcon || 5) === r).length);
+    const rcBar = `<div class="fstat-rc-summary">${
+      [1,2,3,4,5].map((r, i) => rcCounts[i] > 0
+        ? `<span style="background:${REDCON_COLORS[r]}22;border:1px solid ${REDCON_COLORS[r]}66;color:${REDCON_COLORS[r]}">${rcCounts[i]}×RC${r}</span>`
+        : ''
+      ).join('')
+    }</div>`;
+
+    // LACE aggregate
+    const withLace = units.filter(u => u.data.lace);
+    const laceBar = withLace.length ? (() => {
+      const avgFuel = Math.round(withLace.reduce((s, u) => s + (+u.data.lace.l || 0), 0) / withLace.length);
+      const avgAmmo = Math.round(withLace.reduce((s, u) => s + (+u.data.lace.a || 0), 0) / withLace.length);
+      const minFuel = Math.min(...withLace.map(u => +u.data.lace.l || 0));
+      const minAmmo = Math.min(...withLace.map(u => +u.data.lace.a || 0));
+      return `<div class="fstat-lace-agg">Avg L:${avgFuel}% A:${avgAmmo}% · Min L:${minFuel}% A:${minAmmo}%</div>`;
+    })() : '';
+
+    const summaryEl = document.getElementById('fstat-summary');
+    if (summaryEl) summaryEl.innerHTML = rcBar + laceBar;
+
     list.innerHTML = units.map(({ data: u }) => {
       const rc    = u.redcon || 5;
       const col   = REDCON_COLORS[rc];
@@ -1685,9 +1708,6 @@ const App = {
         btn.classList.add('active');
         btn.classList.remove('active-dim');
         if (App._selfPos) MapCtrl.panTo(App._selfPos.lat, App._selfPos.lng);
-        MapCtrl.map.once('dragstart', () => {
-          if (App._watchId) { App._followGPS = false; btn.classList.remove('active'); btn.classList.add('active-dim'); }
-        });
         UI.toast('Following GPS position', 'info', 1500);
         return;
       }
@@ -1702,14 +1722,20 @@ const App = {
 
     this._followGPS = true;
 
-    // Stop following when user drags the map
-    MapCtrl.map.once('dragstart', () => {
-      if (App._watchId) {
-        App._followGPS = false;
-        btn.classList.remove('active');
-        btn.classList.add('active-dim');
-      }
-    });
+    let _dragHandler = null;
+    const _attachDragHandler = () => {
+      if (_dragHandler) MapCtrl.map.off('dragstart', _dragHandler);
+      _dragHandler = () => {
+        _dragHandler = null;
+        if (App._watchId) {
+          App._followGPS = false;
+          btn.classList.remove('active');
+          btn.classList.add('active-dim');
+        }
+      };
+      MapCtrl.map.once('dragstart', _dragHandler);
+    };
+    _attachDragHandler();
 
     this._watchId = navigator.geolocation.watchPosition(
       pos => {
@@ -1720,16 +1746,8 @@ const App = {
         btn.classList.toggle('active',     App._followGPS);
         btn.classList.toggle('active-dim', !App._followGPS);
 
-        // Re-attach drag listener each time so it fires after a re-center
-        if (App._followGPS) {
-          MapCtrl.map.once('dragstart', () => {
-            if (App._watchId) {
-              App._followGPS = false;
-              btn.classList.remove('active');
-              btn.classList.add('active-dim');
-            }
-          });
-        }
+        // Re-attach drag listener so it fires after next re-center
+        if (App._followGPS) _attachDragHandler();
 
         // Broadcast to BFT if mission active (max once per 15 seconds)
         if (Mission.active) {

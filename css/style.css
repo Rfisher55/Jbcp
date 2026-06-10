@@ -1186,6 +1186,18 @@ kbd {
 .fstat-item { cursor: pointer; }
 .fstat-item:hover { background: rgba(255,255,255,0.04); border-radius: 4px; }
 
+/* ── Force Status summary ─────────────────────────────── */
+.fstat-rc-summary {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px;
+}
+.fstat-rc-summary span {
+  font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+}
+.fstat-lace-agg {
+  font-size: 0.72rem; color: var(--text-dim); padding-bottom: 6px;
+  border-bottom: 1px solid var(--border); margin-bottom: 4px;
+}
+
 /* ── Force Status bulk REDCON ─────────────────────────── */
 .fstat-bulk-row {
   display: flex; align-items: center; gap: 6px;
