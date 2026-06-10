@@ -1342,6 +1342,9 @@ const App = {
       UI.toast('Callsign updated to ' + cs, 'success');
       UI.closeSheet('sheet-settings');
     });
+    document.getElementById('settings-callsign')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btn-settings-callsign-save')?.click();
+    });
     document.getElementById('stale-bar')?.addEventListener('click', e => {
       const btn = e.target.closest('[data-stale]');
       if (!btn) return;
@@ -1370,6 +1373,9 @@ const App = {
       try { localStorage.setItem('cop_ao', JSON.stringify(aoData)); } catch {}
       Object.assign(AO, aoData);
       UI.toast(`AO set: ${name || aoData.name} (${sq})`, 'success');
+    });
+    document.getElementById('settings-ao-mgrs')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btn-ao-save')?.click();
     });
 
     document.getElementById('btn-clear-reports')?.addEventListener('click', () => {
