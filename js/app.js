@@ -506,6 +506,7 @@ const App = {
       await MapCtrl.loadMission(m.id);
       UI.toast(`Welcome back, ${Auth.callsign}`, 'success');
     } else {
+      MapCtrl.loadLocalData();
       UI.toast(`Signed in as ${Auth.callsign}`, 'success');
     }
   },

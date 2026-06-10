@@ -175,3 +175,26 @@ const DB = {
     await channel.track(data);
   }
 };
+
+// ── Local persistence (always available) ──────────────────
+const LocalStore = {
+  _get(key) { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } },
+  _set(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} },
+
+  getUnits()    { return this._get('cop_units'); },
+  getGraphics() { return this._get('cop_graphics'); },
+
+  upsertUnit(unit) {
+    const list = this.getUnits().filter(u => u.id !== unit.id);
+    list.push(unit);
+    this._set('cop_units', list);
+  },
+  deleteUnit(id) { this._set('cop_units', this.getUnits().filter(u => u.id !== id)); },
+
+  upsertGraphic(g) {
+    const list = this.getGraphics().filter(x => x.id !== g.id);
+    list.push(g);
+    this._set('cop_graphics', list);
+  },
+  deleteGraphic(id) { this._set('cop_graphics', this.getGraphics().filter(g => g.id !== id)); },
+};

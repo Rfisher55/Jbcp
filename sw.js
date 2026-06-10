@@ -1,17 +1,19 @@
-// Service Worker — Phase 0: basic shell caching + offline fallback
-const CACHE   = 'cop-v1';
-const SHELL   = [
-  '/',
-  '/index.html',
-  '/css/style.css',
-  '/js/config.js',
-  '/js/db.js',
-  '/js/auth.js',
-  '/js/mission.js',
-  '/js/mgrs-grid.js',
-  '/js/symbols.js',
-  '/js/map.js',
-  '/js/app.js',
+// Service Worker — shell caching + offline fallback
+const CACHE = 'cop-v2';
+const BASE  = self.registration.scope;
+
+const SHELL = [
+  BASE,
+  BASE + 'index.html',
+  BASE + 'css/style.css',
+  BASE + 'js/config.js',
+  BASE + 'js/db.js',
+  BASE + 'js/auth.js',
+  BASE + 'js/mission.js',
+  BASE + 'js/mgrs-grid.js',
+  BASE + 'js/symbols.js',
+  BASE + 'js/map.js',
+  BASE + 'js/app.js',
 ];
 
 self.addEventListener('install', e => {
