@@ -674,13 +674,14 @@ const MapCtrl = {
       setTimeout(() => {
         document.querySelectorAll('.btn-del-graphic').forEach(btn => {
           if (btn.dataset.gid !== g.id) return;
-          btn.addEventListener('click', () => {
+          const handler = () => {
             this._graphicLayer.removeLayer(group);
             delete this._graphics[g.id];
             LocalStore.deleteGraphic(g.id);
             if (Mission.active) DB.deleteGraphic(g.id).catch(() => {});
             this._map.closePopup();
-          });
+          };
+          btn.onclick = handler;
         });
       }, 40);
     });
@@ -914,13 +915,14 @@ const MapCtrl = {
         .openOn(this._map);
 
       setTimeout(() => {
-        document.querySelectorAll(`.btn-del-report[data-rid="${report.id}"]`).forEach(btn => {
-          btn.addEventListener('click', () => {
+        document.querySelectorAll('.btn-del-report').forEach(btn => {
+          if (btn.dataset.rid !== report.id) return;
+          btn.onclick = () => {
             if (marker._nbcCircle) this._reportLayer.removeLayer(marker._nbcCircle);
             this._reportLayer.removeLayer(marker);
             LocalStore.deleteReport(report.id);
             this._map.closePopup();
-          });
+          };
         });
       }, 40);
     });

@@ -309,9 +309,9 @@ const Reports = {
       const unitLabel = unitEntry ? ` · ${_escH(unitEntry.data.callsign || '')}` : '';
       return `<div class="rpt-log-entry">
         <div class="rpt-log-header">
-          <span class="rpt-log-badge ${r.type.toLowerCase()}">${r.type}</span>
+          <span class="rpt-log-badge ${_escH(r.type.toLowerCase())}">${_escH(r.type)}</span>
           <span class="rpt-log-meta">${_escH(r.reporter || '—')}${unitLabel} · ${dtLabel}</span>
-          <button class="rpt-log-copy" data-id="${r.id}">Copy</button>
+          <button class="rpt-log-copy" data-id="${_escH(r.id)}">Copy</button>
         </div>
         <div class="rpt-log-preview">${preview}</div>
       </div>`;

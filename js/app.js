@@ -1322,7 +1322,7 @@ const App = {
       if (!btn) return;
       const ms = +btn.dataset.stale;
       BFT.STALE_MS = ms;
-      localStorage.setItem('cop_bft_stale', String(ms));
+      try { localStorage.setItem('cop_bft_stale', String(ms)); } catch {}
       document.querySelectorAll('.scale-btn[data-stale]').forEach(b =>
         b.classList.toggle('active', +b.dataset.stale === ms));
     });
@@ -1342,7 +1342,7 @@ const App = {
       const sq = raw.replace(/\s+/g, '').toUpperCase().match(/^(\d{1,2}[C-HJ-NP-X][A-Z]{2})/)?.[1];
       if (!sq) { UI.toast('Could not determine 100km square from MGRS', 'error'); return; }
       const aoData = { name: name || AO.name, center: [result.lat, result.lng], mgrs100k: sq, zoom: AO.zoom };
-      localStorage.setItem('cop_ao', JSON.stringify(aoData));
+      try { localStorage.setItem('cop_ao', JSON.stringify(aoData)); } catch {}
       Object.assign(AO, aoData);
       UI.toast(`AO set: ${name || aoData.name} (${sq})`, 'success');
     });
@@ -1368,8 +1368,8 @@ const App = {
     });
 
     // Restore BFT stale timeout from settings
-    const savedStale = parseInt(localStorage.getItem('cop_bft_stale'));
-    if (savedStale && !isNaN(savedStale)) BFT.STALE_MS = savedStale;
+    const savedStale = parseInt(localStorage.getItem('cop_bft_stale'), 10);
+    if (savedStale > 0) BFT.STALE_MS = savedStale;
 
     // H-Hour timer
     document.getElementById('hhour-chip')?.addEventListener('click', () => {
@@ -1529,7 +1529,7 @@ const App = {
       e: { method: document.getElementById('pace-e-method')?.value.trim(), freq: document.getElementById('pace-e-freq')?.value.trim() },
     };
     const key = Mission.active ? `cop_pace_${Mission.current.id}` : 'cop_pace_offline';
-    localStorage.setItem(key, JSON.stringify(pace));
+    try { localStorage.setItem(key, JSON.stringify(pace)); } catch {}
     UI.closeSheet('sheet-pace');
     UI.toast('PACE plan saved', 'success');
   },
@@ -1539,8 +1539,10 @@ const App = {
     let pace = {};
     try { pace = JSON.parse(localStorage.getItem(key) || '{}'); } catch {}
     ['p','a','c','e'].forEach(l => {
-      document.getElementById(`pace-${l}-method`).value = pace[l]?.method || '';
-      document.getElementById(`pace-${l}-freq`).value   = pace[l]?.freq   || '';
+      const mEl = document.getElementById(`pace-${l}-method`);
+      const fEl = document.getElementById(`pace-${l}-freq`);
+      if (mEl) mEl.value = pace[l]?.method || '';
+      if (fEl) fEl.value = pace[l]?.freq   || '';
     });
   },
 
@@ -1729,7 +1731,8 @@ const App = {
       cleanup();
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = e => this._parseCot(e.target.result);
+      reader.onload  = e => this._parseCot(e.target.result);
+      reader.onerror = () => UI.toast('File read error — try again', 'error');
       reader.readAsText(file);
     });
     fi.addEventListener('cancel', cleanup);
@@ -1867,7 +1870,8 @@ const App = {
       cleanup();
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = e => this._parsePlan(e.target.result);
+      reader.onload  = e => this._parsePlan(e.target.result);
+      reader.onerror = () => UI.toast('File read error — try again', 'error');
       reader.readAsText(file);
     });
     fi.addEventListener('cancel', cleanup);
