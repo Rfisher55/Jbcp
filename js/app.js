@@ -998,6 +998,34 @@ const App = {
     const savedStale = parseInt(localStorage.getItem('cop_bft_stale'));
     if (savedStale && !isNaN(savedStale)) BFT.STALE_MS = savedStale;
 
+    // H-Hour timer
+    document.getElementById('hhour-chip')?.addEventListener('click', () => {
+      const cur = HHour.getTime();
+      if (cur) {
+        const d = new Date(cur);
+        document.getElementById('hhour-time').value =
+          `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      }
+      UI.showSheet('sheet-hhour');
+    });
+    document.getElementById('btn-hhour-close')?.addEventListener('click', () => UI.closeSheet('sheet-hhour'));
+    document.getElementById('btn-hhour-set')?.addEventListener('click', () => {
+      const val = document.getElementById('hhour-time').value;
+      if (!val) return;
+      const [h, m] = val.split(':').map(Number);
+      const t = new Date();
+      t.setHours(h, m, 0, 0);
+      if (t < Date.now()) t.setDate(t.getDate() + 1);
+      HHour.set(t.getTime());
+      UI.closeSheet('sheet-hhour');
+      UI.toast(`H-Hour set: ${val}`, 'success');
+    });
+    document.getElementById('btn-hhour-clear')?.addEventListener('click', () => {
+      HHour.clear();
+      UI.closeSheet('sheet-hhour');
+    });
+    HHour.init();
+
     // Init map
     MapCtrl.init();
 
