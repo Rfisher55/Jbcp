@@ -705,25 +705,12 @@ const UI = {
       btn.classList.toggle('active', Math.abs(parseFloat(btn.dataset.scale) - curScale) < 0.05);
     });
 
-    // Map filter buttons
-    const mapEl = document.getElementById('map');
-    const filters = ['off', 'dim', 'night'];
-    const curFilter = mapEl?.classList.contains('map-night') ? 'night'
-                    : mapEl?.classList.contains('map-dim')   ? 'dim' : 'off';
-    filters.forEach(f => {
-      const btn = document.getElementById(`map-filter-${f}`);
-      if (!btn) return;
-      btn.classList.toggle('active', f === curFilter);
-      btn.addEventListener('click', () => {
-        mapEl.classList.remove('map-dim', 'map-night');
-        document.body.classList.remove('ui-dim', 'ui-night');
-        if (f !== 'off') {
-          mapEl.classList.add(`map-${f}`);
-          document.body.classList.add(`ui-${f}`);
-        }
-        filters.forEach(x => document.getElementById(`map-filter-${x}`)?.classList.toggle('active', x === f));
-      });
-    });
+    // Map filter active state (handlers wired once in App.init)
+    const mapEl2 = document.getElementById('map');
+    const curFilter = mapEl2?.classList.contains('map-night') ? 'night'
+                    : mapEl2?.classList.contains('map-dim')   ? 'dim' : 'off';
+    ['off', 'dim', 'night'].forEach(f =>
+      document.getElementById(`map-filter-${f}`)?.classList.toggle('active', f === curFilter));
   }
 };
 
@@ -774,7 +761,23 @@ const App = {
       const sheet = btn.closest('.sheet');
       if (sheet) btn.addEventListener('click', () => {
         UI.closeSheet(sheet.id);
-        if (sheet.id === 'sheet-symbols') MapCtrl._editUnitSymbolId = null;
+        if (sheet.id === 'sheet-symbols') {
+          MapCtrl._editUnitSymbolId = null;
+          // If user dismissed picker without picking, cancel place-unit mode
+          if (!MapCtrl._activeSIDC) {
+            MapCtrl._pendingLatLng = null;
+            MapCtrl.setTool('select');
+            UI.toolBtn('select');
+          }
+        }
+        if (sheet.id === 'sheet-graphic-picker') {
+          // If dismissed before picking a graphic type, cancel any started draw
+          MapCtrl.cancelDraw();
+        }
+        if (sheet.id === 'sheet-measure') {
+          MapCtrl.setTool('select');
+          UI.toolBtn('select');
+        }
       });
     });
 
@@ -1167,15 +1170,30 @@ const App = {
       MapCtrl.flyToGrid(entry.data.lat, entry.data.lng);
     });
 
-    // Symbol scale
-    document.querySelectorAll('.scale-btn').forEach(btn => {
+    // Symbol scale (only buttons with explicit data-scale; map filter + stale buttons share scale-btn class)
+    document.querySelectorAll('.scale-btn[data-scale]').forEach(btn => {
       const s = parseFloat(btn.dataset.scale);
       const cur = MapCtrl._symbolScale;
       btn.classList.toggle('active', Math.abs(s - cur) < 0.05);
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.scale-btn[data-scale]').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         MapCtrl.setSymbolScale(s);
+      });
+    });
+
+    // Map filter buttons (one-time setup; buildLayersSheet only updates active state)
+    ['off', 'dim', 'night'].forEach(f => {
+      document.getElementById(`map-filter-${f}`)?.addEventListener('click', () => {
+        const mapEl = document.getElementById('map');
+        mapEl.classList.remove('map-dim', 'map-night');
+        document.body.classList.remove('ui-dim', 'ui-night');
+        if (f !== 'off') {
+          mapEl.classList.add(`map-${f}`);
+          document.body.classList.add(`ui-${f}`);
+        }
+        ['off', 'dim', 'night'].forEach(x =>
+          document.getElementById(`map-filter-${x}`)?.classList.toggle('active', x === f));
       });
     });
 
