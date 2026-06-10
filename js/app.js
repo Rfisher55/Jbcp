@@ -632,39 +632,47 @@ const UI = {
       grid.appendChild(div);
     });
 
+    const chk = v => v ? 'checked' : '';
+    const map = MapCtrl.map;
+    const gridOn     = MapCtrl._grid?._vis !== false;
+    const unitsOn    = map.hasLayer(MapCtrl._unitLayer);
+    const graphicsOn = map.hasLayer(MapCtrl._graphicLayer);
+    const bftOn      = BFT._layer ? map.hasLayer(BFT._layer) : true;
+    const labelsOn   = !document.getElementById('map')?.classList.contains('hide-unit-labels');
+
     document.getElementById('overlay-list').innerHTML = `
       <div class="overlay-row">
         <label for="tog-grid">MGRS Grid</label>
         <label class="toggle">
-          <input id="tog-grid" type="checkbox" checked>
+          <input id="tog-grid" type="checkbox" ${chk(gridOn)}>
           <span class="toggle-track"></span>
         </label>
       </div>
       <div class="overlay-row">
         <label for="tog-units">Units</label>
         <label class="toggle">
-          <input id="tog-units" type="checkbox" checked>
+          <input id="tog-units" type="checkbox" ${chk(unitsOn)}>
           <span class="toggle-track"></span>
         </label>
       </div>
       <div class="overlay-row">
         <label for="tog-graphics">Graphics</label>
         <label class="toggle">
-          <input id="tog-graphics" type="checkbox" checked>
+          <input id="tog-graphics" type="checkbox" ${chk(graphicsOn)}>
           <span class="toggle-track"></span>
         </label>
       </div>
       <div class="overlay-row">
         <label for="tog-bft">BFT Tracks</label>
         <label class="toggle">
-          <input id="tog-bft" type="checkbox" checked>
+          <input id="tog-bft" type="checkbox" ${chk(bftOn)}>
           <span class="toggle-track"></span>
         </label>
       </div>
       <div class="overlay-row">
         <label for="tog-labels">Unit Labels</label>
         <label class="toggle">
-          <input id="tog-labels" type="checkbox" ${document.getElementById('map')?.classList.contains('hide-unit-labels') ? '' : 'checked'}>
+          <input id="tog-labels" type="checkbox" ${chk(labelsOn)}>
           <span class="toggle-track"></span>
         </label>
       </div>
