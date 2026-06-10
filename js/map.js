@@ -125,7 +125,7 @@ const MapCtrl = {
     this._activeSIDC         = buildSIDC(entry.base, echelon);
   },
 
-  // ── Map click ──────────────────────────────────────────
+  // ── Map click ────────────────────────────────────────────
   _onMapClick(e) {
     if (this._activeTool === 'place-unit') {
       if (!this._activeSIDC) {
@@ -209,7 +209,7 @@ const MapCtrl = {
     if (label && gt) label.textContent = gt.name;
   },
 
-  // ── Finish / cancel draw ───────────────────────────────────
+  // ── Finish / cancel draw ─────────────────────────────────
   finishDraw() {
     this._clearPreview();
     const pts  = this._drawPoints.slice();
@@ -286,6 +286,7 @@ const MapCtrl = {
     };
 
     this._addUnitMarker(unit);
+    LocalStore.upsertUnit(unit);
 
     if (Mission.active) {
       DB.upsertUnit(unit).catch(e => UI.toast('Save failed: ' + e.message, 'error'));
@@ -313,6 +314,7 @@ const MapCtrl = {
     };
 
     this._addUnitMarker(unit);
+    LocalStore.upsertUnit(unit);
     if (Mission.active) {
       DB.upsertUnit(unit).catch(e => UI.toast('Save failed: ' + e.message, 'error'));
     }
@@ -348,6 +350,7 @@ const MapCtrl = {
     if (!entry) return;
     Object.assign(entry.data, updates, { updated_at: new Date().toISOString() });
     if (updates.sidc) entry.marker.setIcon(makeMilIcon(updates.sidc));
+    LocalStore.upsertUnit(entry.data);
     if (Mission.active) {
       DB.upsertUnit(entry.data).catch(e => UI.toast('Update failed: ' + e.message, 'error'));
     }
@@ -358,6 +361,7 @@ const MapCtrl = {
     if (!entry) return;
     this._unitLayer.removeLayer(entry.marker);
     delete this._units[id];
+    LocalStore.deleteUnit(id);
     if (Mission.active) {
       DB.deleteUnit(id).catch(e => UI.toast('Delete failed: ' + e.message, 'error'));
     }
@@ -371,12 +375,13 @@ const MapCtrl = {
     entry.data.lat = lat;
     entry.data.lng = lng;
     entry.data.updated_at = new Date().toISOString();
+    LocalStore.upsertUnit(entry.data);
     if (Mission.active) {
       DB.upsertUnit(entry.data).catch(() => {});
     }
   },
 
-  // ── Remote sync handlers ──────────────────────────────────
+  // ── Remote sync handlers ─────────────────────────────────
   handleRemoteUnit(payload) {
     const { eventType, new: row, old } = payload;
     if (eventType === 'DELETE') {
@@ -493,6 +498,7 @@ const MapCtrl = {
           btn.addEventListener('click', () => {
             this._graphicLayer.removeLayer(group);
             delete this._graphics[g.id];
+            LocalStore.deleteGraphic(g.id);
             if (Mission.active) DB.deleteGraphic(g.id).catch(() => {});
             this._map.closePopup();
           });
@@ -531,6 +537,7 @@ const MapCtrl = {
       updated_at: new Date().toISOString(),
     };
     this._renderGraphic(graphic);
+    LocalStore.upsertGraphic(graphic);
     if (Mission.active) {
       DB.upsertGraphic(graphic).catch(e => UI.toast('Save failed: ' + e.message, 'error'));
     }
@@ -586,7 +593,7 @@ const MapCtrl = {
     this._currentBase = key;
   },
 
-  // ── Self position ─────────────────────────────────────────
+  // ── Self position ────────────────────────────────────────
   showSelf(lat, lng) {
     const latlng = L.latLng(lat, lng);
     if (this._selfMarker) {
@@ -608,6 +615,20 @@ const MapCtrl = {
 
   setGridVisible(v) {
     v ? this._grid.show() : this._grid.hide();
+  },
+
+  loadLocalData() {
+    this._unitLayer.clearLayers();
+    this._graphicLayer.clearLayers();
+    this._units    = {};
+    this._graphics = {};
+    const units    = LocalStore.getUnits();
+    const graphics = LocalStore.getGraphics();
+    for (const u of units)   this._addUnitMarker(u);
+    for (const g of graphics) this._renderGraphic(g);
+    if (units.length || graphics.length) {
+      UI.toast(`Loaded ${units.length} unit${units.length !== 1 ? 's' : ''}, ${graphics.length} graphic${graphics.length !== 1 ? 's' : ''}`, 'info');
+    }
   },
 
   get map() { return this._map; },

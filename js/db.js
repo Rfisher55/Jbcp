@@ -1,3 +1,5 @@
+// Supabase wrapper — degrades gracefully to local-only when unconfigured
+
 let _client = null;
 
 (function () {
@@ -19,6 +21,7 @@ const DB = {
   get client() { return _client; },
   get online()  { return _client !== null; },
 
+  // ── Auth ───────────────────────────────────────────────
   async getSession() {
     if (!this.online) return null;
     const { data } = await _client.auth.getSession();
@@ -33,7 +36,7 @@ const DB = {
       options: { data: { callsign } }
     });
     if (error) {
-      // Anonymous auth not yet enabled in Supabase dashboard — degrade to local-only
+      // Anonymous auth not yet enabled — degrade to local-only mode
       console.warn('[DB] Anon auth unavailable, using local mode:', error.message);
       _client = null;
       return { user: { id: 'local-' + crypto.randomUUID(), user_metadata: { callsign } } };
@@ -57,6 +60,7 @@ const DB = {
     return () => subscription.unsubscribe();
   },
 
+  // ── Missions ───────────────────────────────────────────
   async createMission(name, userId) {
     if (!this.online) {
       return { id: crypto.randomUUID(), name, created_by: userId, status: 'active', created_at: new Date().toISOString() };
@@ -95,6 +99,7 @@ const DB = {
     return data;
   },
 
+  // ── Units ──────────────────────────────────────────────
   async getUnits(missionId) {
     if (!this.online) return [];
     const { data, error } = await _client.from('units').select().eq('mission_id', missionId);
@@ -115,6 +120,7 @@ const DB = {
     if (error) throw error;
   },
 
+  // ── Graphics ───────────────────────────────────────────
   async getGraphics(missionId) {
     if (!this.online) return [];
     const { data, error } = await _client.from('graphics').select().eq('mission_id', missionId);
@@ -135,22 +141,31 @@ const DB = {
     if (error) throw error;
   },
 
+  // ── Realtime ───────────────────────────────────────────
   subscribeMission(missionId, { onUnit, onGraphic, onPresence } = {}) {
     if (!this.online) return () => {};
     const ch = _client.channel(`mission:${missionId}`, {
       config: { presence: { key: missionId } }
     });
+
     if (onUnit) {
-      ch.on('postgres_changes', { event: '*', schema: 'public', table: 'units', filter: `mission_id=eq.${missionId}` }, onUnit);
+      ch.on('postgres_changes', {
+        event: '*', schema: 'public', table: 'units',
+        filter: `mission_id=eq.${missionId}`
+      }, onUnit);
     }
     if (onGraphic) {
-      ch.on('postgres_changes', { event: '*', schema: 'public', table: 'graphics', filter: `mission_id=eq.${missionId}` }, onGraphic);
+      ch.on('postgres_changes', {
+        event: '*', schema: 'public', table: 'graphics',
+        filter: `mission_id=eq.${missionId}`
+      }, onGraphic);
     }
     if (onPresence) {
       ch.on('presence', { event: 'sync' }, () => onPresence(ch.presenceState()));
       ch.on('presence', { event: 'join' }, () => onPresence(ch.presenceState()));
       ch.on('presence', { event: 'leave' }, () => onPresence(ch.presenceState()));
     }
+
     ch.subscribe();
     return () => _client.removeChannel(ch);
   },
@@ -159,4 +174,27 @@ const DB = {
     if (!this.online || !channel) return;
     await channel.track(data);
   }
+};
+
+// ── Local persistence (always available) ──────────────────
+const LocalStore = {
+  _get(key) { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } },
+  _set(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} },
+
+  getUnits()    { return this._get('cop_units'); },
+  getGraphics() { return this._get('cop_graphics'); },
+
+  upsertUnit(unit) {
+    const list = this.getUnits().filter(u => u.id !== unit.id);
+    list.push(unit);
+    this._set('cop_units', list);
+  },
+  deleteUnit(id) { this._set('cop_units', this.getUnits().filter(u => u.id !== id)); },
+
+  upsertGraphic(g) {
+    const list = this.getGraphics().filter(x => x.id !== g.id);
+    list.push(g);
+    this._set('cop_graphics', list);
+  },
+  deleteGraphic(id) { this._set('cop_graphics', this.getGraphics().filter(g => g.id !== id)); },
 };

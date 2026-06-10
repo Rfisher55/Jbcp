@@ -98,7 +98,7 @@
     </button>
   </nav>
 
-  <!-- ── SHEETS ──────────────────────────────────────────── -->
+  <!-- ── SHEETS ────────────────────────────────────────────── -->
 
   <!-- Auth sheet -->
   <div id="sheet-auth" class="sheet" role="dialog" aria-modal="true">
@@ -233,7 +233,7 @@
   <!-- Toast container -->
   <div id="toasts" aria-live="polite"></div>
 
-  <!-- ── SCRIPTS ─────────────────────────────────────── -->
+  <!-- ── SCRIPTS ────────────────────────────────── -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
   <script src="https://unpkg.com/mgrs/mgrs.js"></script>
@@ -250,7 +250,7 @@
   <script src="js/app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
     }
   </script>
 </body>

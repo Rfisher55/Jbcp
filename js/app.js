@@ -43,7 +43,7 @@ const UI = {
     `).join('');
   },
 
-  // ── Symbol picker ────────────────────────────────────
+  // ── Symbol picker ──────────────────────────────────────
   buildSymbolGrid(filter = 'F', echelon = '') {
     const search = (document.getElementById('symbol-search')?.value || '').toLowerCase();
     const grid   = document.getElementById('symbol-grid');
@@ -171,7 +171,7 @@ const UI = {
     this.showSheet('sheet-unit');
   },
 
-  // ── Mission sheet ────────────────────────────────────
+  // ── Mission sheet ──────────────────────────────────────
   showMissionSheet(missions = []) {
     const c = document.getElementById('mission-content');
     c.innerHTML = `
@@ -264,7 +264,7 @@ const UI = {
     });
   },
 
-  // ── Layers sheet ─────────────────────────────────────
+  // ── Layers sheet ───────────────────────────────────────
   buildLayersSheet() {
     const grid = document.getElementById('basemap-grid');
     grid.innerHTML = '';
@@ -314,7 +314,7 @@ const UI = {
   }
 };
 
-// ── App bootstrap ─────────────────────────────────────────────
+// ── App bootstrap ─────────────────────────────────────────
 const App = {
   _symFilter:  'F',
   _symEchelon: '',
@@ -506,6 +506,7 @@ const App = {
       await MapCtrl.loadMission(m.id);
       UI.toast(`Welcome back, ${Auth.callsign}`, 'success');
     } else {
+      MapCtrl.loadLocalData();
       UI.toast(`Signed in as ${Auth.callsign}`, 'success');
     }
   },
