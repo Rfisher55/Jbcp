@@ -23,6 +23,7 @@ const MapCtrl = {
   _grid:             null,
   _unitLayer:        null,
   _graphicLayer:     null,
+  _reportLayer:      null,
   _measureLayer:     null,
   _previewGroup:     null,
   _selfMarker:       null,
@@ -39,6 +40,7 @@ const MapCtrl = {
   _activeGraphicType:null,
   _pendingLatLng:    null,
   _clickTimeout:     null,
+  _ctxLatLng:        null,
 
   init() {
     this._map = L.map('map', {
@@ -53,12 +55,14 @@ const MapCtrl = {
 
     this._unitLayer    = L.featureGroup().addTo(this._map);
     this._graphicLayer = L.featureGroup().addTo(this._map);
+    this._reportLayer  = L.featureGroup().addTo(this._map);
     this._measureLayer = L.featureGroup().addTo(this._map);
     this._previewGroup = L.featureGroup().addTo(this._map);
 
+    BFT.init(this._map);
+
     this._grid = createMGRSGrid().addTo(this._map);
 
-    // MGRS cursor readout + draw preview
     this._map.on('mousemove', e => {
       const s = toMGRS(e.latlng.lat, e.latlng.lng, 4);
       document.getElementById('mgrs-display').textContent = s || '──';
@@ -75,6 +79,23 @@ const MapCtrl = {
     this._map.on('dblclick',    e => this._onMapDblClick(e));
     this._map.on('contextmenu', e => this._onMapContextMenu(e));
     this._map.on('zoomend',     () => this._refreshIconSizes());
+
+    // Long-press for mobile context menu
+    const mc = this._map.getContainer();
+    let _lpTimer = null;
+    mc.addEventListener('touchstart', e => {
+      if (this._isDrawing() || this._activeTool !== 'select') return;
+      if (e.touches.length !== 1) return;
+      clearTimeout(_lpTimer);
+      const t    = e.touches[0];
+      const rect = mc.getBoundingClientRect();
+      const pt   = L.point(t.clientX - rect.left, t.clientY - rect.top);
+      const ll   = this._map.containerPointToLatLng(pt);
+      _lpTimer = setTimeout(() => { this._showContextMenu(ll); }, 600);
+    }, { passive: true });
+    mc.addEventListener('touchend',    () => clearTimeout(_lpTimer), { passive: true });
+    mc.addEventListener('touchmove',   () => clearTimeout(_lpTimer), { passive: true });
+    mc.addEventListener('touchcancel', () => clearTimeout(_lpTimer), { passive: true });
 
     return this;
   },
@@ -99,7 +120,6 @@ const MapCtrl = {
     });
   },
 
-  // ── Tool activation ─────────────────────────────────────────
   setTool(tool) {
     this._activeTool = tool;
     this._drawPoints = [];
@@ -120,7 +140,6 @@ const MapCtrl = {
     if (tool === 'select')      { this._activeSIDC = null; this._activeCatalogEntry = null; }
   },
 
-  // Start a tactical graphic draw with a specific type
   startGraphicDraw(graphicType) {
     this._activeGraphicType = graphicType;
     this._drawPoints = [];
@@ -135,14 +154,12 @@ const MapCtrl = {
     this._updateDrawCount();
   },
 
-  // Store the selected symbol before clicking the map
   setActiveSIDC(entry, echelon) {
     this._activeCatalogEntry = entry;
     this._activeEchelon      = echelon;
     this._activeSIDC         = buildSIDC(entry.base, echelon);
   },
 
-  // ── Map click ────────────────────────────────────────────
   _onMapClick(e) {
     if (this._activeTool === 'place-unit') {
       if (!this._activeSIDC) {
@@ -189,10 +206,19 @@ const MapCtrl = {
         this._updatePreview(null);
         this._updateDrawCount();
       }
+      return;
     }
+    L.DomEvent.stop(e);
+    this._showContextMenu(e.latlng);
   },
 
-  // ── Draw preview ─────────────────────────────────────────
+  _showContextMenu(latlng) {
+    this._ctxLatLng = latlng;
+    const mgrs = toMGRS(latlng.lat, latlng.lng, 5) || `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
+    document.getElementById('ctx-mgrs').textContent = mgrs;
+    UI.showSheet('sheet-context');
+  },
+
   _updatePreview(cursor) {
     this._clearPreview();
     if (!this._isDrawing()) return;
@@ -226,7 +252,6 @@ const MapCtrl = {
     if (label && gt) label.textContent = gt.name;
   },
 
-  // ── Finish / cancel draw ───────────────────────────────────────
   finishDraw() {
     this._clearPreview();
     const pts = this._drawPoints.slice();
@@ -237,7 +262,6 @@ const MapCtrl = {
     const gt   = this._activeGraphicType;
     const isArea = tool === 'draw-area' || (tool === 'draw-graphic' && gt?.type === 'area');
 
-    // Reset tool immediately so map stays interactive while label sheet is open
     this._activeGraphicType = null;
     this.setTool('select');
     UI.toolBtn('select');
@@ -263,7 +287,6 @@ const MapCtrl = {
       }
     };
 
-    // Only prompt for label if the graphic type expects one
     if (gt?.label !== '') {
       App.promptLabel(gt?.name || (isArea ? 'Area' : 'Line'), gt?.label || '', save);
     } else {
@@ -289,7 +312,6 @@ const MapCtrl = {
     }
   },
 
-  // ── Place unit ───────────────────────────────────────────
   _placeUnitAt(latlng) {
     const entry = this._activeCatalogEntry;
     if (!entry) return;
@@ -312,10 +334,8 @@ const MapCtrl = {
     if (Mission.active) {
       DB.upsertUnit(unit).catch(e => UI.toast('Save failed: ' + e.message, 'error'));
     }
-    // Keep tool active for placing more of the same symbol
   },
 
-  // Backward-compat: called when symbol is selected after clicking map
   async placeUnit(catalogEntry, echelon) {
     const latlng = this._pendingLatLng;
     if (!latlng) return;
@@ -401,7 +421,6 @@ const MapCtrl = {
     }
   },
 
-  // ── Remote sync handlers ───────────────────────────────────────
   handleRemoteUnit(payload) {
     const { eventType, new: row, old } = payload;
     if (eventType === 'DELETE') {
@@ -429,10 +448,10 @@ const MapCtrl = {
     }
   },
 
-  // ── Mission load ─────────────────────────────────────────
   async loadMission(missionId) {
     this._unitLayer.clearLayers();
     this._graphicLayer.clearLayers();
+    this._reportLayer.clearLayers();
     this._units    = {};
     this._graphics = {};
 
@@ -443,17 +462,19 @@ const MapCtrl = {
 
     for (const u of units)   this._addUnitMarker(u);
     for (const g of graphics) this._renderGraphic(g);
+    for (const r of LocalStore.getReports()) this.placeReportMarker(r);
     UI.toast(`Loaded ${units.length} unit${units.length !== 1 ? 's' : ''}`, 'info');
   },
 
   clearMission() {
     this._unitLayer.clearLayers();
     this._graphicLayer.clearLayers();
+    this._reportLayer.clearLayers();
     this._units    = {};
     this._graphics = {};
+    BFT.leaveMission();
   },
 
-  // ── Graphics ──────────────────────────────────────────────
   _renderGraphic(g) {
     const existing = this._graphics[g.id];
     if (existing) { this._graphicLayer.removeLayer(existing.layer); }
@@ -482,7 +503,6 @@ const MapCtrl = {
     const group = L.featureGroup();
     group.addLayer(geomLayer);
 
-    // Label marker
     if (name) {
       const center = this._geomCenter(geo);
       if (center) {
@@ -497,7 +517,6 @@ const MapCtrl = {
       }
     }
 
-    // Click → select popup with delete
     group.on('click', e => {
       if (this._activeTool !== 'select') return;
       L.DomEvent.stopPropagation(e);
@@ -563,7 +582,6 @@ const MapCtrl = {
     }
   },
 
-  // ── Measure ──────────────────────────────────────────────
   _drawMeasurePt(latlng) {
     L.circleMarker(latlng, { radius: 5, color: '#d29922', fillColor: '#d29922', fillOpacity: 1 })
       .addTo(this._measureLayer);
@@ -603,7 +621,6 @@ const MapCtrl = {
     return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
   },
 
-  // ── Basemap ──────────────────────────────────────────────
   setBasemap(key) {
     if (!BASEMAPS[key] || key === this._currentBase) return;
     this._map.removeLayer(this._basemap);
@@ -613,7 +630,6 @@ const MapCtrl = {
     this._currentBase = key;
   },
 
-  // ── Self position ──────────────────────────────────────────
   showSelf(lat, lng) {
     const latlng = L.latLng(lat, lng);
     if (this._selfMarker) {
@@ -640,15 +656,87 @@ const MapCtrl = {
   loadLocalData() {
     this._unitLayer.clearLayers();
     this._graphicLayer.clearLayers();
+    this._reportLayer.clearLayers();
     this._units    = {};
     this._graphics = {};
     const units    = LocalStore.getUnits();
     const graphics = LocalStore.getGraphics();
+    const reports  = LocalStore.getReports();
     for (const u of units)   this._addUnitMarker(u);
     for (const g of graphics) this._renderGraphic(g);
+    for (const r of reports)  this.placeReportMarker(r);
     if (units.length || graphics.length) {
       UI.toast(`Loaded ${units.length} unit${units.length !== 1 ? 's' : ''}, ${graphics.length} graphic${graphics.length !== 1 ? 's' : ''}`, 'info');
     }
+  },
+
+  updateUnitLACE(id, lace) {
+    const entry = this._units[id];
+    if (!entry) return;
+    entry.data.lace      = lace;
+    entry.data.updated_at = new Date().toISOString();
+    LocalStore.upsertUnit(entry.data);
+    if (Mission.active) DB.upsertUnit(entry.data).catch(() => {});
+  },
+
+  placeReportMarker(report) {
+    if (report.lat == null || report.lng == null) return;
+
+    const isHostile = report.type === 'SPOTREP';
+    const isMedevac = report.type === '9LINE';
+    const cls       = isHostile ? 'hostile' : isMedevac ? 'medevac' : 'generic';
+    const glyph     = isHostile ? '✕' : isMedevac ? '✚' : '!';
+
+    const icon = L.divIcon({
+      html:       `<div class="report-pin ${cls}">${glyph}</div>`,
+      className:  '',
+      iconSize:   [28, 28],
+      iconAnchor: [14, 14],
+    });
+
+    const marker = L.marker([report.lat, report.lng], { icon, zIndexOffset: 600, interactive: true });
+
+    marker.on('click', () => {
+      if (this._activeTool !== 'select') return;
+      const d = report.data || {};
+      let body = `<div class="popup-body"><div class="popup-name">${report.type}</div>`;
+      if (report.mgrs) body += `<div class="popup-mgrs">${report.mgrs}</div>`;
+      if (report.type === 'SPOTREP') {
+        body += `<table class="popup-table">`;
+        if (d.size)     body += `<tr><td>S</td><td>${_escH(d.size)}</td></tr>`;
+        if (d.activity) body += `<tr><td>A</td><td>${_escH(d.activity)}</td></tr>`;
+        if (d.time)     body += `<tr><td>T</td><td>${_escH(d.time)}</td></tr>`;
+        if (d.equip)    body += `<tr><td>E</td><td>${_escH(d.equip)}</td></tr>`;
+        body += `</table>`;
+      } else if (report.type === '9LINE') {
+        body += `<table class="popup-table">`;
+        body += `<tr><td>L1</td><td>${_escH(d.line1 || '')}</td></tr>`;
+        body += `<tr><td>L3</td><td>${_escH(d.line3 || '')}</td></tr>`;
+        body += `<tr><td>L5</td><td>${_escH(d.line5 || '')}</td></tr>`;
+        body += `</table>`;
+      }
+      body += `<button class="btn-del-report" data-rid="${report.id}" style="font-size:11px;margin-top:8px;padding:4px 12px;` +
+              `background:rgba(248,81,73,0.2);color:#f85149;border:1px solid rgba(248,81,73,0.4);border-radius:6px;cursor:pointer">Remove</button>`;
+      body += `</div>`;
+
+      L.popup({ closeButton: true, autoPan: false })
+        .setLatLng([report.lat, report.lng])
+        .setContent(body)
+        .addTo(this._map)
+        .openOn(this._map);
+
+      setTimeout(() => {
+        document.querySelectorAll(`.btn-del-report[data-rid="${report.id}"]`).forEach(btn => {
+          btn.addEventListener('click', () => {
+            this._reportLayer.removeLayer(marker);
+            LocalStore.deleteReport(report.id);
+            this._map.closePopup();
+          });
+        });
+      }, 40);
+    });
+
+    marker.addTo(this._reportLayer);
   },
 
   get map() { return this._map; },
