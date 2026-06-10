@@ -1277,11 +1277,11 @@ const App = {
         return;
       }
       if (matches.length > 1) {
-        const noteEl = document.getElementById('goto-grid-note');
-        noteEl.textContent = `${matches.length} units match — showing: ${matches.slice(0,3).map(u => u.data.callsign).join(', ')}`;
         const first = matches[0].data;
+        const names = matches.slice(0, 3).map(u => u.data.callsign).join(', ');
         UI.closeSheet('sheet-goto-grid');
         MapCtrl.flyToGrid(first.lat, first.lng);
+        UI.toast(`${matches.length} matches — flying to ${first.callsign} (${names})`, 'info', 3500);
         return;
       }
 
