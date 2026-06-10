@@ -2037,10 +2037,13 @@ const App = {
         }
       },
       err => {
-        UI.toast('Location error: ' + err.message, 'error');
-        App._watchId   = null;
+        if (App._watchId != null) {
+          navigator.geolocation.clearWatch(App._watchId);
+          App._watchId = null;
+        }
         App._followGPS = true;
         btn.classList.remove('active', 'active-dim');
+        UI.toast('Location error: ' + err.message, 'error');
       },
       { enableHighAccuracy: true, maximumAge: 5000 }
     );
