@@ -36,10 +36,10 @@ const UI = {
     }
     list.innerHTML = members.map(m => `
       <div class="roster-item">
-        <div class="roster-avatar">${(m.callsign || '?').slice(0,2)}</div>
+        <div class="roster-avatar">${_escH((m.callsign || '?').slice(0,2))}</div>
         <div class="roster-info">
-          <div class="roster-callsign">${m.callsign || 'Unknown'}</div>
-          <div class="roster-pos">${m.mgrs || ''}</div>
+          <div class="roster-callsign">${_escH(m.callsign || 'Unknown')}</div>
+          <div class="roster-pos">${_escH(m.mgrs || '')}</div>
         </div>
         <div class="roster-dot online"></div>
       </div>
@@ -991,6 +991,7 @@ const App = {
     document.getElementById('btn-clear-all-data')?.addEventListener('click', () => {
       if (!confirm('Delete all local data? This cannot be undone.')) return;
       localStorage.clear();
+      HHour.clear();
       UI.toast('Local data cleared — reload to restart', 'info', 5000);
     });
 
@@ -1189,7 +1190,13 @@ const App = {
 
     const typeMap = { 'H': 'a-h-G-U-C', 'N': 'a-n-G', 'U': 'a-u-G' };
     const events  = units.map(({ data: u }) => {
-      const aff = (u.sidc || '')[3] === 'H' ? 'h' : (u.sidc || '')[3] === 'N' ? 'n' : (u.sidc || '')[3] === 'U' ? 'u' : 'f';
+      const s = u.sidc || '';
+      let aff;
+      if (s.length <= 15) {
+        aff = s[1] === 'H' ? 'h' : s[1] === 'N' ? 'n' : s[1] === 'U' ? 'u' : 'f';
+      } else {
+        aff = s[3] === '6' ? 'h' : s[3] === '4' ? 'n' : s[3] === '1' ? 'u' : 'f';
+      }
       const type = `a-${aff}-G-U-C`;
       const cs   = (u.callsign || 'UNKNOWN').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
       return `<event version="2.0" uid="${u.id}" type="${type}" time="${u.updated_at || now}" start="${u.updated_at || now}" stale="${stale}" how="h-g-i-g-o">` +

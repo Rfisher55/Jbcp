@@ -188,11 +188,16 @@ const Reports = {
   // ── ACE Report ────────────────────────────────────────────
   openACE(unitId) {
     this._ctx = { type: 'ACE', unitId };
-    document.getElementById('ace-ammo').value  = 100;
-    document.getElementById('ace-equip').value = 100;
-    document.getElementById('ace-kia').value   = 0;
-    document.getElementById('ace-wia').value   = 0;
-    document.getElementById('ace-mia').value   = 0;
+    const prev = unitId
+      ? LocalStore.getReports()
+          .filter(r => r.type === 'ACE' && r.unit_id === unitId)
+          .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0]
+      : null;
+    document.getElementById('ace-ammo').value  = prev?.data?.a  ?? 100;
+    document.getElementById('ace-equip').value = prev?.data?.e  ?? 100;
+    document.getElementById('ace-kia').value   = prev?.data?.kia ?? 0;
+    document.getElementById('ace-wia').value   = prev?.data?.wia ?? 0;
+    document.getElementById('ace-mia').value   = prev?.data?.mia ?? 0;
     this._updateACEBars();
     UI.showSheet('sheet-ace');
   },

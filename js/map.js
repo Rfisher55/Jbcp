@@ -528,6 +528,8 @@ const MapCtrl = {
         existing.data = row;
         existing.marker.setLatLng([row.lat, row.lng]);
         existing.marker.setIcon(makeMilIcon(row.sidc, this._getIconSize()));
+        existing.marker.unbindTooltip();
+        this._bindUnitTooltip(existing.marker, row);
       } else {
         this._addUnitMarker(row);
       }

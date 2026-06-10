@@ -36,8 +36,8 @@ const HHour = {
     if (!chip || !label) return;
 
     if (!this._ms) {
+      chip.classList.remove('past', 'countdown', 'imminent');
       chip.classList.add('hidden');
-      chip.className = chip.className.replace(/\b(past|countdown|imminent)\b/g, '').trim();
       return;
     }
 
