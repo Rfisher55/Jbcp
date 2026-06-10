@@ -1403,7 +1403,10 @@ const App = {
 
   onMissionActivated(m) {
     UI.setMissionLabel(m.name);
-    MapCtrl.loadMission(m.id);
+    MapCtrl.loadMission(m.id).catch(() => {
+      MapCtrl.loadLocalData();
+      UI.toast('Mission sync failed — using local data', 'info', 3000);
+    });
     BFT.joinMission(m.id);
     Chat.join(m.id);
   },

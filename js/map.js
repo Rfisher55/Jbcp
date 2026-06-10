@@ -333,6 +333,7 @@ const MapCtrl = {
 
   // ── Finish / cancel draw ─────────────────────────────────
   finishDraw() {
+    clearTimeout(this._clickTimeout);
     this._clearPreview();
     const pts = this._drawPoints.slice();
     this._drawPoints = [];
@@ -448,6 +449,7 @@ const MapCtrl = {
   },
 
   _addUnitMarker(unit) {
+    if (this._units[unit.id]) return;
     const icon   = makeMilIcon(unit.sidc, this._getIconSize());
     const marker = L.marker([unit.lat, unit.lng], { icon, draggable: true })
       .addTo(this._unitLayer);
