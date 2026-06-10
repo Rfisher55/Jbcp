@@ -662,7 +662,7 @@ const MapCtrl = {
         .setLatLng(e.latlng)
         .setContent(
           `<div class="popup-body">${nameHtml}` +
-          `<button data-gid="${g.id}" class="btn-del-graphic" style="font-size:12px;padding:4px 12px;` +
+          `<button data-gid="${_escH(g.id)}" class="btn-del-graphic" style="font-size:12px;padding:4px 12px;` +
           `background:rgba(248,81,73,0.2);color:#f85149;border:1px solid rgba(248,81,73,0.4);` +
           `border-radius:6px;cursor:pointer">Delete</button></div>`
         )
@@ -670,7 +670,8 @@ const MapCtrl = {
         .openOn(this._map);
 
       setTimeout(() => {
-        document.querySelectorAll(`.btn-del-graphic[data-gid="${g.id}"]`).forEach(btn => {
+        document.querySelectorAll('.btn-del-graphic').forEach(btn => {
+          if (btn.dataset.gid !== g.id) return;
           btn.addEventListener('click', () => {
             this._graphicLayer.removeLayer(group);
             delete this._graphics[g.id];
@@ -749,7 +750,7 @@ const MapCtrl = {
   clearMeasure() {
     this._measureLayer.clearLayers();
     this._measurePts = [];
-    ['m-distance','m-azimuth','m-from','m-to'].forEach(id =>
+    ['m-distance','m-azimuth','m-mils','m-from','m-to'].forEach(id =>
       document.getElementById(id).textContent = '—');
   },
 
