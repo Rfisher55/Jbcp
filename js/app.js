@@ -1140,7 +1140,7 @@ const App = {
       const friendly = units
         .filter(u => {
           const s = u.sidc || '';
-          return s[1] === 'F' || s[1] === 'S' || (s.length >= 20 && s[3] === '3');
+          return s[1] === 'F' || s[1] === 'A' || (s.length >= 20 && s[3] === '3');
         })
         .map(u => `${u.callsign || 'UNKNOWN'} RC${u.redcon || 5}/${u.opstat || 'FMC'}`)
         .join(', ');
@@ -1355,12 +1355,13 @@ const App = {
     document.getElementById('btn-bft-card-close')?.addEventListener('click', () =>
       UI.closeSheet('sheet-bft-card'));
 
-    // BFT card MGRS tap → fly (uses textContent, not data-mgrs, so needs its own handler)
+    // BFT card MGRS tap → copy to clipboard (Fly To button handles navigation)
     document.getElementById('bft-card-mgrs')?.addEventListener('click', () => {
       const mgrs = document.getElementById('bft-card-mgrs')?.textContent;
       if (!mgrs || mgrs === '—') return;
-      const result = parseMGRS(mgrs);
-      if (result.valid) { UI.closeSheet('sheet-bft-card'); MapCtrl.flyToGrid(result.lat, result.lng); }
+      navigator.clipboard?.writeText(mgrs)
+        .then(() => UI.toast('Grid copied: ' + mgrs, 'success', 1800))
+        .catch(() => UI.toast(mgrs, 'info', 2500));
     });
 
     // Settings
