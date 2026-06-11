@@ -5,7 +5,8 @@ const Auth = {
   get signedIn() { return !!this.user; },
 
   async init() {
-    const stored = localStorage.getItem('cop_auth');
+    let stored;
+    try { stored = localStorage.getItem('cop_auth'); } catch {}
     if (stored) {
       try {
         const p = JSON.parse(stored);
@@ -41,9 +42,11 @@ const Auth = {
   },
 
   _save() {
-    localStorage.setItem('cop_auth', JSON.stringify({
-      user: this.user,
-      callsign: this.callsign
-    }));
+    try {
+      localStorage.setItem('cop_auth', JSON.stringify({
+        user: this.user,
+        callsign: this.callsign
+      }));
+    } catch {}
   }
 };

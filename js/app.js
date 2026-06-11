@@ -88,9 +88,16 @@ const UI = {
           UI.toast(`Symbol changed to ${entry.name}`, 'success', 2000);
           return;
         }
-        MapCtrl.setActiveSIDC(entry, echelon);
-        UI.closeSheet('sheet-symbols');
-        UI.toast(`${entry.name} — click map to place (ESC to stop)`, 'info', 2500);
+        if (MapCtrl._pendingLatLng) {
+          // User clicked the map first, then picked a symbol — place immediately
+          MapCtrl.placeUnit(entry, echelon);
+          UI.closeSheet('sheet-symbols');
+          UI.toast(`${entry.name} placed`, 'success', 1500);
+        } else {
+          MapCtrl.setActiveSIDC(entry, echelon);
+          UI.closeSheet('sheet-symbols');
+          UI.toast(`${entry.name} — click map to place (ESC to stop)`, 'info', 2500);
+        }
       });
       grid.appendChild(div);
     });
@@ -138,25 +145,29 @@ const UI = {
   showUnitDetail(unit, { onEdit, onDelete }) {
     const sidc    = unit.sidc || 'SFGPUC-----';
     const sym     = new ms.Symbol(sidc, { size: 50 });
-    const mgrsStr = toMGRS(unit.lat, unit.lng, 5) || `${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}`;
+    const mgrsStr = (isFinite(unit.lat) && isFinite(unit.lng))
+      ? (toMGRS(unit.lat, unit.lng, 5) || `${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}`)
+      : '—';
     const rc      = unit.redcon || 5;
     const col     = REDCON_COLORS[rc];
 
     const lace    = unit.lace;
+    const _lacePct = v => Math.max(0, Math.min(100, +v || 0));
     const laceHTML = lace ? `
       <div class="section-label">LACE STATUS</div>
       <div class="lace-display">
-        ${['l','a','e'].map((k, i) => `
-          <div class="lace-row">
+        ${['l','a','e'].map((k, i) => {
+          const pct = _lacePct(lace[k]);
+          return `<div class="lace-row">
             <span class="lace-key">${['L','A','E'][i]}</span>
-            <div class="lace-bar-bg"><div class="lace-fill ${Reports.laceColor(lace[k])}" style="width:${lace[k]}%"></div></div>
-            <span class="lace-val">${lace[k]}%</span>
-          </div>
-        `).join('')}
+            <div class="lace-bar-bg"><div class="lace-fill ${Reports.laceColor(pct)}" style="width:${pct}%"></div></div>
+            <span class="lace-val">${pct}%</span>
+          </div>`;
+        }).join('')}
         <div class="lace-row">
           <span class="lace-key">C</span>
           <div class="lace-bar-bg" style="background:rgba(248,81,73,0.15)"></div>
-          <span class="lace-val">${lace.c} cas</span>
+          <span class="lace-val">${Math.max(0, +lace.c || 0)} cas</span>
         </div>
       </div>
     ` : '';
@@ -172,11 +183,16 @@ const UI = {
       <div class="unit-header">
         <img src="${sym.toDataURL()}" alt="symbol">
         <div class="unit-header-info">
-          <div class="unit-title" id="ud-title">${unit.callsign || 'Unit'}</div>
-          <div class="unit-meta">${unit.sidc}</div>
+          <div class="unit-title" id="ud-title">${_escH(unit.callsign || 'Unit')}</div>
+          <div class="unit-meta">${_escH(unit.sidc)}</div>
           <div class="redcon-badge" id="ud-rcbadge"
             style="background:${col}22;border-color:${col}66;color:${col}">RC${rc} — ${REDCON_LABELS[rc]}</div>
         </div>
+        <button class="btn-unit-trash" id="btn-unit-delete" title="Delete unit" aria-label="Delete unit">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9"/>
+          </svg>
+        </button>
       </div>
 
       <div class="redcon-row">
@@ -196,12 +212,12 @@ const UI = {
 
       <div class="field-group">
         <label for="edit-callsign">Callsign / Designation</label>
-        <input id="edit-callsign" type="text" value="${(unit.callsign || '').replace(/"/g,'&quot;')}"
+        <input id="edit-callsign" type="text" value="${_escH(unit.callsign || '')}"
                maxlength="24" autocapitalize="characters">
       </div>
       <div class="field-group">
         <label for="edit-notes">Notes / Remarks</label>
-        <input id="edit-notes" type="text" value="${(unit.notes || '').replace(/"/g,'&quot;')}"
+        <input id="edit-notes" type="text" value="${_escH(unit.notes || '')}"
                placeholder="Optional remarks">
       </div>
       <div class="field-group" style="margin-bottom:6px">
@@ -239,8 +255,11 @@ const UI = {
       </div>
       <div class="btn-row" style="margin-bottom:8px">
         <button class="btn-secondary" id="btn-unit-dupe">Duplicate</button>
+        <button class="btn-secondary" id="btn-unit-9line">9-Line MEDEVAC</button>
       </div>
-      <button class="btn-secondary btn-danger btn-full" id="btn-unit-delete">Delete</button>
+      <div class="btn-row" style="margin-bottom:8px">
+        <button class="btn-secondary btn-full" id="btn-unit-share">Share Status to Chat</button>
+      </div>
     `;
 
     // Op Status selector
@@ -304,8 +323,24 @@ const UI = {
 
     document.getElementById('btn-unit-chgsym').addEventListener('click', () => {
       MapCtrl._editUnitSymbolId = unit.id;
-      App._symFilter  = unit.sidc?.[1] === 'H' || (unit.sidc?.length >= 20 && unit.sidc[3] === '6') ? 'H' : 'F';
-      App._symEchelon = '';
+      const s = unit.sidc || '';
+      App._symFilter = s[1] === 'H' || (s.length >= 20 && s[3] === '6') ? 'H' : 'F';
+      // Infer echelon from current SIDC to pre-select in picker
+      let ech = '';
+      if (s.length >= 20 && typeof ECHELONS_2525D !== 'undefined') {
+        const code = s.slice(8, 10);
+        const found = Object.entries(ECHELONS_2525D).find(([, v]) => v === code);
+        ech = found ? found[0] : '';
+      } else if (s.length >= 11 && typeof ECHELONS !== 'undefined') {
+        const c = s[10] || '-';
+        const found = Object.entries(ECHELONS).find(([, v]) => v === c);
+        ech = found ? found[0] : '';
+      }
+      App._symEchelon = ech;
+      const srch = document.getElementById('symbol-search');
+      if (srch) srch.value = '';
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === App._symFilter));
+      document.querySelectorAll('.ech-btn').forEach(b => b.classList.toggle('active', b.dataset.ech === ech));
       UI.buildSymbolGrid(App._symFilter, App._symEchelon);
       UI.closeSheet('sheet-unit');
       UI.showSheet('sheet-symbols');
@@ -347,13 +382,40 @@ const UI = {
       UI.toast(`Duplicated as "${dupe.callsign}"`, 'success');
     });
 
+    document.getElementById('btn-unit-9line').addEventListener('click', () => {
+      UI.closeSheet('sheet-unit');
+      Reports.open9Line(unit.lat, unit.lng);
+      // Pre-fill line 2 frequency from PACE plan if available
+      const pace = App._loadPACEData?.();
+      if (pace?.p_freq) {
+        const freqEl = document.getElementById('m9-freq');
+        if (freqEl && !freqEl.value) freqEl.value = pace.p_freq;
+      }
+    });
+
+    document.getElementById('btn-unit-share').addEventListener('click', () => {
+      if (!Chat.isJoined()) { UI.toast('Join a mission to share', 'info'); return; }
+      const cs   = String(unit.callsign || 'UNKNOWN').replace(/[|\x00-\x1f]/g, '').slice(0, 16) || 'UNKNOWN';
+      const grid = toMGRS(unit.lat, unit.lng, 5) || `${unit.lat.toFixed(4)},${unit.lng.toFixed(4)}`;
+      const rc   = unit.redcon || 5;
+      const os   = ['FMC','PMC','NMC'].includes(unit.opstat) ? unit.opstat : 'FMC';
+      const laceStr = unit.lace
+        ? ` FUEL:${+unit.lace.l || 0}% AMMO:${+unit.lace.a || 0}% CAS:${+unit.lace.c || 0}`
+        : '';
+      Chat.send(`UNIT STATUS: ${cs} @ ${grid} RC${rc}/${os}${laceStr}`);
+      UI.closeSheet('sheet-unit');
+      UI.toast('Status shared to chat', 'success', 2000);
+    });
+
     document.getElementById('btn-unit-save').addEventListener('click', () => {
       const cs    = document.getElementById('edit-callsign').value.trim();
       const notes = document.getElementById('edit-notes').value.trim();
+      const updates = { notes, redcon: curRC, opstat: curOpStat };
       if (cs) {
-        onEdit({ callsign: cs, notes, redcon: curRC, opstat: curOpStat });
+        updates.callsign = cs;
         document.getElementById('ud-title').textContent = cs;
       }
+      onEdit(updates);
       UI.closeSheet('sheet-unit');
     });
 
@@ -366,21 +428,15 @@ const UI = {
       deleteStep++;
       if (deleteStep === 1) {
         const btn = document.getElementById('btn-unit-delete');
-        if (btn) { btn.textContent = 'Tap again to confirm'; btn.style.background = 'rgba(248,81,73,0.4)'; }
+        if (btn) { btn.classList.add('btn-unit-trash--confirm'); btn.title = 'Tap again to confirm delete'; }
         setTimeout(() => {
           deleteStep = 0;
           const b = document.getElementById('btn-unit-delete');
-          if (b) { b.textContent = 'Delete'; b.style.background = ''; }
+          if (b) { b.classList.remove('btn-unit-trash--confirm'); b.title = 'Delete unit'; }
         }, 3000);
       } else {
         onDelete();
       }
-    });
-
-    // Tap MGRS in unit detail to fly there
-    document.getElementById('unit-detail-content')?.querySelector('[data-mgrs]')?.addEventListener('click', function() {
-      const result = parseMGRS(this.dataset.mgrs);
-      if (result.valid) { UI.closeSheet('sheet-unit'); MapCtrl.flyToGrid(result.lat, result.lng); }
     });
 
     this.showSheet('sheet-unit');
@@ -394,8 +450,8 @@ const UI = {
       ${Mission.active ? `
         <div class="mission-card" style="border-color:rgba(63,185,80,0.4)">
           <div class="mission-card-info">
-            <div class="mission-card-name">${Mission.current.name}</div>
-            <div class="mission-card-meta">Code: ${Mission.current.id.slice(0,8).toUpperCase()}</div>
+            <div class="mission-card-name">${_escH(Mission.current.name)}</div>
+            <div class="mission-card-meta">Code: ${_escH(Mission.current.id.slice(0,8).toUpperCase())}</div>
           </div>
           <span class="badge">Active</span>
         </div>
@@ -405,23 +461,33 @@ const UI = {
         </div>
         <div class="btn-row" style="margin-bottom:8px">
           <button class="btn-secondary" id="btn-export-plan">Export Plan</button>
-          <button class="btn-secondary btn-danger" id="btn-leave-mission">Leave</button>
+          <button class="btn-secondary" id="btn-import-plan">Import Plan</button>
+        </div>
+        <div class="btn-row" style="margin-bottom:8px">
+          <button class="btn-secondary btn-full btn-danger" id="btn-leave-mission">Leave Mission</button>
         </div>
         <div class="btn-row" style="margin-bottom:8px">
           <button class="btn-secondary" id="btn-pace-plan">PACE Plan</button>
           <button class="btn-secondary" id="btn-force-status">Force Status</button>
         </div>
-        <div class="btn-row" style="margin-bottom:16px">
+        <div class="btn-row" style="margin-bottom:8px">
           <button class="btn-secondary" id="btn-cot-export">Export CoT</button>
           <button class="btn-secondary" id="btn-cot-import">Import CoT</button>
         </div>
+        <div class="btn-row" style="margin-bottom:16px">
+          <button class="btn-secondary btn-full" id="btn-unit-summary">Unit Summary (Text)</button>
+        </div>
       ` : `
         <div class="btn-row" style="margin-bottom:8px">
-          <button class="btn-secondary btn-full" id="btn-export-plan">Export Plan (offline)</button>
+          <button class="btn-secondary" id="btn-export-plan">Export Plan</button>
+          <button class="btn-secondary" id="btn-import-plan">Import Plan</button>
         </div>
-        <div class="btn-row" style="margin-bottom:16px">
+        <div class="btn-row" style="margin-bottom:8px">
           <button class="btn-secondary" id="btn-pace-plan">PACE Plan</button>
           <button class="btn-secondary" id="btn-force-status">Force Status</button>
+        </div>
+        <div class="btn-row" style="margin-bottom:16px">
+          <button class="btn-secondary btn-full" id="btn-unit-summary">Unit Summary (Text)</button>
         </div>
       `}
       ${missions.length ? `
@@ -430,8 +496,8 @@ const UI = {
           ${missions.map(m => `
             <div class="mission-card" data-id="${m.id}">
               <div class="mission-card-info">
-                <div class="mission-card-name">${m.name}</div>
-                <div class="mission-card-meta">Code: ${m.id.slice(0,8).toUpperCase()}</div>
+                <div class="mission-card-name">${_escH(m.name)}</div>
+                <div class="mission-card-meta">Code: ${_escH(m.id.slice(0,8).toUpperCase())}</div>
               </div>
             </div>
           `).join('')}
@@ -474,8 +540,10 @@ const UI = {
     });
 
     document.getElementById('btn-copy-code')?.addEventListener('click', () => {
-      navigator.clipboard?.writeText(Mission.current.id.slice(0,8).toUpperCase());
-      UI.toast('Code copied!', 'success');
+      const code = Mission.current.id.slice(0,8).toUpperCase();
+      navigator.clipboard?.writeText(code)
+        .then(() => UI.toast('Code copied!', 'success'))
+        .catch(() => UI.toast(`Code: ${code}`, 'info'));
     });
 
     document.getElementById('btn-share-mission')?.addEventListener('click', () => {
@@ -486,14 +554,20 @@ const UI = {
       if (navigator.share) {
         navigator.share({ title: `Mission: ${name}`, text }).catch(() => {});
       } else {
-        navigator.clipboard?.writeText(text);
-        UI.toast('Invite text copied!', 'success');
+        navigator.clipboard?.writeText(text)
+          .then(() => UI.toast('Invite text copied!', 'success'))
+          .catch(() => UI.toast(`Code: ${code}`, 'info'));
       }
     });
 
     document.getElementById('btn-export-plan')?.addEventListener('click', () => {
       UI.closeSheet('sheet-mission');
       App._exportPlan();
+    });
+
+    document.getElementById('btn-import-plan')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-mission');
+      App._openPlanImport();
     });
 
     let leaveStep = 0;
@@ -539,6 +613,11 @@ const UI = {
       App._openCotImport();
     });
 
+    document.getElementById('btn-unit-summary')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-mission');
+      App._exportUnitSummary();
+    });
+
     document.querySelectorAll('#mission-list .mission-card').forEach(card => {
       card.addEventListener('click', async () => {
         try {
@@ -567,39 +646,47 @@ const UI = {
       grid.appendChild(div);
     });
 
+    const chk = v => v ? 'checked' : '';
+    const map = MapCtrl.map;
+    const gridOn     = MapCtrl._grid?._vis !== false;
+    const unitsOn    = map.hasLayer(MapCtrl._unitLayer);
+    const graphicsOn = map.hasLayer(MapCtrl._graphicLayer);
+    const bftOn      = BFT._layer ? map.hasLayer(BFT._layer) : true;
+    const labelsOn   = !document.getElementById('map')?.classList.contains('hide-unit-labels');
+
     document.getElementById('overlay-list').innerHTML = `
       <div class="overlay-row">
         <label for="tog-grid">MGRS Grid</label>
         <label class="toggle">
-          <input id="tog-grid" type="checkbox" checked>
+          <input id="tog-grid" type="checkbox" ${chk(gridOn)}>
           <span class="toggle-track"></span>
         </label>
       </div>
       <div class="overlay-row">
         <label for="tog-units">Units</label>
         <label class="toggle">
-          <input id="tog-units" type="checkbox" checked>
+          <input id="tog-units" type="checkbox" ${chk(unitsOn)}>
           <span class="toggle-track"></span>
         </label>
       </div>
       <div class="overlay-row">
         <label for="tog-graphics">Graphics</label>
         <label class="toggle">
-          <input id="tog-graphics" type="checkbox" checked>
+          <input id="tog-graphics" type="checkbox" ${chk(graphicsOn)}>
           <span class="toggle-track"></span>
         </label>
       </div>
       <div class="overlay-row">
         <label for="tog-bft">BFT Tracks</label>
         <label class="toggle">
-          <input id="tog-bft" type="checkbox" checked>
+          <input id="tog-bft" type="checkbox" ${chk(bftOn)}>
           <span class="toggle-track"></span>
         </label>
       </div>
       <div class="overlay-row">
         <label for="tog-labels">Unit Labels</label>
         <label class="toggle">
-          <input id="tog-labels" type="checkbox" ${document.getElementById('map')?.classList.contains('hide-unit-labels') ? '' : 'checked'}>
+          <input id="tog-labels" type="checkbox" ${chk(labelsOn)}>
           <span class="toggle-track"></span>
         </label>
       </div>
@@ -626,25 +713,12 @@ const UI = {
       btn.classList.toggle('active', Math.abs(parseFloat(btn.dataset.scale) - curScale) < 0.05);
     });
 
-    // Map filter buttons
-    const mapEl = document.getElementById('map');
-    const filters = ['off', 'dim', 'night'];
-    const curFilter = mapEl?.classList.contains('map-night') ? 'night'
-                    : mapEl?.classList.contains('map-dim')   ? 'dim' : 'off';
-    filters.forEach(f => {
-      const btn = document.getElementById(`map-filter-${f}`);
-      if (!btn) return;
-      btn.classList.toggle('active', f === curFilter);
-      btn.addEventListener('click', () => {
-        mapEl.classList.remove('map-dim', 'map-night');
-        document.body.classList.remove('ui-dim', 'ui-night');
-        if (f !== 'off') {
-          mapEl.classList.add(`map-${f}`);
-          document.body.classList.add(`ui-${f}`);
-        }
-        filters.forEach(x => document.getElementById(`map-filter-${x}`)?.classList.toggle('active', x === f));
-      });
-    });
+    // Map filter active state (handlers wired once in App.init)
+    const mapEl2 = document.getElementById('map');
+    const curFilter = mapEl2?.classList.contains('map-night') ? 'night'
+                    : mapEl2?.classList.contains('map-dim')   ? 'dim' : 'off';
+    ['off', 'dim', 'night'].forEach(f =>
+      document.getElementById(`map-filter-${f}`)?.classList.toggle('active', f === curFilter));
   }
 };
 
@@ -657,6 +731,7 @@ const App = {
   _labelCallback: null,
   _lastBFT:       0,
   _selfPos:       null,
+  _followGPS:     true,
 
   promptLabel(typeName, prefix, cb) {
     this._labelCallback = cb;
@@ -678,12 +753,42 @@ const App = {
   },
 
   async init() {
+    // Global MGRS tap-link delegate — any element with data-mgrs + mgrs-tap-link class
+    document.body.addEventListener('click', e => {
+      const el = e.target.closest('.mgrs-tap-link[data-mgrs]');
+      if (!el) return;
+      const result = parseMGRS(el.dataset.mgrs);
+      if (result.valid) {
+        UI.closeAllSheets();
+        MapCtrl.flyToGrid(result.lat, result.lng);
+      }
+    });
+
     // Close buttons
     document.querySelectorAll('.btn-close').forEach(btn => {
       const sheet = btn.closest('.sheet');
       if (sheet) btn.addEventListener('click', () => {
         UI.closeSheet(sheet.id);
-        if (sheet.id === 'sheet-symbols') MapCtrl._editUnitSymbolId = null;
+        if (sheet.id === 'sheet-symbols') {
+          MapCtrl._editUnitSymbolId = null;
+          // If user dismissed picker without picking, cancel place-unit mode
+          if (!MapCtrl._activeSIDC) {
+            MapCtrl._pendingLatLng = null;
+            MapCtrl.setTool('select');
+            UI.toolBtn('select');
+          }
+        }
+        if (sheet.id === 'sheet-graphic-picker') {
+          // If dismissed before picking a graphic type, cancel any started draw
+          MapCtrl.cancelDraw();
+        }
+        if (sheet.id === 'sheet-measure') {
+          MapCtrl.setTool('select');
+          UI.toolBtn('select');
+        }
+        if (sheet.id === 'sheet-reports-menu') {
+          UI.toolBtn('select');
+        }
       });
     });
 
@@ -695,7 +800,8 @@ const App = {
 
     // Mission chip
     document.getElementById('mission-chip').addEventListener('click', async () => {
-      const missions = Auth.signedIn ? await DB.getUserMissions(Auth.user.id) : [];
+      let missions = [];
+      try { missions = Auth.signedIn ? await DB.getUserMissions(Auth.user.id) : []; } catch {}
       UI.showMissionSheet(missions);
       UI.showSheet('sheet-mission');
     });
@@ -704,10 +810,15 @@ const App = {
     document.querySelectorAll('.tool-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const tool = btn.dataset.tool;
+        if (!tool) return; // skip buttons handled by their own specific listeners (e.g. goto-grid)
 
         if (tool === 'place-unit') {
           this._symFilter  = 'F';
           this._symEchelon = '';
+          const srch = document.getElementById('symbol-search');
+          if (srch) srch.value = '';
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === 'F'));
+          document.querySelectorAll('.ech-btn').forEach(b => b.classList.toggle('active', b.dataset.ech === ''));
           UI.buildSymbolGrid('F', '');
           UI.showSheet('sheet-symbols');
         }
@@ -808,6 +919,9 @@ const App = {
           document.body.classList.remove('fullmap');
         } else if (MapCtrl._isDrawing()) {
           MapCtrl.cancelDraw();
+        } else if (MapCtrl._editUnitSymbolId) {
+          MapCtrl._editUnitSymbolId = null;
+          UI.closeSheet('sheet-symbols');
         } else if (MapCtrl._activeTool === 'place-unit' || MapCtrl._activeTool === 'pin') {
           MapCtrl.setTool('select');
           UI.toolBtn('select');
@@ -823,8 +937,14 @@ const App = {
         if (tool === 'place-unit') {
           App._symFilter  = 'F';
           App._symEchelon = '';
+          const srch = document.getElementById('symbol-search');
+          if (srch) srch.value = '';
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === 'F'));
+          document.querySelectorAll('.ech-btn').forEach(b => b.classList.toggle('active', b.dataset.ech === ''));
           UI.buildSymbolGrid('F', '');
           UI.showSheet('sheet-symbols');
+          MapCtrl.setTool('place-unit');
+          UI.toolBtn('place-unit');
         } else if (tool === 'draw-line' || tool === 'draw-area') {
           MapCtrl.setTool(tool);
           UI.toolBtn(tool);
@@ -842,8 +962,9 @@ const App = {
     // Copy MGRS
     document.getElementById('coord-chip').addEventListener('click', () => {
       const txt = document.getElementById('coord-mgrs').textContent;
-      navigator.clipboard?.writeText(txt);
-      UI.toast('MGRS copied: ' + txt, 'success');
+      navigator.clipboard?.writeText(txt)
+        .then(() => UI.toast('MGRS copied: ' + txt, 'success'))
+        .catch(() => UI.toast(txt, 'info'));
     });
 
     // Layers
@@ -852,12 +973,43 @@ const App = {
       UI.showSheet('sheet-layers');
     });
 
-    // Roster toggle
-    document.getElementById('btn-roster-toggle').addEventListener('click', () =>
-      document.getElementById('panel-roster').classList.toggle('collapsed'));
+    // Roster toggle — tap button or tap backdrop (map area) to close
+    const _rosterPanel   = document.getElementById('panel-roster');
+    const _rosterBackdrop = document.getElementById('roster-backdrop');
+    const _closeRoster = () => {
+      _rosterPanel.classList.add('collapsed');
+      _rosterBackdrop.classList.remove('active');
+    };
+    document.getElementById('btn-roster-toggle').addEventListener('click', () => {
+      const nowOpen = !_rosterPanel.classList.toggle('collapsed');
+      _rosterBackdrop.classList.toggle('active', nowOpen);
+    });
+    _rosterBackdrop.addEventListener('click', _closeRoster);
+    _rosterBackdrop.addEventListener('touchend', e => {
+      e.preventDefault(); _closeRoster();
+    }, { passive: false });
 
     // Measure clear
     document.getElementById('btn-measure-clear').addEventListener('click', () => MapCtrl.clearMeasure());
+
+    // Chat clear (two-tap confirm)
+    let _chatClearStep = 0;
+    document.getElementById('btn-chat-clear')?.addEventListener('click', () => {
+      _chatClearStep++;
+      const btn = document.getElementById('btn-chat-clear');
+      if (_chatClearStep === 1) {
+        if (btn) btn.textContent = 'Confirm';
+        setTimeout(() => {
+          _chatClearStep = 0;
+          if (btn) btn.textContent = 'Clear';
+        }, 3000);
+      } else {
+        _chatClearStep = 0;
+        if (btn) btn.textContent = 'Clear';
+        Chat.clearHistory();
+        UI.toast('Chat history cleared', 'info', 2000);
+      }
+    });
 
     // (plot-grid sheet removed — replaced by pin tool)
 
@@ -888,7 +1040,7 @@ const App = {
     const cannedContainer = document.getElementById('chat-canned');
     if (cannedContainer) {
       cannedContainer.innerHTML = Chat.CANNED.map(m =>
-        `<button class="canned-btn" data-msg="${m.replace(/"/g,'&quot;')}">${m}</button>`
+        `<button class="canned-btn" data-msg="${_escH(m)}">${_escH(m)}</button>`
       ).join('');
     }
 
@@ -907,13 +1059,13 @@ const App = {
     });
     document.getElementById('btn-rpt-spotrep')?.addEventListener('click', () => {
       UI.closeSheet('sheet-reports-menu');
-      const c = MapCtrl.map.getCenter();
-      Reports.openSPOTREP(c.lat, c.lng);
+      const pos = App._selfPos || MapCtrl.map.getCenter();
+      Reports.openSPOTREP(pos.lat, pos.lng);
     });
     document.getElementById('btn-rpt-9line')?.addEventListener('click', () => {
       UI.closeSheet('sheet-reports-menu');
-      const c = MapCtrl.map.getCenter();
-      Reports.open9Line(c.lat, c.lng);
+      const pos = App._selfPos || MapCtrl.map.getCenter();
+      Reports.open9Line(pos.lat, pos.lng);
     });
     document.getElementById('btn-rpt-sitrep')?.addEventListener('click', () => {
       UI.closeSheet('sheet-reports-menu');
@@ -921,8 +1073,20 @@ const App = {
     });
     document.getElementById('btn-rpt-nbc')?.addEventListener('click', () => {
       UI.closeSheet('sheet-reports-menu');
-      const c = MapCtrl.map.getCenter();
-      Reports.openNBC(c.lat, c.lng);
+      const pos = App._selfPos || MapCtrl.map.getCenter();
+      Reports.openNBC(pos.lat, pos.lng);
+    });
+
+    document.getElementById('btn-reports-export-all')?.addEventListener('click', () =>
+      Reports.exportAll());
+
+    document.getElementById('reports-log-filter')?.addEventListener('click', e => {
+      const btn = e.target.closest('.rpt-filter-btn');
+      if (!btn) return;
+      document.querySelectorAll('.rpt-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      Reports._logFilter = btn.dataset.type || 'ALL';
+      Reports._renderLog();
     });
 
     // LACE form
@@ -946,18 +1110,29 @@ const App = {
       Reports._nbcType = btn.dataset.type;
     });
     document.getElementById('btn-nbc-submit')?.addEventListener('click', () => Reports.submitNBC());
+    document.getElementById('btn-nbcdtg-now')?.addEventListener('click', () => {
+      const el = document.getElementById('nbc-dtg');
+      if (el) el.value = Reports._dtg();
+    });
 
     // SPOTREP form
     document.getElementById('btn-spotrep-submit')?.addEventListener('click', () => Reports.submitSPOTREP());
+    document.getElementById('btn-spotdtg-now')?.addEventListener('click', () => {
+      const el = document.getElementById('spot-dtg');
+      if (el) el.value = Reports._dtg();
+    });
 
     // 9-Line form
     document.getElementById('btn-9line-submit')?.addEventListener('click', () => Reports.submit9Line());
 
     // SITREP form
     document.getElementById('btn-sitrep-submit')?.addEventListener('click', () => Reports.submitSITREP());
+    document.getElementById('btn-dtg-now')?.addEventListener('click', () => {
+      const el = document.getElementById('sit-dtg');
+      if (el) el.value = Reports._dtg();
+    });
     document.getElementById('btn-sitrep-autofill')?.addEventListener('click', () => {
       const units = Object.values(MapCtrl._units).map(u => u.data);
-      if (!units.length) return;
       const friendly = units
         .filter(u => {
           const s = u.sidc || '';
@@ -967,41 +1142,90 @@ const App = {
         .join(', ');
       const el = document.getElementById('sit-friendly');
       if (el && friendly) el.value = friendly;
+
+      // Auto-fill enemy situation from recent SPOTREPs
+      const enemyEl = document.getElementById('sit-enemy');
+      if (enemyEl && !enemyEl.value) {
+        const rpts = LocalStore.getReports()
+          .filter(r => r.type === 'SPOTREP')
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 3)
+          .map(r => `${r.data?.size || ''} ${r.data?.activity || ''} @ ${r.mgrs || ''}`.trim());
+        if (rpts.length) enemyEl.value = rpts.join(' / ');
+      }
     });
 
     // PACE plan
     document.getElementById('btn-pace-save')?.addEventListener('click', () => App._savePACE());
 
     // Force status — close + share + tap unit to fly
-    document.getElementById('btn-force-status-close')?.addEventListener('click', () =>
-      UI.closeSheet('sheet-force-status'));
+    document.getElementById('btn-force-status-close')?.addEventListener('click', () => {
+      document.getElementById('fstat-filter').value = '';
+      UI.closeSheet('sheet-force-status');
+    });
+    document.getElementById('fstat-filter')?.addEventListener('input', () => App._showForceStatus());
     document.getElementById('btn-fstat-share')?.addEventListener('click', () => {
       if (!Chat.isJoined()) { UI.toast('Join a mission to share', 'info'); return; }
+      const safeCs = s => String(s || '?').replace(/[|\x00-\x1f]/g, '').slice(0, 16) || '?';
       const units = Object.values(MapCtrl._units)
         .sort((a, b) => (a.data.redcon || 5) - (b.data.redcon || 5))
-        .map(({ data: u }) => `${u.callsign || '?'} RC${u.redcon || 5}/${u.opstat || 'FMC'}`)
+        .map(({ data: u }) => `${safeCs(u.callsign)} RC${u.redcon || 5}/${u.opstat || 'FMC'}`)
         .join(' | ');
       if (units) { Chat.send('FORCE STATUS: ' + units); UI.toast('Force status shared to chat', 'success'); }
     });
+    document.getElementById('btn-fstat-export')?.addEventListener('click', () => {
+      App._exportUnitSummary();
+    });
+
+    document.querySelectorAll('.btn-rc-bulk').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const rc = parseInt(btn.dataset.rc, 10);
+        const units = Object.values(MapCtrl._units);
+        if (!units.length) { UI.toast('No units to update', 'info'); return; }
+        units.forEach(({ data: u }) => {
+          MapCtrl._updateUnit(u.id, { redcon: rc });
+        });
+        UI.toast(`All units set to REDCON ${rc}`, 'success');
+        App._showForceStatus();
+      });
+    });
+
     document.getElementById('force-status-list')?.addEventListener('click', e => {
+      // mgrs-tap-link clicks are handled by the body delegate — don't double-handle
+      if (e.target.closest('.mgrs-tap-link')) return;
       const item = e.target.closest('[data-uid]');
       if (!item) return;
       const entry = MapCtrl._units[item.dataset.uid];
-      if (entry) {
-        UI.closeSheet('sheet-force-status');
-        MapCtrl.flyToGrid(entry.data.lat, entry.data.lng);
-      }
+      if (!entry) return;
+      UI.closeSheet('sheet-force-status');
+      MapCtrl._openUnitDetail(item.dataset.uid);
+      MapCtrl.flyToGrid(entry.data.lat, entry.data.lng);
     });
 
-    // Symbol scale
-    document.querySelectorAll('.scale-btn').forEach(btn => {
+    // Symbol scale (only buttons with explicit data-scale; map filter + stale buttons share scale-btn class)
+    document.querySelectorAll('.scale-btn[data-scale]').forEach(btn => {
       const s = parseFloat(btn.dataset.scale);
       const cur = MapCtrl._symbolScale;
       btn.classList.toggle('active', Math.abs(s - cur) < 0.05);
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.scale-btn[data-scale]').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         MapCtrl.setSymbolScale(s);
+      });
+    });
+
+    // Map filter buttons (one-time setup; buildLayersSheet only updates active state)
+    ['off', 'dim', 'night'].forEach(f => {
+      document.getElementById(`map-filter-${f}`)?.addEventListener('click', () => {
+        const mapEl = document.getElementById('map');
+        mapEl.classList.remove('map-dim', 'map-night');
+        document.body.classList.remove('ui-dim', 'ui-night');
+        if (f !== 'off') {
+          mapEl.classList.add(`map-${f}`);
+          document.body.classList.add(`ui-${f}`);
+        }
+        ['off', 'dim', 'night'].forEach(x =>
+          document.getElementById(`map-filter-${x}`)?.classList.toggle('active', x === f));
       });
     });
 
@@ -1045,8 +1269,9 @@ const App = {
       UI.closeSheet('sheet-context');
       const ll   = MapCtrl._ctxLatLng;
       const mgrs = ll ? (toMGRS(ll.lat, ll.lng, 5) || `${ll.lat.toFixed(5)},${ll.lng.toFixed(5)}`) : '';
-      navigator.clipboard?.writeText(mgrs);
-      UI.toast('Grid copied: ' + mgrs, 'success', 2000);
+      navigator.clipboard?.writeText(mgrs)
+        .then(() => UI.toast('Grid copied: ' + mgrs, 'success', 2000))
+        .catch(() => UI.toast('Grid: ' + mgrs, 'info', 2000));
     });
     document.getElementById('ctx-nbc')?.addEventListener('click', () => {
       UI.closeSheet('sheet-context');
@@ -1069,14 +1294,45 @@ const App = {
     document.getElementById('btn-goto-go')?.addEventListener('click', () => {
       const raw = document.getElementById('goto-grid-input')?.value?.trim();
       if (!raw) return;
+
+      // First try MGRS
       const result = parseMGRS(raw);
-      if (!result.valid) {
-        document.getElementById('goto-grid-note').textContent = 'Invalid grid — try full MGRS (e.g. 38SMB12345678)';
+      if (result.valid) {
+        if (result.note) document.getElementById('goto-grid-note').textContent = result.note;
+        UI.closeSheet('sheet-goto-grid');
+        MapCtrl.flyToGrid(result.lat, result.lng);
         return;
       }
-      if (result.note) document.getElementById('goto-grid-note').textContent = result.note;
-      UI.closeSheet('sheet-goto-grid');
-      MapCtrl.flyToGrid(result.lat, result.lng);
+
+      // Then try fuzzy unit callsign search
+      const query = raw.toUpperCase();
+      const matches = Object.values(MapCtrl._units)
+        .filter(u => (u.data.callsign || '').toUpperCase().includes(query))
+        .sort((a, b) => {
+          const acs = (a.data.callsign || '').toUpperCase();
+          const bcs = (b.data.callsign || '').toUpperCase();
+          if (acs === query && bcs !== query) return -1;
+          if (bcs === query && acs !== query) return 1;
+          return acs.indexOf(query) - bcs.indexOf(query);
+        });
+
+      if (matches.length === 1) {
+        const u = matches[0].data;
+        UI.closeSheet('sheet-goto-grid');
+        MapCtrl.flyToGrid(u.lat, u.lng);
+        UI.toast(`Flying to ${u.callsign}`, 'info', 1500);
+        return;
+      }
+      if (matches.length > 1) {
+        const first = matches[0].data;
+        const names = matches.slice(0, 3).map(u => u.data.callsign).join(', ');
+        UI.closeSheet('sheet-goto-grid');
+        MapCtrl.flyToGrid(first.lat, first.lng);
+        UI.toast(`${matches.length} matches — flying to ${first.callsign} (${names})`, 'info', 3500);
+        return;
+      }
+
+      document.getElementById('goto-grid-note').textContent = 'No unit found — try full MGRS (e.g. 38SMB12345678)';
     });
 
     document.getElementById('goto-grid-input')?.addEventListener('keydown', e => {
@@ -1095,13 +1351,7 @@ const App = {
     document.getElementById('btn-bft-card-close')?.addEventListener('click', () =>
       UI.closeSheet('sheet-bft-card'));
 
-    // Tap any MGRS link in chat or BFT card → fly to that grid
-    document.getElementById('chat-msgs')?.addEventListener('click', e => {
-      const el = e.target.closest('[data-mgrs]');
-      if (!el) return;
-      const result = parseMGRS(el.dataset.mgrs);
-      if (result.valid) { UI.closeSheet('sheet-chat'); MapCtrl.flyToGrid(result.lat, result.lng); }
-    });
+    // BFT card MGRS tap → fly (uses textContent, not data-mgrs, so needs its own handler)
     document.getElementById('bft-card-mgrs')?.addEventListener('click', () => {
       const mgrs = document.getElementById('bft-card-mgrs')?.textContent;
       if (!mgrs || mgrs === '—') return;
@@ -1115,6 +1365,11 @@ const App = {
       const cur = BFT.STALE_MS;
       document.querySelectorAll('.scale-btn[data-stale]').forEach(b =>
         b.classList.toggle('active', +b.dataset.stale === cur));
+      // Populate AO fields from saved or default
+      const savedAO = App._loadSavedAO();
+      document.getElementById('settings-ao-name').value = savedAO.name || AO.name || '';
+      const aoCenter = toMGRS(savedAO.center[0], savedAO.center[1], 5) || '';
+      document.getElementById('settings-ao-mgrs').value = aoCenter;
       UI.showSheet('sheet-settings');
     });
     document.getElementById('btn-settings-close')?.addEventListener('click', () =>
@@ -1128,15 +1383,42 @@ const App = {
       UI.toast('Callsign updated to ' + cs, 'success');
       UI.closeSheet('sheet-settings');
     });
+    document.getElementById('settings-callsign')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btn-settings-callsign-save')?.click();
+    });
     document.getElementById('stale-bar')?.addEventListener('click', e => {
       const btn = e.target.closest('[data-stale]');
       if (!btn) return;
       const ms = +btn.dataset.stale;
       BFT.STALE_MS = ms;
-      localStorage.setItem('cop_bft_stale', String(ms));
+      try { localStorage.setItem('cop_bft_stale', String(ms)); } catch {}
       document.querySelectorAll('.scale-btn[data-stale]').forEach(b =>
         b.classList.toggle('active', +b.dataset.stale === ms));
     });
+    document.getElementById('btn-ao-use-map')?.addEventListener('click', () => {
+      const c    = MapCtrl.map?.getCenter();
+      if (!c) return;
+      const mgrs = toMGRS(c.lat, c.lng, 5) || '';
+      document.getElementById('settings-ao-mgrs').value = mgrs;
+    });
+    document.getElementById('btn-ao-save')?.addEventListener('click', () => {
+      const name = document.getElementById('settings-ao-name')?.value.trim();
+      const raw  = document.getElementById('settings-ao-mgrs')?.value.trim();
+      if (!raw) { UI.toast('Enter a center MGRS coordinate', 'error'); return; }
+      const result = parseMGRS(raw);
+      if (!result.valid) { UI.toast('Invalid MGRS — enter a full grid like 16TDL50005000', 'error'); return; }
+      // Extract 100km square prefix from full MGRS string
+      const sq = raw.replace(/\s+/g, '').toUpperCase().match(/^(\d{1,2}[C-HJ-NP-X][A-Z]{2})/)?.[1];
+      if (!sq) { UI.toast('Could not determine 100km square from MGRS', 'error'); return; }
+      const aoData = { name: name || AO.name, center: [result.lat, result.lng], mgrs100k: sq, zoom: AO.zoom };
+      try { localStorage.setItem('cop_ao', JSON.stringify(aoData)); } catch {}
+      Object.assign(AO, aoData);
+      UI.toast(`AO set: ${name || aoData.name} (${sq})`, 'success');
+    });
+    document.getElementById('settings-ao-mgrs')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btn-ao-save')?.click();
+    });
+
     document.getElementById('btn-clear-reports')?.addEventListener('click', () => {
       MapCtrl._reportLayer?.clearLayers();
       LocalStore.clearReports?.();
@@ -1144,6 +1426,7 @@ const App = {
     });
     document.getElementById('btn-clear-units')?.addEventListener('click', () => {
       if (!confirm('Remove all local units from map? Cannot be undone.')) return;
+      MapCtrl.clearRangeRings();
       MapCtrl._unitLayer?.clearLayers();
       MapCtrl._units = {};
       MapCtrl.updateUnitCount();
@@ -1158,8 +1441,8 @@ const App = {
     });
 
     // Restore BFT stale timeout from settings
-    const savedStale = parseInt(localStorage.getItem('cop_bft_stale'));
-    if (savedStale && !isNaN(savedStale)) BFT.STALE_MS = savedStale;
+    const savedStale = parseInt(localStorage.getItem('cop_bft_stale'), 10);
+    if (savedStale > 0) BFT.STALE_MS = savedStale;
 
     // H-Hour timer
     document.getElementById('hhour-chip')?.addEventListener('click', () => {
@@ -1176,6 +1459,7 @@ const App = {
       const val = document.getElementById('hhour-time').value;
       if (!val) return;
       const [h, m] = val.split(':').map(Number);
+      if (!isFinite(h) || !isFinite(m)) { UI.toast('Invalid time', 'error'); return; }
       const t = new Date();
       t.setHours(h, m, 0, 0);
       if (t < Date.now()) t.setDate(t.getDate() + 1);
@@ -1188,6 +1472,23 @@ const App = {
       UI.closeSheet('sheet-hhour');
     });
     HHour.init();
+
+    // Detect OTP / magic-link sign-in completing while app is already open
+    DB.onAuthChange(async (event, session) => {
+      if (event !== 'SIGNED_IN' || !session?.user) return;
+      if (!document.getElementById('sheet-auth')?.classList.contains('hidden')) {
+        // We're on the auth screen — complete sign-in
+        Auth.user     = session.user;
+        Auth.callsign = session.user.user_metadata?.callsign || Auth.callsign || 'UNKNOWN';
+        Auth._save();
+        UI.closeSheet('sheet-auth');
+        await App._postAuth();
+      }
+    });
+
+    // Apply saved AO settings before map init (AO.center/zoom used as fallback start position)
+    const savedAO = App._loadSavedAO();
+    Object.assign(AO, savedAO);
 
     // Init map
     MapCtrl.init();
@@ -1248,7 +1549,13 @@ const App = {
     if (m) {
       UI.setMissionLabel(m.name);
       if (DB.online) {
-        await MapCtrl.loadMission(m.id);
+        try {
+          await MapCtrl.loadMission(m.id);
+        } catch (e) {
+          // Mission may have been deleted; fall back to local data
+          MapCtrl.loadLocalData();
+          UI.toast('Mission unavailable — using local data', 'info', 3000);
+        }
       } else {
         MapCtrl.loadLocalData();
         UI.toast('Offline — using local data', 'info', 2000);
@@ -1264,38 +1571,12 @@ const App = {
 
   onMissionActivated(m) {
     UI.setMissionLabel(m.name);
-    MapCtrl.loadMission(m.id);
+    MapCtrl.loadMission(m.id).catch(() => {
+      MapCtrl.loadLocalData();
+      UI.toast('Mission sync failed — using local data', 'info', 3000);
+    });
     BFT.joinMission(m.id);
     Chat.join(m.id);
-  },
-
-  _plotGrid() {
-    const raw   = document.getElementById('plot-input').value;
-    const errEl = document.getElementById('plot-error');
-    errEl.hidden = true;
-
-    const result = parseMGRS(raw);
-    if (!result.valid) {
-      errEl.textContent = 'Invalid grid. Try "16TDL123456" or just "123456".';
-      errEl.hidden = false;
-      return;
-    }
-
-    MapCtrl.panTo(result.lat, result.lng, 15);
-    UI.closeSheet('sheet-plot-grid');
-
-    const marker = L.circleMarker([result.lat, result.lng], {
-      radius: 8, color: '#d29922', fillColor: '#d29922', fillOpacity: 0.8
-    }).addTo(MapCtrl.map);
-    marker.bindPopup(
-      `<div class="popup-body"><div class="popup-name">Plotted Grid</div>` +
-      `<div class="popup-mgrs">${toMGRS(result.lat, result.lng, 5)}</div></div>`,
-      { autoPan: false }
-    ).openPopup();
-    setTimeout(() => marker.remove(), 30000);
-
-    const note = result.note ? ` (${result.note})` : '';
-    UI.toast(`Plotting: ${toMGRS(result.lat, result.lng, 5)}${note}`, 'info');
   },
 
   _savePACE() {
@@ -1306,45 +1587,109 @@ const App = {
       e: { method: document.getElementById('pace-e-method')?.value.trim(), freq: document.getElementById('pace-e-freq')?.value.trim() },
     };
     const key = Mission.active ? `cop_pace_${Mission.current.id}` : 'cop_pace_offline';
-    localStorage.setItem(key, JSON.stringify(pace));
+    try { localStorage.setItem(key, JSON.stringify(pace)); } catch {}
     UI.closeSheet('sheet-pace');
     UI.toast('PACE plan saved', 'success');
   },
 
   _loadPACE() {
     const key  = Mission.active ? `cop_pace_${Mission.current.id}` : 'cop_pace_offline';
-    const raw  = localStorage.getItem(key);
-    const pace = raw ? JSON.parse(raw) : {};
+    let pace = {};
+    try { pace = JSON.parse(localStorage.getItem(key) || '{}'); } catch {}
     ['p','a','c','e'].forEach(l => {
-      document.getElementById(`pace-${l}-method`).value = pace[l]?.method || '';
-      document.getElementById(`pace-${l}-freq`).value   = pace[l]?.freq   || '';
+      const mEl = document.getElementById(`pace-${l}-method`);
+      const fEl = document.getElementById(`pace-${l}-freq`);
+      if (mEl) mEl.value = pace[l]?.method || '';
+      if (fEl) fEl.value = pace[l]?.freq   || '';
     });
   },
 
+  _loadPACEData() {
+    try {
+      const key = Mission.active ? `cop_pace_${Mission.current.id}` : 'cop_pace_offline';
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const pace = JSON.parse(raw);
+      return { p_freq: pace.p?.freq || '', p_method: pace.p?.method || '' };
+    } catch { return null; }
+  },
+
+  _loadSavedAO() {
+    try {
+      const raw = localStorage.getItem('cop_ao');
+      if (!raw) return { name: AO.name, center: AO.center, mgrs100k: AO.mgrs100k, zoom: AO.zoom };
+      return JSON.parse(raw);
+    } catch { return { name: AO.name, center: AO.center, mgrs100k: AO.mgrs100k, zoom: AO.zoom }; }
+  },
+
   _showForceStatus() {
-    const list  = document.getElementById('force-status-list');
-    const units = Object.values(MapCtrl._units)
+    const list = document.getElementById('force-status-list');
+    if (!list) return;
+    const allUnits = Object.values(MapCtrl._units)
       .sort((a, b) => (a.data.redcon || 5) - (b.data.redcon || 5));
-    if (!units.length) {
+    if (!allUnits.length) {
       list.innerHTML = '<p class="empty-msg">No units placed</p>';
+      const summaryEl = document.getElementById('fstat-summary');
+      if (summaryEl) summaryEl.innerHTML = '';
       UI.showSheet('sheet-force-status');
       return;
     }
-    list.innerHTML = units.map(({ data: u }) => {
-      const rc    = u.redcon || 5;
+
+    // REDCON summary always reflects full force (not filtered)
+    const units    = allUnits;
+    const rcCounts = [1,2,3,4,5].map(r => units.filter(u => (u.data.redcon || 5) === r).length);
+    const rcBar = `<div class="fstat-rc-summary">${
+      [1,2,3,4,5].map((r, i) => rcCounts[i] > 0
+        ? `<span style="background:${REDCON_COLORS[r]}22;border:1px solid ${REDCON_COLORS[r]}66;color:${REDCON_COLORS[r]}">${rcCounts[i]}×RC${r}</span>`
+        : ''
+      ).join('')
+    }</div>`;
+
+    // LACE aggregate
+    const withLace = units.filter(u => u.data.lace);
+    const laceBar = withLace.length ? (() => {
+      const finiteNum = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+      const fuelVals = withLace.map(u => finiteNum(u.data.lace.l)).filter(v => v !== null);
+      const ammoVals = withLace.map(u => finiteNum(u.data.lace.a)).filter(v => v !== null);
+      if (!fuelVals.length && !ammoVals.length) return '';
+      const avgFuel = fuelVals.length ? Math.round(fuelVals.reduce((s, v) => s + v, 0) / fuelVals.length) : '—';
+      const avgAmmo = ammoVals.length ? Math.round(ammoVals.reduce((s, v) => s + v, 0) / ammoVals.length) : '—';
+      const minFuel = fuelVals.length ? Math.min(...fuelVals) : '—';
+      const minAmmo = ammoVals.length ? Math.min(...ammoVals) : '—';
+      return `<div class="fstat-lace-agg">Avg L:${avgFuel}% A:${avgAmmo}% · Min L:${minFuel}% A:${minAmmo}%</div>`;
+    })() : '';
+
+    const summaryEl = document.getElementById('fstat-summary');
+    if (summaryEl) summaryEl.innerHTML = rcBar + laceBar;
+
+    const query = (document.getElementById('fstat-filter')?.value || '').toUpperCase().trim();
+    const displayUnits = query
+      ? allUnits.filter(u => (u.data.callsign || '').toUpperCase().includes(query))
+      : allUnits;
+
+    if (!displayUnits.length) {
+      list.innerHTML = '<p class="empty-msg">No units match filter</p>';
+      UI.showSheet('sheet-force-status');
+      return;
+    }
+
+    list.innerHTML = displayUnits.map(({ data: u }) => {
+      const rc    = Math.max(1, Math.min(5, +u.redcon || 5));
       const col   = REDCON_COLORS[rc];
-      const opst  = u.opstat || 'FMC';
-      const opCls = opst.toLowerCase();
-      const laceStr = u.lace ? `L${u.lace.l}% A${u.lace.a}% E${u.lace.e}%` : '';
-      const mgrs    = toMGRS(u.lat, u.lng, 5) || `${u.lat.toFixed(4)},${u.lng.toFixed(4)}`;
+      const opst  = ['FMC','PMC','NMC'].includes(u.opstat) ? u.opstat : 'FMC';
+      const laceStr = u.lace
+        ? `L${+u.lace.l || 0}% A${+u.lace.a || 0}% E${+u.lace.e || 0}%`
+        : '';
+      const mgrs    = (isFinite(u.lat) && isFinite(u.lng)) ? (toMGRS(u.lat, u.lng, 5) || `${u.lat.toFixed(4)},${u.lng.toFixed(4)}`) : '—';
       const ago     = u.updated_at ? _timeAgo(new Date(u.updated_at)) : '';
-      return `<div class="fstat-item" data-uid="${_escH(u.id)}">
+      const isStale = u.updated_at && (Date.now() - new Date(u.updated_at).getTime()) > 3600000;
+      return `<div class="fstat-item${isStale ? ' is-stale' : ''}" data-uid="${_escH(u.id)}">
         <div class="fstat-callsign">${_escH(u.callsign || '—')}</div>
-        <div class="fstat-grid mgrs-tap-link">${_escH(mgrs)}</div>
+        <div class="fstat-grid mgrs-tap-link" data-mgrs="${_escH(mgrs)}">${_escH(mgrs)}</div>
         ${laceStr ? `<div class="fstat-lace">${laceStr}</div>` : ''}
-        ${ago ? `<div class="fstat-ago">${_escH(ago)}</div>` : ''}
+        ${isStale ? '<div class="fstat-stale-badge">STALE</div>' : (ago ? `<div class="fstat-ago">${_escH(ago)}</div>` : '')}
         <div class="fstat-rc" style="color:${col};border-color:${col}">RC${rc}</div>
-        <div class="fstat-opstat ${opCls}">${opst}</div>
+        <div class="fstat-opstat ${opst.toLowerCase()}">${opst}</div>
       </div>`;
     }).join('');
     UI.showSheet('sheet-force-status');
@@ -1355,8 +1700,8 @@ const App = {
     const now   = new Date().toISOString();
     const stale = new Date(Date.now() + 5 * 60000).toISOString();
 
-    const typeMap = { 'H': 'a-h-G-U-C', 'N': 'a-n-G', 'U': 'a-u-G' };
-    const events  = units.map(({ data: u }) => {
+    const xmlEsc = v => String(v).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+    const eventArr = units.map(({ data: u }) => {
       const s = u.sidc || '';
       let aff;
       if (s.length <= 15) {
@@ -1365,13 +1710,21 @@ const App = {
         aff = s[3] === '6' ? 'h' : s[3] === '4' ? 'n' : s[3] === '1' ? 'u' : 'f';
       }
       const type = `a-${aff}-G-U-C`;
-      const cs   = (u.callsign || 'UNKNOWN').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
-      return `<event version="2.0" uid="${u.id}" type="${type}" time="${u.updated_at || now}" start="${u.updated_at || now}" stale="${stale}" how="h-g-i-g-o">` +
+      if (!isFinite(u.lat) || !isFinite(u.lng)) return null;
+      const cs     = xmlEsc(u.callsign || 'UNKNOWN');
+      const sidc   = xmlEsc(u.sidc || '');
+      const opstat = xmlEsc(u.opstat || 'FMC');
+      const redcon = Number.isInteger(u.redcon) ? u.redcon : 5;
+      const laceStr = u.lace
+        ? ` LACE:${+u.lace.l|0}/${+u.lace.a|0}/${+u.lace.c|0}/${+u.lace.e|0}`
+        : '';
+      return `<event version="2.0" uid="${xmlEsc(u.id)}" type="${type}" time="${u.updated_at || now}" start="${u.updated_at || now}" stale="${stale}" how="h-g-i-g-o">` +
         `<point lat="${u.lat.toFixed(6)}" lon="${u.lng.toFixed(6)}" hae="0" ce="9999" le="9999"/>` +
-        `<detail><contact callsign="${cs}"/><uid Droid="${cs}"/>` +
-        `<remarks>REDCON:${u.redcon||5} OPSTAT:${u.opstat||'FMC'}${u.lace ? ` LACE:${u.lace.l}/${u.lace.a}/${u.lace.c}/${u.lace.e}` : ''}</remarks>` +
+        `<detail sidc="${sidc}"><contact callsign="${cs}"/><uid Droid="${cs}"/>` +
+        `<remarks>REDCON:${redcon} OPSTAT:${opstat}${laceStr}</remarks>` +
         `</detail></event>`;
-    }).join('\n');
+    }).filter(Boolean);
+    const events = eventArr.join('\n');
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<events>\n${events}\n</events>`;
     try {
@@ -1381,26 +1734,79 @@ const App = {
       a.href = url; a.download = `cop-cot-${new Date().toISOString().slice(0,10)}.xml`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
-      UI.toast(`CoT export: ${units.length} units`, 'success');
+      UI.toast(`CoT export: ${eventArr.length} units`, 'success');
     } catch {
-      navigator.clipboard?.writeText(xml).then(() => UI.toast('CoT XML copied to clipboard', 'success'));
+      navigator.clipboard?.writeText(xml)
+        .then(() => UI.toast('CoT XML copied to clipboard', 'success'))
+        .catch(() => UI.toast('Export failed — try again', 'error'));
     }
   },
 
+  _exportUnitSummary() {
+    const units = Object.values(MapCtrl._units);
+    if (!units.length) { UI.toast('No units on map', 'info'); return; }
+
+    const dtg = (() => {
+      const d = new Date();
+      const dd  = String(d.getUTCDate()).padStart(2, '0');
+      const hh  = String(d.getUTCHours()).padStart(2, '0');
+      const mm  = String(d.getUTCMinutes()).padStart(2, '0');
+      const mon = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][d.getUTCMonth()];
+      const yr  = String(d.getUTCFullYear()).slice(-2);
+      return `${dd}${hh}${mm}Z${mon}${yr}`;
+    })();
+
+    const msnName = Mission.active ? Mission.current.name : AO.name;
+    const header = `UNIT SUMMARY — ${msnName.toUpperCase()} DTG ${dtg}\n` + '='.repeat(40) + '\n';
+
+    const lines = units
+      .sort((a, b) => (a.data.redcon || 5) - (b.data.redcon || 5))
+      .map(({ data: u }) => {
+        const cs    = String(u.callsign || 'UNKNOWN').toUpperCase();
+        const mgrs  = (isFinite(u.lat) && isFinite(u.lng)) ? (toMGRS(u.lat, u.lng, 5) || `${u.lat.toFixed(4)}N ${u.lng.toFixed(4)}E`) : 'NO POS';
+        const rc    = `RC${u.redcon || 5}`;
+        const os    = u.opstat || 'FMC';
+        const fuel  = u.lace?.l  != null ? ` FUEL:${u.lace.l}%`   : '';
+        const ammo  = u.lace?.a  != null ? ` AMMO:${u.lace.a}%`   : '';
+        const cas   = u.lace?.c  != null ? ` CAS:${u.lace.c}`     : '';
+        const notes = u.notes && u.notes !== 'Imported from CoT' ? ` // ${u.notes.slice(0, 60)}` : '';
+        return `${cs.padEnd(12)} ${mgrs.padEnd(15)} ${rc} ${os}${fuel}${ammo}${cas}${notes}`;
+      });
+
+    const footer = '\n' + '='.repeat(40) + `\n${lines.length} UNIT${lines.length !== 1 ? 'S' : ''} TOTAL`;
+    const text = header + lines.join('\n') + footer;
+
+    navigator.clipboard?.writeText(text)
+      .then(() => UI.toast(`Unit summary copied (${lines.length} units)`, 'success'))
+      .catch(() => {
+        // Fallback: download as .txt
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = `unit-summary-${new Date().toISOString().slice(0,10)}.txt`;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        UI.toast(`Unit summary downloaded (${lines.length} units)`, 'success');
+      });
+  },
+
   _openCotImport() {
-    // Create a hidden file input and trigger it
     const fi = document.createElement('input');
     fi.type   = 'file';
     fi.accept = '.xml,.cot';
     fi.style.display = 'none';
+    const cleanup = () => { if (fi.parentNode) fi.remove(); };
     fi.addEventListener('change', () => {
       const file = fi.files[0];
+      cleanup();
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = e => this._parseCot(e.target.result);
+      reader.onload  = e => this._parseCot(e.target.result);
+      reader.onerror = () => UI.toast('File read error — try again', 'error');
       reader.readAsText(file);
-      fi.remove();
     });
+    fi.addEventListener('cancel', cleanup);
+    setTimeout(cleanup, 5 * 60 * 1000);
     document.body.appendChild(fi);
     fi.click();
     UI.toast('Select a CoT XML or .cot file', 'info', 2500);
@@ -1414,48 +1820,78 @@ const App = {
       if (!events.length) { UI.toast('No CoT events found in file', 'error'); return; }
 
       const COT_AFFIL = { f: 'SFGPUC-----', h: 'SHGPUC-----', n: 'SNGPUC-----', u: 'SUGPUC-----' };
-      let placed = 0;
+      let placed = 0, updated = 0;
 
-      events.forEach(ev => {
-        const type = ev.getAttribute('type') || '';
-        // Only import ground units (a-*-G-*)
-        if (!type.startsWith('a-') || !type.includes('-G-')) return;
+      MapCtrl._batchLoading = true;
+      try {
+        events.forEach(ev => {
+          const type = ev.getAttribute('type') || '';
+          // Import ground units (a-*-G-*) and skip non-unit events
+          if (!type.startsWith('a-') || !type.includes('-G-')) return;
 
-        const pt  = ev.querySelector('point');
-        if (!pt) return;
-        const lat = parseFloat(pt.getAttribute('lat'));
-        const lng = parseFloat(pt.getAttribute('lon') || pt.getAttribute('lng'));
-        if (!isFinite(lat) || !isFinite(lng)) return;
+          const pt  = ev.querySelector('point');
+          if (!pt) return;
+          const lat = parseFloat(pt.getAttribute('lat'));
+          const lng = parseFloat(pt.getAttribute('lon') || pt.getAttribute('lng'));
+          if (!isFinite(lat) || !isFinite(lng)) return;
 
-        const detail   = ev.querySelector('detail');
-        const contact  = detail?.querySelector('contact');
-        const callsign = contact?.getAttribute('callsign') || ev.getAttribute('uid') || 'IMPORT';
+          const detail   = ev.querySelector('detail');
+          const contact  = detail?.querySelector('contact');
+          const callsign = contact?.getAttribute('callsign') || ev.getAttribute('uid') || 'IMPORT';
 
-        const aff  = type.split('-')[1] || 'f';
-        const sidc = COT_AFFIL[aff] || COT_AFFIL.f;
+          // Prefer explicit sidc attribute (ATAK / JBC-P producers set this)
+          const sidcAttr = detail?.querySelector('[sidc]')?.getAttribute('sidc') ||
+                           detail?.getAttribute('sidc');
+          let sidc;
+          if (sidcAttr && sidcAttr.length >= 10) {
+            sidc = sidcAttr;
+          } else {
+            const aff = type.split('-')[1] || 'f';
+            sidc = COT_AFFIL[aff] || COT_AFFIL.f;
+          }
 
-        // Parse optional REDCON/OPSTAT from remarks
-        const remarks = detail?.querySelector('remarks')?.textContent || '';
-        const rcMatch = remarks.match(/REDCON:(\d)/);
-        const osMatch = remarks.match(/OPSTAT:(FMC|PMC|NMC)/);
+          // Parse optional REDCON/OPSTAT/LACE from remarks
+          const remarks  = detail?.querySelector('remarks')?.textContent || '';
+          const rcMatch  = remarks.match(/REDCON:(\d)/);
+          const osMatch  = remarks.match(/OPSTAT:(FMC|PMC|NMC)/);
+          const laceMatch = remarks.match(/LACE:(\d+)\/(\d+)\/([^/]+)\/(\d+)/);
 
-        const unit = {
-          id:         ev.getAttribute('uid') || crypto.randomUUID(),
-          sidc,
-          callsign:   callsign.slice(0, 24),
-          lat, lng,
-          notes:      'Imported from CoT',
-          redcon:     rcMatch ? parseInt(rcMatch[1], 10) : 5,
-          opstat:     osMatch ? osMatch[1] : 'FMC',
-          updated_at: new Date().toISOString(),
-        };
+          const uid = ev.getAttribute('uid') || crypto.randomUUID();
+          const existing = MapCtrl._units[uid];
 
-        MapCtrl._addUnitMarker(unit);
-        LocalStore.upsertUnit(unit);
-        placed++;
-      });
+          const unit = {
+            id:         uid,
+            sidc,
+            callsign:   callsign.trim().slice(0, 24),
+            lat, lng,
+            notes:      existing ? existing.data.notes : 'Imported from CoT',
+            redcon:     rcMatch ? Math.max(1, Math.min(5, parseInt(rcMatch[1], 10))) : (existing?.data.redcon || 5),
+            opstat:     osMatch ? osMatch[1] : (existing?.data.opstat || 'FMC'),
+            updated_at: ev.getAttribute('time') || new Date().toISOString(),
+            ...(laceMatch ? { lace: {
+              l: Math.max(0, Math.min(100, parseInt(laceMatch[1],10)||0)),
+              a: Math.max(0, Math.min(100, parseInt(laceMatch[2],10)||0)),
+              c: Math.max(0,              parseInt(laceMatch[3],10)||0),
+              e: Math.max(0, Math.min(100, parseInt(laceMatch[4],10)||0)),
+            } } : {}),
+          };
 
-      UI.toast(`Imported ${placed} unit${placed !== 1 ? 's' : ''} from CoT`, 'success');
+          if (existing) {
+            MapCtrl._updateUnit(uid, unit);
+            updated++;
+          } else {
+            MapCtrl._addUnitMarker(unit);
+            placed++;
+          }
+          LocalStore.upsertUnit(unit);
+        });
+      } finally {
+        MapCtrl._batchLoading = false;
+        MapCtrl.updateUnitCount();
+      }
+
+      const msg = [placed && `${placed} new`, updated && `${updated} updated`].filter(Boolean).join(', ');
+      UI.toast(`CoT import: ${msg || 'no changes'}`, 'success');
     } catch(e) {
       UI.toast('CoT parse error: ' + e.message, 'error');
     }
@@ -1470,6 +1906,7 @@ const App = {
       lng:      u.data.lng,
       notes:    u.data.notes,
       redcon:   u.data.redcon,
+      opstat:   u.data.opstat,
       lace:     u.data.lace,
     }));
     const graphics = Object.values(MapCtrl._graphics).map(g => ({
@@ -1499,36 +1936,152 @@ const App = {
       UI.toast('Plan exported', 'success');
     } catch {
       // iOS Safari fallback: copy to clipboard
-      navigator.clipboard?.writeText(json).then(() =>
-        UI.toast('Plan copied to clipboard (JSON)', 'success')
-      );
+      navigator.clipboard?.writeText(json)
+        .then(() => UI.toast('Plan copied to clipboard (JSON)', 'success'))
+        .catch(() => UI.toast('Export failed — try again', 'error'));
+    }
+  },
+
+  _openPlanImport() {
+    const fi = document.createElement('input');
+    fi.type = 'file'; fi.accept = '.json'; fi.style.display = 'none';
+    const cleanup = () => { if (fi.parentNode) fi.remove(); };
+    fi.addEventListener('change', () => {
+      const file = fi.files[0];
+      cleanup();
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload  = e => this._parsePlan(e.target.result);
+      reader.onerror = () => UI.toast('File read error — try again', 'error');
+      reader.readAsText(file);
+    });
+    fi.addEventListener('cancel', cleanup);
+    setTimeout(cleanup, 5 * 60 * 1000);
+    document.body.appendChild(fi);
+    fi.click();
+    UI.toast('Select a plan .json file', 'info', 2500);
+  },
+
+  _parsePlan(jsonStr) {
+    try {
+      const plan = JSON.parse(jsonStr);
+      if (!plan || typeof plan !== 'object') throw new Error('Invalid plan file');
+
+      const units    = Array.isArray(plan.units)    ? plan.units    : [];
+      const graphics = Array.isArray(plan.graphics) ? plan.graphics : [];
+
+      let placed = 0, updatedU = 0, placedG = 0;
+
+      MapCtrl._batchLoading = true;
+      try {
+        units.forEach(u => {
+          if (!u.id || !isFinite(u.lat) || !isFinite(u.lng)) return;
+          const unit = {
+            id:         u.id,
+            sidc:       u.sidc || 'SFGPUC-----',
+            callsign:   String(u.callsign || 'IMPORTED').trim().slice(0, 24),
+            lat:        u.lat,
+            lng:        u.lng,
+            notes:      u.notes || '',
+            redcon:     Math.max(1, Math.min(5, +u.redcon || 5)),
+            opstat:     ['FMC','PMC','NMC'].includes(u.opstat) ? u.opstat : 'FMC',
+            lace:       u.lace ? {
+              l: Math.max(0, Math.min(100, parseInt(u.lace.l, 10) || 0)),
+              a: Math.max(0, Math.min(100, parseInt(u.lace.a, 10) || 0)),
+              c: Math.max(0,              parseInt(u.lace.c, 10) || 0),
+              e: Math.max(0, Math.min(100, parseInt(u.lace.e, 10) || 0)),
+            } : null,
+            updated_at: new Date().toISOString(),
+          };
+          if (MapCtrl._units[u.id]) {
+            MapCtrl._updateUnit(u.id, unit);
+            updatedU++;
+          } else {
+            MapCtrl._addUnitMarker(unit);
+            placed++;
+          }
+          LocalStore.upsertUnit(unit);
+        });
+      } finally {
+        MapCtrl._batchLoading = false;
+        MapCtrl.updateUnitCount();
+      }
+
+      graphics.forEach(g => {
+        if (!g.id || !g.type || !g.geometry) return;
+        if (!MapCtrl._graphics[g.id]) {
+          MapCtrl._renderGraphic(g);
+          LocalStore.upsertGraphic(g);
+          placedG++;
+        }
+      });
+
+      const msg = [
+        placed    && `${placed} unit${placed !== 1 ? 's' : ''} added`,
+        updatedU  && `${updatedU} updated`,
+        placedG   && `${placedG} graphic${placedG !== 1 ? 's' : ''} added`,
+      ].filter(Boolean).join(', ');
+      UI.toast(`Plan imported: ${msg || 'no changes'}`, 'success');
+    } catch(e) {
+      UI.toast('Plan import error: ' + e.message, 'error');
     }
   },
 
   _toggleTracking() {
+    const btn = document.getElementById('btn-locate');
     if (this._watchId) {
+      // Tracking is on: first tap re-enables follow, second tap (already following) stops tracking
+      if (!this._followGPS) {
+        this._followGPS = true;
+        btn.classList.add('active');
+        btn.classList.remove('active-dim');
+        if (App._selfPos) MapCtrl.panTo(App._selfPos.lat, App._selfPos.lng);
+        UI.toast('Following GPS position', 'info', 1500);
+        return;
+      }
       navigator.geolocation.clearWatch(this._watchId);
-      this._watchId = null;
-      document.getElementById('btn-locate').classList.remove('active');
+      this._watchId  = null;
+      this._followGPS = true;
+      btn.classList.remove('active');
       UI.toast('Location tracking off', 'info');
       return;
     }
     if (!navigator.geolocation) { UI.toast('Geolocation not supported', 'error'); return; }
 
+    this._followGPS = true;
+
+    let _dragHandler = null;
+    const _attachDragHandler = () => {
+      if (_dragHandler) MapCtrl.map.off('dragstart', _dragHandler);
+      _dragHandler = () => {
+        _dragHandler = null;
+        if (App._watchId) {
+          App._followGPS = false;
+          btn.classList.remove('active');
+          btn.classList.add('active-dim');
+        }
+      };
+      MapCtrl.map.once('dragstart', _dragHandler);
+    };
+    _attachDragHandler();
+
     this._watchId = navigator.geolocation.watchPosition(
       pos => {
-        const { latitude: lat, longitude: lng, heading, speed } = pos.coords;
+        const { latitude: lat, longitude: lng, heading, speed, accuracy } = pos.coords;
         App._selfPos = { lat, lng };
-        MapCtrl.showSelf(lat, lng);
-        MapCtrl.panTo(lat, lng);
-        document.getElementById('btn-locate').classList.add('active');
+        MapCtrl.showSelf(lat, lng, accuracy);
+        if (App._followGPS) MapCtrl.panTo(lat, lng);
+        btn.classList.toggle('active',     App._followGPS);
+        btn.classList.toggle('active-dim', !App._followGPS);
+
+        // Re-attach drag listener so it fires after next re-center
+        if (App._followGPS) _attachDragHandler();
 
         // Broadcast to BFT if mission active (max once per 15 seconds)
         if (Mission.active) {
           const now = Date.now();
-          if (now - this._lastBFT > 15000) {
-            this._lastBFT = now;
-            // Include own-unit status if we have a unit with matching callsign
+          if (now - App._lastBFT > 15000) {
+            App._lastBFT = now;
             const myUnit = Object.values(MapCtrl._units).find(u => u.data.callsign === Auth.callsign);
             const status = myUnit?.data.lace ? {
               fuel_pct: myUnit.data.lace.l,
@@ -1540,9 +2093,13 @@ const App = {
         }
       },
       err => {
+        if (App._watchId != null) {
+          navigator.geolocation.clearWatch(App._watchId);
+          App._watchId = null;
+        }
+        App._followGPS = true;
+        btn.classList.remove('active', 'active-dim');
         UI.toast('Location error: ' + err.message, 'error');
-        this._watchId = null;
-        document.getElementById('btn-locate').classList.remove('active');
       },
       { enableHighAccuracy: true, maximumAge: 5000 }
     );

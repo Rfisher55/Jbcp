@@ -33,12 +33,15 @@ function parseMGRS(raw) {
     if (isFinite(lat) && isFinite(lng)) return { lat, lng, valid: true };
   } catch {}
 
-  // Try abbreviated numeric grid — assume AO 100km square
+  // Try abbreviated numeric grid — expand using configured AO 100km square
   if (/^\d{4,10}$/.test(s) && s.length % 2 === 0) {
-    const h = s.length / 2;
-    const e = s.slice(0, h).padEnd(5, '0');
-    const n = s.slice(h).padEnd(5, '0');
-    const full = AO.mgrs100k + e + n;
+    const h      = s.length / 2;
+    const e      = s.slice(0, h).padEnd(5, '0');
+    const n      = s.slice(h).padEnd(5, '0');
+    const sq100k = (() => {
+      try { return JSON.parse(localStorage.getItem('cop_ao') || 'null')?.mgrs100k || AO.mgrs100k; } catch { return AO.mgrs100k; }
+    })();
+    const full = sq100k + e + n;
     try {
       const [lng, lat] = mgrs.toPoint(full);
       if (isFinite(lat) && isFinite(lng))
@@ -148,16 +151,16 @@ const MGRSGrid = L.Layer.extend({
 
     for (let e = eMin; e <= eMax; e += interval) {
       if (e < 100000 || e > 900000) continue;
-      this._line(ctx, map, zone, isN, 'e', e, nMin, nMax, digits);
+      this._line(ctx, map, zone, isN, 'e', e, nMin, nMax, digits, interval);
     }
     for (let n = nMin; n <= nMax; n += interval) {
       if (n < 0 || n > 10000000) continue;
-      this._line(ctx, map, zone, isN, 'n', n, eMin, eMax, digits);
+      this._line(ctx, map, zone, isN, 'n', n, eMin, eMax, digits, interval);
     }
   },
 
-  _line(ctx, map, zone, isN, axis, fixed, vMin, vMax, digits) {
-    const steps = Math.max(5, 20);
+  _line(ctx, map, zone, isN, axis, fixed, vMin, vMax, digits, interval) {
+    const steps = 20;
     const pts   = [];
 
     for (let i = 0; i <= steps; i++) {
@@ -183,8 +186,8 @@ const MGRSGrid = L.Layer.extend({
       const mid  = pts[Math.floor(pts.length / 2)];
       const size = map.getSize();
       if (mid.x > 16 && mid.x < size.x - 16 && mid.y > 16 && mid.y < size.y - 16) {
-        const raw = Math.round(fixed);
-        const label = String(raw).slice(-digits * 2 + (digits === 1 ? 1 : 0)).padStart(digits * 2, '0').slice(0, digits);
+        // km offset within the 100 km square, formatted to the right number of digits
+        const label = String(Math.floor(Math.round(fixed) % 100000 / interval)).padStart(digits, '0');
         ctx.save();
         ctx.font = '9px SF Mono,monospace';
         ctx.fillStyle = 'rgba(70,210,255,0.8)';

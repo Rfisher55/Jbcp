@@ -95,8 +95,8 @@ const BFT = {
 
   _icon(data, stale) {
     const init    = (data.callsign || '??').slice(0, 2).toUpperCase();
-    const hdg     = data.heading || 0;
-    const moving  = (data.speed || 0) > 1;
+    const hdg     = Math.round(+(data.heading || 0)) % 360;
+    const moving  = +(data.speed || 0) > 1;
     const arrow   = `<svg class="bft-hdg-arrow${moving ? '' : ' bft-hdg-hidden'}" ` +
                     `style="transform:rotate(${hdg}deg)" viewBox="0 0 10 10" width="10" height="10">` +
                     `<polygon points="5,0 10,10 5,7 0,10"/></svg>`;
@@ -189,6 +189,50 @@ const BFT = {
     if (ammoEl && t.ammo_pct != null) ammoEl.textContent = t.ammo_pct + '%';
     if (statEl && t.opstat)           statEl.textContent = t.opstat;
 
+    // Fly-to, share, and adopt buttons
+    const flyBtn    = document.getElementById('btn-bft-fly');
+    const shareBtn  = document.getElementById('btn-bft-share-pos');
+    const adoptBtn  = document.getElementById('btn-bft-adopt');
+    if (flyBtn) {
+      flyBtn.onclick = () => {
+        UI.closeSheet('sheet-bft-card');
+        MapCtrl.flyToGrid(t.lat, t.lng);
+      };
+    }
+    if (shareBtn) {
+      shareBtn.onclick = () => {
+        if (!Chat.isJoined()) { UI.toast('Join a mission to share', 'info'); return; }
+        const cs = String(t.callsign || 'Track').replace(/[|\x00-\x1f]/g, '').slice(0, 16);
+        Chat.send(`BFT TRACK: ${cs} @ ${t.mgrs || `${t.lat.toFixed(5)},${t.lng.toFixed(5)}`} HDG ${t.heading || 0}° ${t.speed || 0}kph`);
+        UI.closeSheet('sheet-bft-card');
+        UI.toast('Position shared to chat', 'success', 2000);
+      };
+    }
+    if (adoptBtn) {
+      adoptBtn.onclick = () => {
+        const unit = {
+          id:         uid,
+          mission_id: (typeof Mission !== 'undefined' && Mission.active) ? Mission.current.id : null,
+          sidc:       'SFGPUC-----',
+          callsign:   String(t.callsign || 'BFT').slice(0, 24),
+          lat:        t.lat,
+          lng:        t.lng,
+          notes:      'Adopted from BFT track',
+          updated_at: new Date().toISOString(),
+        };
+        if (MapCtrl._units[uid]) {
+          MapCtrl._updateUnit(uid, { lat: t.lat, lng: t.lng, callsign: unit.callsign });
+          UI.toast(`Unit ${unit.callsign} updated`, 'success', 2000);
+        } else {
+          MapCtrl._addUnitMarker(unit);
+          LocalStore.upsertUnit(unit);
+          if (Mission.active) DB.upsertUnit(unit).catch(() => {});
+          UI.toast(`${unit.callsign} placed as unit`, 'success', 2000);
+        }
+        UI.closeSheet('sheet-bft-card');
+      };
+    }
+
     UI.showSheet('sheet-bft-card');
   },
 
@@ -204,5 +248,5 @@ const BFT = {
 };
 
 function _escH(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

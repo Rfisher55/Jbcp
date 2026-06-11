@@ -9,6 +9,7 @@
   <meta name="theme-color" content="#0d1117">
   <title>Tactical COP</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -108,6 +109,8 @@
       <div id="roster-list"><p class="empty-msg">No members yet</p></div>
     </div>
   </aside>
+  <!-- Backdrop to close roster when tapping map -->
+  <div id="roster-backdrop"></div>
 
   <!-- Bottom bar -->
   <nav id="bottom-bar">
@@ -116,6 +119,7 @@
     </button>
     <div id="coord-chip" class="coord-chip" title="Tap to copy MGRS">
       <span id="coord-mgrs">No position</span>
+      <span id="coord-accuracy" style="display:none;font-size:9px;opacity:0.6;margin-left:4px"></span>
     </div>
     <button class="icon-btn" id="btn-chat" title="GeoChat" style="position:relative">
       <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="currentColor"/></svg>
@@ -208,22 +212,6 @@
   </div>
 
   <!-- Plot grid sheet -->
-  <div id="sheet-plot-grid" class="sheet hidden" role="dialog" aria-modal="true">
-    <div class="sheet-inner">
-      <div class="sheet-handle"></div>
-      <button class="btn-close" id="btn-plot-close">✕</button>
-      <h3>Plot Grid Reference</h3>
-      <div class="field-group">
-        <label for="plot-input">MGRS / Grid</label>
-        <input id="plot-input" type="text" placeholder="16TDL 123 456 or just 123456"
-               autocomplete="off" autocapitalize="characters" spellcheck="false">
-        <span class="field-hint">Accepts full MGRS or 4–10 digit local grid (Camp Grayling AO)</span>
-      </div>
-      <button class="btn-primary btn-full" id="btn-plot-go">Go to Grid ↗</button>
-      <div id="plot-error" class="error-msg" hidden></div>
-    </div>
-  </div>
-
   <!-- Layers sheet -->
   <div id="sheet-layers" class="sheet hidden" role="dialog" aria-modal="true">
     <div class="sheet-inner">
@@ -268,6 +256,7 @@
       <div class="measure-grid">
         <dt>Distance</dt><dd id="m-distance">—</dd>
         <dt>Azimuth</dt><dd id="m-azimuth">—</dd>
+        <dt>Back Az</dt><dd id="m-back-az">—</dd>
         <dt>Mils</dt><dd id="m-mils">—</dd>
         <dt>From</dt><dd id="m-from">—</dd>
         <dt>To</dt><dd id="m-to">—</dd>
@@ -298,8 +287,11 @@
   <div id="sheet-chat" class="sheet sheet-tall hidden" role="dialog" aria-modal="true">
     <div class="sheet-inner sheet-inner-chat">
       <div class="sheet-handle"></div>
-      <button class="btn-close" id="btn-chat-close">✕</button>
-      <h3>GeoChat</h3>
+      <div class="sheet-head">
+        <h3>GeoChat</h3>
+        <button class="btn-secondary" id="btn-chat-clear" style="font-size:11px;padding:2px 8px">Clear</button>
+        <button class="btn-close" id="btn-chat-close">✕</button>
+      </div>
       <div id="chat-msgs" class="chat-msgs"></div>
       <div id="chat-canned" class="chat-canned"></div>
       <div class="chat-input-row">
@@ -357,7 +349,17 @@
         <h3>Reports Log</h3>
         <button class="btn-close" id="btn-reports-log-close">✕</button>
       </div>
+      <div id="reports-log-filter" class="rpt-filter-bar">
+        <button class="rpt-filter-btn active" data-type="ALL">ALL</button>
+        <button class="rpt-filter-btn" data-type="SPOTREP">SPOT</button>
+        <button class="rpt-filter-btn" data-type="9LINE">9LINE</button>
+        <button class="rpt-filter-btn" data-type="LACE">LACE</button>
+        <button class="rpt-filter-btn" data-type="ACE">ACE</button>
+        <button class="rpt-filter-btn" data-type="SITREP">SITREP</button>
+        <button class="rpt-filter-btn" data-type="NBC">NBC</button>
+      </div>
       <div id="reports-log-list" class="reports-log-list"><p class="empty-msg">No reports filed yet</p></div>
+      <button class="btn-secondary btn-full" id="btn-reports-export-all" style="margin:8px 0">Export All Reports</button>
     </div>
   </div>
 
@@ -458,7 +460,10 @@
                autocomplete="off" autocapitalize="sentences">
       </div>
       <div class="field-group">
-        <label for="spot-dtg">T — Time (DTG)</label>
+        <label for="spot-dtg" style="display:flex;justify-content:space-between;align-items:center">
+          <span>T — Time (DTG)</span>
+          <button class="btn-secondary" id="btn-spotdtg-now" style="font-size:10px;padding:2px 8px;margin:0">Now</button>
+        </label>
         <input id="spot-dtg" type="text" placeholder="DDHHMM Z MON YY"
                autocomplete="off" autocapitalize="characters">
       </div>
@@ -579,7 +584,10 @@
         <input id="sit-unit" type="text" autocomplete="off" autocapitalize="characters">
       </div>
       <div class="field-group">
-        <label for="sit-dtg">Date-Time Group</label>
+        <label for="sit-dtg" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Date-Time Group</span>
+          <button class="btn-secondary" id="btn-dtg-now" style="font-size:10px;padding:2px 8px;margin:0">Now</button>
+        </label>
         <input id="sit-dtg" type="text" autocomplete="off" autocapitalize="characters">
       </div>
       <div class="field-group">
@@ -658,8 +666,8 @@
       <div class="sheet-handle"></div>
       <button class="btn-close" id="btn-goto-close">✕</button>
       <h3>Go to Grid</h3>
-      <p class="sheet-hint">Enter MGRS or abbreviated grid (e.g. 38SMB1234 or 12345678)</p>
-      <input id="goto-grid-input" class="text-input" type="text" placeholder="38SMB12345678"
+      <p class="sheet-hint">Enter MGRS, abbreviated grid, or unit callsign</p>
+      <input id="goto-grid-input" class="text-input" type="text" placeholder="38SMB12345678 or ALPHA-1"
              autocomplete="off" autocorrect="off" autocapitalize="characters"
              style="font-size:18px; letter-spacing:0.05em; margin-bottom:12px">
       <div id="goto-grid-note" style="font-size:12px; color:var(--text-dim); min-height:16px; margin-bottom:12px"></div>
@@ -686,6 +694,13 @@
         <dt id="bft-card-ammo-row">Ammo</dt><dd id="bft-card-ammo">—</dd>
         <dt id="bft-card-stat-row">Status</dt><dd id="bft-card-opstat">—</dd>
       </dl>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn-secondary btn-full" id="btn-bft-fly">Fly To</button>
+        <button class="btn-secondary btn-full" id="btn-bft-share-pos">Share to Chat</button>
+      </div>
+      <div class="btn-row" style="margin-top:6px">
+        <button class="btn-secondary btn-full" id="btn-bft-adopt">Adopt as Unit</button>
+      </div>
     </div>
   </div>
 
@@ -759,7 +774,10 @@
         <input id="nbc-loc" type="text" placeholder="6-digit MGRS" autocapitalize="characters">
       </div>
       <div class="field-group">
-        <label for="nbc-dtg">Date-Time Group</label>
+        <label for="nbc-dtg" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Date-Time Group</span>
+          <button class="btn-secondary" id="btn-nbcdtg-now" style="font-size:10px;padding:2px 8px;margin:0">Now</button>
+        </label>
         <input id="nbc-dtg" type="text" autocapitalize="characters">
       </div>
       <div class="field-group">
@@ -828,7 +846,22 @@
         <h3>Force Status</h3>
         <button class="btn-close" id="btn-force-status-close">✕</button>
       </div>
-      <button class="btn-secondary btn-full" id="btn-fstat-share" style="margin-bottom:10px">Share to Chat</button>
+      <div class="btn-row" style="margin-bottom:8px">
+        <button class="btn-secondary btn-full" id="btn-fstat-share">Share to Chat</button>
+        <button class="btn-secondary btn-full" id="btn-fstat-export">Copy Text</button>
+      </div>
+      <div class="fstat-bulk-row" style="margin-bottom:10px">
+        <span class="fstat-bulk-label">Set all RC:</span>
+        <button class="btn-rc-bulk" data-rc="1">1</button>
+        <button class="btn-rc-bulk" data-rc="2">2</button>
+        <button class="btn-rc-bulk" data-rc="3">3</button>
+        <button class="btn-rc-bulk" data-rc="4">4</button>
+        <button class="btn-rc-bulk" data-rc="5">5</button>
+      </div>
+      <div id="fstat-summary" style="margin-bottom:8px"></div>
+      <input id="fstat-filter" type="text" placeholder="Filter by callsign…"
+             autocomplete="off" autocapitalize="characters" spellcheck="false"
+             style="width:100%;box-sizing:border-box;margin-bottom:8px">
       <div id="force-status-list" class="force-status-list">
         <p class="empty-msg">No units placed</p>
       </div>
@@ -862,6 +895,26 @@
       </div>
 
       <div class="layers-section" style="margin-top:16px">
+        <h4>Area of Operations</h4>
+        <p class="sheet-hint" style="margin-bottom:6px">Short MGRS grids (e.g. 12345678) expand using this 100km square.</p>
+        <div class="field-group" style="margin-bottom:6px">
+          <label for="settings-ao-name">AO Name</label>
+          <input id="settings-ao-name" type="text" placeholder="e.g. Camp Grayling"
+                 autocomplete="off" autocapitalize="words">
+        </div>
+        <div class="field-group" style="margin-bottom:6px">
+          <label for="settings-ao-mgrs">Center (full MGRS)</label>
+          <input id="settings-ao-mgrs" type="text" placeholder="e.g. 16TDL50005000"
+                 autocomplete="off" autocapitalize="characters" spellcheck="false"
+                 style="font-family:'SF Mono',monospace">
+        </div>
+        <div class="btn-row" style="margin-bottom:8px">
+          <button class="btn-secondary" id="btn-ao-use-map">Use Map Center</button>
+          <button class="btn-primary" id="btn-ao-save">Save AO</button>
+        </div>
+      </div>
+
+      <div class="layers-section" style="margin-top:16px">
         <h4>Data Management</h4>
         <button class="btn-secondary btn-full" id="btn-clear-reports" style="margin-bottom:8px">Clear Report Markers</button>
         <button class="btn-secondary btn-full" id="btn-clear-units" style="margin-bottom:8px">Clear All Units (local)</button>
@@ -883,7 +936,7 @@
       </div>
 
       <div class="sheet-hint" style="margin-top:16px; text-align:center">
-        v11 · NOT FOR OPERATIONAL USE
+        v20 · NOT FOR OPERATIONAL USE
       </div>
     </div>
   </div>
