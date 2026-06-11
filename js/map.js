@@ -745,11 +745,11 @@ const MapCtrl = {
       if (this._activeTool !== 'select') return;
       L.DomEvent.stopPropagation(e);
       const nameHtml = name ? `<div style="font-weight:700;margin-bottom:8px;font-size:14px">${_escH(name)}</div>` : '';
-      L.popup({ closeButton: true, autoPan: false })
+      const gPopup = L.popup({ closeButton: true, autoPan: false })
         .setLatLng(e.latlng)
         .setContent(
           `<div class="popup-body">${nameHtml}` +
-          `<button data-gid="${_escH(g.id)}" class="btn-del-graphic" style="font-size:12px;padding:4px 12px;` +
+          `<button class="btn-del-graphic" style="font-size:12px;padding:4px 12px;` +
           `background:rgba(248,81,73,0.2);color:#f85149;border:1px solid rgba(248,81,73,0.4);` +
           `border-radius:6px;cursor:pointer">Delete</button></div>`
         )
@@ -757,17 +757,15 @@ const MapCtrl = {
         .openOn(this._map);
 
       setTimeout(() => {
-        document.querySelectorAll('.btn-del-graphic').forEach(btn => {
-          if (btn.dataset.gid !== g.id) return;
-          const handler = () => {
-            this._graphicLayer.removeLayer(group);
-            delete this._graphics[g.id];
-            LocalStore.deleteGraphic(g.id);
-            if (Mission.active) DB.deleteGraphic(g.id).catch(() => {});
-            this._map.closePopup();
-          };
-          btn.onclick = handler;
-        });
+        const btn = gPopup.getElement()?.querySelector('.btn-del-graphic');
+        if (!btn) return;
+        btn.onclick = () => {
+          this._graphicLayer.removeLayer(group);
+          delete this._graphics[g.id];
+          LocalStore.deleteGraphic(g.id);
+          if (Mission.active) DB.deleteGraphic(g.id).catch(() => {});
+          this._map.closePopup();
+        };
       }, 40);
     });
 

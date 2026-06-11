@@ -1943,10 +1943,12 @@ const App = {
       URL.revokeObjectURL(url);
       UI.toast('Plan exported', 'success');
     } catch {
-      // iOS Safari fallback: copy to clipboard
       navigator.clipboard?.writeText(json)
         .then(() => UI.toast('Plan copied to clipboard (JSON)', 'success'))
-        .catch(() => UI.toast('Export failed — try again', 'error'));
+        .catch(() => {
+          try { window.open('data:application/json;charset=utf-8,' + encodeURIComponent(json)); }
+          catch { UI.toast('Export failed — try again', 'error'); }
+        });
     }
   },
 
