@@ -1,4 +1,10 @@
 // Military report forms: LACE, SPOTREP, 9-Line MEDEVAC, SITREP
+
+function _selfMGRS() {
+  const t = document.getElementById('coord-mgrs')?.textContent || '';
+  return t === 'No position' ? '' : t;
+}
+
 const Reports = {
   _ctx: null,  // { type, lat, lng, unitId }
 
@@ -55,7 +61,7 @@ const Reports = {
       reporter:   Auth.callsign,
       unit_id:    this._ctx?.unitId,
       data:       lace,
-      mgrs:       document.getElementById('coord-mgrs')?.textContent || '',
+      mgrs:       _selfMGRS(),
       created_at: new Date().toISOString()
     });
     if (Chat.isJoined()) Chat.send(`LACE: Liquid ${l}% Ammo ${a}% Equip ${e}% — Cas:${c}`);
@@ -99,13 +105,14 @@ const Reports = {
       created_at: new Date().toISOString()
     };
     LocalStore.upsertReport(rpt);
-    if (this._ctx?.lat != null) MapCtrl.placeReportMarker(rpt);
+    const hasLoc = this._ctx?.lat != null;
+    if (hasLoc) MapCtrl.placeReportMarker(rpt);
 
     if (Chat.isJoined()) {
       Chat.send(`SPOTREP: ${size} ${activity} at ${location} DTG ${dtg}`);
     }
     UI.closeSheet('sheet-spotrep');
-    UI.toast('SPOTREP filed — enemy marker placed', 'success');
+    UI.toast(hasLoc ? 'SPOTREP filed — enemy marker placed' : 'SPOTREP filed', 'success');
     this._ctx = null;
   },
 
@@ -163,7 +170,8 @@ const Reports = {
   openSITREP() {
     document.getElementById('sit-unit').value     = Auth.callsign || '';
     document.getElementById('sit-dtg').value      = this._dtg();
-    document.getElementById('sit-loc').value      = document.getElementById('coord-mgrs')?.textContent || '';
+    const coordTxt = document.getElementById('coord-mgrs')?.textContent || '';
+    document.getElementById('sit-loc').value      = coordTxt === 'No position' ? '' : coordTxt;
     document.getElementById('sit-friendly').value = '';
     document.getElementById('sit-enemy').value    = '';
     document.getElementById('sit-log').value      = '';
@@ -227,7 +235,7 @@ const Reports = {
     const mia = +(document.getElementById('ace-mia').value);
     LocalStore.upsertReport({
       id: crypto.randomUUID(), type: 'ACE', reporter: Auth.callsign,
-      unit_id: this._ctx?.unitId, mgrs: document.getElementById('coord-mgrs')?.textContent || '',
+      unit_id: this._ctx?.unitId, mgrs: _selfMGRS(),
       data: { a, e, kia, wia, mia }, created_at: new Date().toISOString()
     });
     if (Chat.isJoined()) Chat.send(`ACE: Ammo ${a}% Equip ${e}% — KIA:${kia} WIA:${wia} MIA:${mia}`);
@@ -273,18 +281,31 @@ const Reports = {
   },
 
   // ── Reports Log ────────────────────────────────────────────
+  _logFilter: 'ALL',
+
   openLog() {
+    this._logFilter = 'ALL';
+    const bar = document.getElementById('reports-log-filter');
+    if (bar) bar.querySelectorAll('.rpt-filter-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.type === 'ALL');
+    });
     this._renderLog();
     UI.showSheet('sheet-reports-log');
   },
 
   _renderLog() {
-    const list    = document.getElementById('reports-log-list');
-    const reports = LocalStore.getReports()
+    const list = document.getElementById('reports-log-list');
+    if (!list) return;
+    const all     = LocalStore.getReports()
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const reports = (this._logFilter && this._logFilter !== 'ALL')
+      ? all.filter(r => r.type === this._logFilter)
+      : all;
 
     if (!reports.length) {
-      list.innerHTML = '<p class="empty-msg">No reports filed yet</p>';
+      list.innerHTML = this._logFilter !== 'ALL'
+        ? `<p class="empty-msg">No ${_escH(this._logFilter)} reports</p>`
+        : '<p class="empty-msg">No reports filed yet</p>';
       return;
     }
 
@@ -295,11 +316,16 @@ const Reports = {
       const preview = this._reportPreview(r);
       const unitEntry = r.unit_id ? MapCtrl._units?.[r.unit_id] : null;
       const unitLabel = unitEntry ? ` · ${_escH(unitEntry.data.callsign || '')}` : '';
+      const hasLoc = r.lat != null && r.lng != null;
       return `<div class="rpt-log-entry">
         <div class="rpt-log-header">
-          <span class="rpt-log-badge ${r.type.toLowerCase()}">${r.type}</span>
+          <span class="rpt-log-badge ${_escH(r.type.toLowerCase())}">${_escH(r.type)}</span>
           <span class="rpt-log-meta">${_escH(r.reporter || '—')}${unitLabel} · ${dtLabel}</span>
-          <button class="rpt-log-copy" data-id="${r.id}">Copy</button>
+          <div class="rpt-log-actions">
+            ${hasLoc ? `<button class="rpt-log-fly" data-id="${_escH(r.id)}" title="Fly to location">⌖</button>` : ''}
+            <button class="rpt-log-copy" data-id="${_escH(r.id)}">Copy</button>
+            <button class="rpt-log-del" data-id="${_escH(r.id)}" title="Delete report">✕</button>
+          </div>
         </div>
         <div class="rpt-log-preview">${preview}</div>
       </div>`;
@@ -311,15 +337,34 @@ const Reports = {
         if (r) this._copyReport(r);
       });
     });
+
+    list.querySelectorAll('.rpt-log-fly').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const r = reports.find(x => x.id === btn.dataset.id);
+        if (r?.lat != null && r?.lng != null) {
+          UI.closeSheet('sheet-reports-log');
+          MapCtrl.flyToGrid(r.lat, r.lng);
+        }
+      });
+    });
+
+    list.querySelectorAll('.rpt-log-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        LocalStore.deleteReport(btn.dataset.id);
+        this._renderLog();
+      });
+    });
   },
 
   _reportPreview(r) {
-    if (r.type === 'SPOTREP') return `${r.data.size || ''} — ${r.data.activity || ''} @ ${r.mgrs || ''}`.trim();
-    if (r.type === '9LINE')   return `L1:${r.data.line1 || ''} L3:${r.data.line3 || ''} L5:${r.data.line5 || ''}`;
-    if (r.type === 'SITREP')  return `${r.data.unit || ''} — ${(r.data.friendly || '').slice(0,80)}`;
-    if (r.type === 'LACE')    return `L:${r.data.l}% A:${r.data.a}% C:${r.data.c} E:${r.data.e}%`;
-    if (r.type === 'ACE')     return `A:${r.data.a}% E:${r.data.e}% KIA:${r.data.kia} WIA:${r.data.wia} MIA:${r.data.mia}`;
-    if (r.type === 'NBC')     return `${r.data.type} — ${r.mgrs || ''} DTG ${r.data.dtg || ''}`;
+    const h = s => _escH(String(s ?? ''));
+    const d = r.data || {};
+    if (r.type === 'SPOTREP') return `${h(d.size)} — ${h(d.activity)} @ ${h(r.mgrs)}`.trim();
+    if (r.type === '9LINE')   return `L1:${h(d.line1)} L3:${h(d.line3)} L5:${h(d.line5)}`;
+    if (r.type === 'SITREP')  return `${h(d.unit)} — ${h((d.friendly || '').slice(0,80))}`;
+    if (r.type === 'LACE')    return `L:${h(d.l)}% A:${h(d.a)}% C:${h(d.c)} E:${h(d.e)}%`;
+    if (r.type === 'ACE')     return `A:${h(d.a)}% E:${h(d.e)}% KIA:${h(d.kia)} WIA:${h(d.wia)} MIA:${h(d.mia)}`;
+    if (r.type === 'NBC')     return `${h(d.type)} — ${h(r.mgrs)} DTG ${h(d.dtg)}`;
     return '';
   },
 
@@ -328,6 +373,25 @@ const Reports = {
     navigator.clipboard?.writeText(text)
       .then(() => UI.toast('Report copied to clipboard', 'success'))
       .catch(() => UI.toast('Copy failed — check browser permissions', 'error'));
+  },
+
+  exportAll() {
+    const reports = LocalStore.getReports()
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    if (!reports.length) { UI.toast('No reports to export', 'info'); return; }
+    const divider = '\n' + '─'.repeat(40) + '\n\n';
+    const text = reports.map(r => this._formatReport(r)).join(divider);
+    navigator.clipboard?.writeText(text)
+      .then(() => UI.toast(`${reports.length} report${reports.length !== 1 ? 's' : ''} copied to clipboard`, 'success'))
+      .catch(() => {
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = `reports-${new Date().toISOString().slice(0,10)}.txt`;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        UI.toast(`${reports.length} reports downloaded`, 'success');
+      });
   },
 
   _formatReport(r) {

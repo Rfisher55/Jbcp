@@ -24,7 +24,8 @@ const Mission = {
   },
 
   async restore() {
-    const stored = localStorage.getItem('cop_mission');
+    let stored;
+    try { stored = localStorage.getItem('cop_mission'); } catch { return null; }
     if (!stored) return null;
     try {
       const saved = JSON.parse(stored);
@@ -37,19 +38,19 @@ const Mission = {
         return this._activate(saved, { silent: true });
       }
     } catch {}
-    localStorage.removeItem('cop_mission');
+    try { localStorage.removeItem('cop_mission'); } catch {}
     return null;
   },
 
   leave() {
     if (this._unsub) { this._unsub(); this._unsub = null; }
     this.current = null;
-    localStorage.removeItem('cop_mission');
+    try { localStorage.removeItem('cop_mission'); } catch {}
   },
 
   _activate(m, { silent = false } = {}) {
     this.current = m;
-    localStorage.setItem('cop_mission', JSON.stringify({ id: m.id, name: m.name, status: m.status }));
+    try { localStorage.setItem('cop_mission', JSON.stringify({ id: m.id, name: m.name, status: m.status })); } catch {}
 
     // Subscribe to live changes
     if (this._unsub) this._unsub();

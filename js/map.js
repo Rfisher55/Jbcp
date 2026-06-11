@@ -25,6 +25,7 @@ const MapCtrl = {
   _graphicLayer:     null,
   _reportLayer:      null,
   _measureLayer:     null,
+  _rangeRingLayer:   null,  // separate from measure so clearMeasure() doesn't destroy rings
   _pinLayer:         null,
   _previewGroup:     null,
   _rangeRings:       {},   // unitId → array of Leaflet circle layers
@@ -46,11 +47,15 @@ const MapCtrl = {
   _clickTimeout:     null,
   _ctxLatLng:        null,
   _symbolScale:      1.0,
+  _batchLoading:     false,
 
   init() {
+    const savedView = (() => {
+      try { return JSON.parse(localStorage.getItem('cop_map_view') || 'null'); } catch { return null; }
+    })();
     this._map = L.map('map', {
-      center:           AO.center,
-      zoom:             AO.zoom,
+      center:           savedView ? [savedView.lat, savedView.lng] : AO.center,
+      zoom:             savedView ? savedView.zoom : AO.zoom,
       zoomControl:      false,
       attributionControl: true,
       doubleClickZoom:  false,
@@ -61,11 +66,14 @@ const MapCtrl = {
     this._unitLayer    = L.featureGroup().addTo(this._map);
     this._graphicLayer = L.featureGroup().addTo(this._map);
     this._reportLayer  = L.featureGroup().addTo(this._map);
-    this._measureLayer = L.featureGroup().addTo(this._map);
-    this._pinLayer     = L.featureGroup().addTo(this._map);
+    this._measureLayer   = L.featureGroup().addTo(this._map);
+    this._rangeRingLayer = L.featureGroup().addTo(this._map);
+    this._pinLayer       = L.featureGroup().addTo(this._map);
     this._previewGroup = L.featureGroup().addTo(this._map);
 
-    this._symbolScale  = parseFloat(localStorage.getItem('cop_symbol_scale') || '1.0');
+    let _scaleRaw = '1.0';
+    try { _scaleRaw = localStorage.getItem('cop_symbol_scale') || '1.0'; } catch {}
+    this._symbolScale = parseFloat(_scaleRaw) || 1.0;
 
     BFT.init(this._map);
 
@@ -87,6 +95,14 @@ const MapCtrl = {
     this._map.on('click',       e => this._onMapClick(e));
     this._map.on('dblclick',    e => this._onMapDblClick(e));
     this._map.on('contextmenu', e => this._onMapContextMenu(e));
+
+    // Persist map view so the app reopens at the same location
+    this._map.on('moveend', () => {
+      const c = this._map.getCenter();
+      try {
+        localStorage.setItem('cop_map_view', JSON.stringify({ lat: c.lat, lng: c.lng, zoom: this._map.getZoom() }));
+      } catch {}
+    });
     this._map.on('zoomend',     () => this._refreshIconSizes());
 
     // Refresh stale-opacity on all unit markers every 5 minutes
@@ -133,7 +149,7 @@ const MapCtrl = {
 
   setSymbolScale(s) {
     this._symbolScale = s;
-    localStorage.setItem('cop_symbol_scale', String(s));
+    try { localStorage.setItem('cop_symbol_scale', String(s)); } catch {}
     this._refreshIconSizes();
   },
 
@@ -148,8 +164,10 @@ const MapCtrl = {
   setTool(tool) {
     this._activeTool = tool;
     this._drawPoints = [];
+    this._measurePts = [];
     this._clearPreview();
     this._activeGraphicType = null;
+    if (tool !== 'place-unit') this._pendingLatLng = null;
 
     const mc = this._map.getContainer();
     mc.className = mc.className.replace(/cursor-\S+/g, '').trim();
@@ -162,7 +180,6 @@ const MapCtrl = {
     if (tool === 'draw-area')   { mc.classList.add('cursor-crosshair'); drawToolbar?.classList.remove('hidden'); this._updateDrawCount(); }
     if (tool === 'measure')     { mc.classList.add('cursor-crosshair'); UI.showSheet('sheet-measure'); }
     if (tool === 'pin')         { mc.classList.add('cursor-crosshair'); UI.toast('Tap map to drop a pin — grid auto-copies', 'info', 2500); }
-    if (tool === 'plot-grid')   { UI.showSheet('sheet-plot-grid'); this._activeTool = 'select'; }
     if (tool === 'select')      { this._activeSIDC = null; this._activeCatalogEntry = null; }
   },
 
@@ -197,16 +214,50 @@ const MapCtrl = {
       className: '', iconSize: [8, 8], iconAnchor: [4, 4],
     });
     const marker = L.marker(latlng, { icon, zIndexOffset: 700, interactive: true });
-    marker.on('click', () => {
-      navigator.clipboard?.writeText(mgrs).then(() => UI.toast('Grid copied: ' + mgrs, 'success'));
+
+    const removePin = () => { this._pinLayer.removeLayer(marker); delete this._pins[id]; };
+
+    // Tap/click → popup with Copy and Delete actions (works on mobile)
+    marker.on('click', e => {
+      L.DomEvent.stopPropagation(e);
+      const popup = L.popup({ closeButton: false, offset: [0, -8], className: 'pin-popup' })
+        .setLatLng(latlng)
+        .setContent(
+          `<div class="pin-popup-inner">
+            <div class="pin-popup-mgrs">${_escH(mgrs)}</div>
+            <div class="pin-popup-btns">
+              <button class="pin-popup-copy">📋 Copy</button>
+              <button class="pin-popup-del">🗑 Delete</button>
+            </div>
+          </div>`
+        )
+        .openOn(this._map);
+
+      // Wire buttons after popup is in DOM
+      setTimeout(() => {
+        popup.getElement()?.querySelector('.pin-popup-copy')?.addEventListener('click', e => {
+          e.stopPropagation();
+          navigator.clipboard?.writeText(mgrs)
+            .then(() => UI.toast('Grid copied: ' + mgrs, 'success', 1800))
+            .catch(() => UI.toast('Grid: ' + mgrs, 'info', 1800));
+          this._map.closePopup(popup);
+        });
+        popup.getElement()?.querySelector('.pin-popup-del')?.addEventListener('click', e => {
+          e.stopPropagation();
+          this._map.closePopup(popup);
+          removePin();
+        });
+      }, 0);
     });
-    marker.on('contextmenu', () => {
-      this._pinLayer.removeLayer(marker);
-      delete this._pins[id];
-    });
+
+    // Long-press / right-click also deletes (desktop convenience)
+    marker.on('contextmenu', e => { L.DomEvent.stopPropagation(e); removePin(); });
+
     marker.addTo(this._pinLayer);
     this._pins[id] = { marker, mgrs };
-    navigator.clipboard?.writeText(mgrs).then(() => UI.toast(`Pin dropped — Grid copied: ${mgrs}`, 'success'));
+    navigator.clipboard?.writeText(mgrs)
+      .then(() => UI.toast(`Pin dropped — Grid copied: ${mgrs}`, 'success'))
+      .catch(() => UI.toast(`Pin dropped — ${mgrs}`, 'info'));
   },
 
   clearPins() {
@@ -322,6 +373,7 @@ const MapCtrl = {
 
   // ── Finish / cancel draw ─────────────────────────────────
   finishDraw() {
+    clearTimeout(this._clickTimeout);
     this._clearPreview();
     const pts = this._drawPoints.slice();
     this._drawPoints = [];
@@ -371,6 +423,7 @@ const MapCtrl = {
     this._drawPoints = [];
     this._activeGraphicType = null;
     document.getElementById('draw-toolbar')?.classList.add('hidden');
+    UI.closeSheet('sheet-graphic-picker');
     this.setTool('select');
     UI.toolBtn('select');
   },
@@ -410,7 +463,7 @@ const MapCtrl = {
   },
 
   // Backward-compat: called when symbol is selected after clicking map
-  async placeUnit(catalogEntry, echelon) {
+  placeUnit(catalogEntry, echelon) {
     const latlng = this._pendingLatLng;
     if (!latlng) return;
     this._pendingLatLng = null;
@@ -429,6 +482,7 @@ const MapCtrl = {
     };
 
     this._addUnitMarker(unit);
+    LocalStore.upsertUnit(unit);
     if (Mission.active) {
       DB.upsertUnit(unit).catch(e => UI.toast('Save failed: ' + e.message, 'error'));
     }
@@ -437,6 +491,7 @@ const MapCtrl = {
   },
 
   _addUnitMarker(unit) {
+    if (this._units[unit.id]) return;
     const icon   = makeMilIcon(unit.sidc, this._getIconSize());
     const marker = L.marker([unit.lat, unit.lng], { icon, draggable: true })
       .addTo(this._unitLayer);
@@ -451,7 +506,7 @@ const MapCtrl = {
     marker.on('dragend', e => this._onUnitDrag(unit.id, e));
 
     this._units[unit.id] = { data: unit, marker };
-    this.updateUnitCount();
+    if (!this._batchLoading) this.updateUnitCount();
   },
 
   _applyStaleStyle(marker, unit) {
@@ -488,13 +543,18 @@ const MapCtrl = {
     });
   },
 
-  async _updateUnit(id, updates) {
+  _updateUnit(id, updates) {
     const entry = this._units[id];
     if (!entry) return;
     Object.assign(entry.data, updates, { updated_at: new Date().toISOString() });
     if (updates.sidc) entry.marker.setIcon(makeMilIcon(updates.sidc, this._getIconSize()));
     if (updates.lat !== undefined || updates.lng !== undefined) {
       entry.marker.setLatLng([entry.data.lat, entry.data.lng]);
+      if (this._rangeRings[id]) {
+        this._rangeRings[id].forEach(l => this._rangeRingLayer.removeLayer(l));
+        delete this._rangeRings[id];
+        this.toggleRangeRings(id, entry.data.lat, entry.data.lng);
+      }
     }
     if (updates.callsign !== undefined || updates.redcon !== undefined) {
       entry.marker.unbindTooltip();
@@ -507,10 +567,14 @@ const MapCtrl = {
     }
   },
 
-  async _deleteUnit(id) {
+  _deleteUnit(id) {
     const entry = this._units[id];
     if (!entry) return;
     this._unitLayer.removeLayer(entry.marker);
+    if (this._rangeRings[id]) {
+      this._rangeRings[id].forEach(l => this._rangeRingLayer.removeLayer(l));
+      delete this._rangeRings[id];
+    }
     delete this._units[id];
     this.updateUnitCount();
     LocalStore.deleteUnit(id);
@@ -520,13 +584,18 @@ const MapCtrl = {
     UI.closeSheet('sheet-unit');
   },
 
-  async _onUnitDrag(id, e) {
+  _onUnitDrag(id, e) {
     const entry = this._units[id];
     if (!entry) return;
     const { lat, lng } = e.target.getLatLng();
     entry.data.lat = lat;
     entry.data.lng = lng;
     entry.data.updated_at = new Date().toISOString();
+    if (this._rangeRings[id]) {
+      this._rangeRings[id].forEach(l => this._rangeRingLayer.removeLayer(l));
+      delete this._rangeRings[id];
+      this.toggleRangeRings(id, lat, lng);
+    }
     LocalStore.upsertUnit(entry.data);
     if (Mission.active) {
       DB.upsertUnit(entry.data).catch(() => {});
@@ -538,19 +607,35 @@ const MapCtrl = {
     const { eventType, new: row, old } = payload;
     if (eventType === 'DELETE') {
       const entry = this._units[old.id];
-      if (entry) { this._unitLayer.removeLayer(entry.marker); delete this._units[old.id]; this.updateUnitCount(); }
+      if (entry) {
+        this._unitLayer.removeLayer(entry.marker);
+        if (this._rangeRings[old.id]) {
+          this._rangeRings[old.id].forEach(l => this._rangeRingLayer.removeLayer(l));
+          delete this._rangeRings[old.id];
+        }
+        delete this._units[old.id];
+        this.updateUnitCount();
+      }
+      LocalStore.deleteUnit(old.id);
     } else {
       const existing = this._units[row.id];
       if (existing) {
+        const posChanged = existing.data.lat !== row.lat || existing.data.lng !== row.lng;
         existing.data = row;
         existing.marker.setLatLng([row.lat, row.lng]);
         existing.marker.setIcon(makeMilIcon(row.sidc, this._getIconSize()));
         existing.marker.unbindTooltip();
         this._bindUnitTooltip(existing.marker, row);
         this._applyStaleStyle(existing.marker, row);
+        if (posChanged && this._rangeRings[row.id]) {
+          this._rangeRings[row.id].forEach(l => this._rangeRingLayer.removeLayer(l));
+          delete this._rangeRings[row.id];
+          this.toggleRangeRings(row.id, row.lat, row.lng);
+        }
       } else {
         this._addUnitMarker(row);
       }
+      LocalStore.upsertUnit(row);
     }
   },
 
@@ -559,8 +644,10 @@ const MapCtrl = {
     if (eventType === 'DELETE') {
       const g = this._graphics[old.id];
       if (g) { this._graphicLayer.removeLayer(g.layer); delete this._graphics[old.id]; }
+      LocalStore.deleteGraphic(old.id);
     } else {
       this._renderGraphic(row);
+      LocalStore.upsertGraphic(row);
     }
   },
 
@@ -569,6 +656,7 @@ const MapCtrl = {
     this._unitLayer.clearLayers();
     this._graphicLayer.clearLayers();
     this._reportLayer.clearLayers();
+    this.clearRangeRings();
     this._units    = {};
     this._graphics = {};
 
@@ -577,10 +665,20 @@ const MapCtrl = {
       DB.getGraphics(missionId),
     ]);
 
-    for (const u of units)   this._addUnitMarker(u);
-    for (const g of graphics) this._renderGraphic(g);
-    for (const r of LocalStore.getReports()) this.placeReportMarker(r);
+    this._batchLoading = true;
+    try {
+      for (const u of units)    this._addUnitMarker(u);
+      for (const g of graphics) this._renderGraphic(g);
+      for (const r of LocalStore.getReports()) this.placeReportMarker(r);
+    } finally {
+      this._batchLoading = false;
+    }
     this.updateUnitCount();
+
+    // Mirror to localStorage so offline reload has current data
+    units.forEach(u => LocalStore.upsertUnit(u));
+    graphics.forEach(g => LocalStore.upsertGraphic(g));
+
     UI.toast(`Loaded ${units.length} unit${units.length !== 1 ? 's' : ''}`, 'info');
   },
 
@@ -588,6 +686,7 @@ const MapCtrl = {
     this._unitLayer.clearLayers();
     this._graphicLayer.clearLayers();
     this._reportLayer.clearLayers();
+    this.clearRangeRings();
     this._units    = {};
     this._graphics = {};
     BFT.leaveMission();
@@ -611,13 +710,15 @@ const MapCtrl = {
     };
 
     let geomLayer;
-    if (geo.type === 'LineString') {
-      geomLayer = L.polyline(geo.coordinates.map(c => [c[1], c[0]]), lineOpts);
-    } else if (geo.type === 'Polygon') {
-      geomLayer = L.polygon(geo.coordinates[0].map(c => [c[1], c[0]]), { ...lineOpts, fill: true });
-    } else {
-      return;
-    }
+    try {
+      if (geo.type === 'LineString') {
+        geomLayer = L.polyline(geo.coordinates.map(c => [c[1], c[0]]), lineOpts);
+      } else if (geo.type === 'Polygon') {
+        geomLayer = L.polygon(geo.coordinates[0].map(c => [c[1], c[0]]), { ...lineOpts, fill: true });
+      } else {
+        return;
+      }
+    } catch { return; }
 
     const group = L.featureGroup();
     group.addLayer(geomLayer);
@@ -628,7 +729,7 @@ const MapCtrl = {
       if (center) {
         group.addLayer(L.marker(center, {
           icon: L.divIcon({
-            html: `<div class="graphic-label" style="color:${lineOpts.color}">${name}</div>`,
+            html: `<div class="graphic-label" style="color:${lineOpts.color}">${_escH(name)}</div>`,
             className: '', iconSize: null,
           }),
           interactive: false,
@@ -641,12 +742,12 @@ const MapCtrl = {
     group.on('click', e => {
       if (this._activeTool !== 'select') return;
       L.DomEvent.stopPropagation(e);
-      const nameHtml = name ? `<div style="font-weight:700;margin-bottom:8px;font-size:14px">${name}</div>` : '';
+      const nameHtml = name ? `<div style="font-weight:700;margin-bottom:8px;font-size:14px">${_escH(name)}</div>` : '';
       L.popup({ closeButton: true, autoPan: false })
         .setLatLng(e.latlng)
         .setContent(
           `<div class="popup-body">${nameHtml}` +
-          `<button data-gid="${g.id}" class="btn-del-graphic" style="font-size:12px;padding:4px 12px;` +
+          `<button data-gid="${_escH(g.id)}" class="btn-del-graphic" style="font-size:12px;padding:4px 12px;` +
           `background:rgba(248,81,73,0.2);color:#f85149;border:1px solid rgba(248,81,73,0.4);` +
           `border-radius:6px;cursor:pointer">Delete</button></div>`
         )
@@ -654,14 +755,16 @@ const MapCtrl = {
         .openOn(this._map);
 
       setTimeout(() => {
-        document.querySelectorAll(`.btn-del-graphic[data-gid="${g.id}"]`).forEach(btn => {
-          btn.addEventListener('click', () => {
+        document.querySelectorAll('.btn-del-graphic').forEach(btn => {
+          if (btn.dataset.gid !== g.id) return;
+          const handler = () => {
             this._graphicLayer.removeLayer(group);
             delete this._graphics[g.id];
             LocalStore.deleteGraphic(g.id);
             if (Mission.active) DB.deleteGraphic(g.id).catch(() => {});
             this._map.closePopup();
-          });
+          };
+          btn.onclick = handler;
         });
       }, 40);
     });
@@ -686,7 +789,7 @@ const MapCtrl = {
     return null;
   },
 
-  async _saveGraphic(partial) {
+  _saveGraphic(partial) {
     const graphic = {
       id:         crypto.randomUUID(),
       mission_id: Mission.active ? Mission.current.id : null,
@@ -720,9 +823,11 @@ const MapCtrl = {
     const mgrsB = toMGRS(b.lat, b.lng, 4) || '—';
 
     const mils = Math.round(az * 6400 / 360);
+    const backAz = (az + 180) % 360;
     document.getElementById('m-distance').textContent =
       dist >= 1000 ? (dist / 1000).toFixed(2) + ' km' : Math.round(dist) + ' m';
     document.getElementById('m-azimuth').textContent  = az.toFixed(1) + '°';
+    document.getElementById('m-back-az').textContent  = backAz.toFixed(1) + '°';
     document.getElementById('m-mils').textContent     = mils + ' mil';
     document.getElementById('m-from').textContent     = mgrsA;
     document.getElementById('m-to').textContent       = mgrsB;
@@ -733,8 +838,10 @@ const MapCtrl = {
   clearMeasure() {
     this._measureLayer.clearLayers();
     this._measurePts = [];
-    ['m-distance','m-azimuth','m-from','m-to'].forEach(id =>
-      document.getElementById(id).textContent = '—');
+    ['m-distance','m-azimuth','m-back-az','m-mils','m-from','m-to'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '—';
+    });
   },
 
   _bearing(a, b) {
@@ -756,7 +863,7 @@ const MapCtrl = {
   },
 
   // ── Self position ────────────────────────────────────────
-  showSelf(lat, lng) {
+  showSelf(lat, lng, accuracy) {
     const latlng = L.latLng(lat, lng);
     if (this._selfMarker) {
       this._selfMarker.setLatLng(latlng);
@@ -768,6 +875,16 @@ const MapCtrl = {
     }
     const mgrsStr = toMGRS(lat, lng, 5) || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     document.getElementById('coord-mgrs').textContent = mgrsStr;
+    const accEl = document.getElementById('coord-accuracy');
+    if (accEl) {
+      if (accuracy != null && isFinite(accuracy)) {
+        const accStr = accuracy < 1000 ? `±${Math.round(accuracy)}m` : `±${(accuracy/1000).toFixed(1)}km`;
+        accEl.textContent = accStr;
+        accEl.style.display = '';
+      } else {
+        accEl.style.display = 'none';
+      }
+    }
   },
 
   panTo(lat, lng, zoom) {
@@ -783,14 +900,21 @@ const MapCtrl = {
     this._unitLayer.clearLayers();
     this._graphicLayer.clearLayers();
     this._reportLayer.clearLayers();
+    this.clearRangeRings();
     this._units    = {};
     this._graphics = {};
     const units    = LocalStore.getUnits();
     const graphics = LocalStore.getGraphics();
     const reports  = LocalStore.getReports();
-    for (const u of units)   this._addUnitMarker(u);
-    for (const g of graphics) this._renderGraphic(g);
-    for (const r of reports)  this.placeReportMarker(r);
+    this._batchLoading = true;
+    try {
+      for (const u of units)   this._addUnitMarker(u);
+      for (const g of graphics) this._renderGraphic(g);
+      for (const r of reports)  this.placeReportMarker(r);
+    } finally {
+      this._batchLoading = false;
+    }
+    this.updateUnitCount();
     if (units.length || graphics.length) {
       UI.toast(`Loaded ${units.length} unit${units.length !== 1 ? 's' : ''}, ${graphics.length} graphic${graphics.length !== 1 ? 's' : ''}`, 'info');
     }
@@ -826,7 +950,8 @@ const MapCtrl = {
     const isMedevac = report.type === '9LINE';
     const isNBC     = report.type === 'NBC';
     const cls       = isHostile ? 'hostile' : isMedevac ? 'medevac' : isNBC ? 'nbc' : 'generic';
-    const glyph     = isHostile ? '✕' : isMedevac ? '✚' : isNBC ? (report.data?.type || '☢') : '!';
+    const nbcType   = ['N','B','C','R'].includes(report.data?.type) ? report.data.type : '☢';
+    const glyph     = isHostile ? '✕' : isMedevac ? '✚' : isNBC ? nbcType : '!';
 
     const icon = L.divIcon({
       html:       `<div class="report-pin ${cls}">${glyph}</div>`,
@@ -853,8 +978,8 @@ const MapCtrl = {
     marker.on('click', () => {
       if (this._activeTool !== 'select') return;
       const d = report.data || {};
-      let body = `<div class="popup-body"><div class="popup-name">${report.type}</div>`;
-      if (report.mgrs) body += `<div class="popup-mgrs">${report.mgrs}</div>`;
+      let body = `<div class="popup-body"><div class="popup-name">${_escH(report.type)}</div>`;
+      if (report.mgrs) body += `<div class="popup-mgrs">${_escH(report.mgrs)}</div>`;
       if (report.type === 'SPOTREP') {
         body += `<table class="popup-table">`;
         if (d.size)     body += `<tr><td>S</td><td>${_escH(d.size)}</td></tr>`;
@@ -871,14 +996,14 @@ const MapCtrl = {
       } else if (report.type === 'NBC') {
         const NBC_NAMES = { N: 'Nuclear', B: 'Biological', C: 'Chemical', R: 'Radiological' };
         body += `<table class="popup-table">`;
-        body += `<tr><td>Type</td><td>${NBC_NAMES[d.type] || d.type}</td></tr>`;
+        body += `<tr><td>Type</td><td>${_escH(NBC_NAMES[d.type] || d.type)}</td></tr>`;
         if (d.dtg)     body += `<tr><td>DTG</td><td>${_escH(d.dtg)}</td></tr>`;
         if (d.wind)    body += `<tr><td>Wind</td><td>${_escH(d.wind)}</td></tr>`;
         if (d.hazard)  body += `<tr><td>Hazard</td><td>${_escH(d.hazard)}</td></tr>`;
         if (d.actions) body += `<tr><td>Actions</td><td>${_escH(d.actions)}</td></tr>`;
         body += `</table>`;
       }
-      body += `<button class="btn-del-report" data-rid="${report.id}" style="font-size:11px;margin-top:8px;padding:4px 12px;` +
+      body += `<button class="btn-del-report" data-rid="${_escH(report.id)}" style="font-size:11px;margin-top:8px;padding:4px 12px;` +
               `background:rgba(248,81,73,0.2);color:#f85149;border:1px solid rgba(248,81,73,0.4);border-radius:6px;cursor:pointer">Remove</button>`;
       body += `</div>`;
 
@@ -889,13 +1014,14 @@ const MapCtrl = {
         .openOn(this._map);
 
       setTimeout(() => {
-        document.querySelectorAll(`.btn-del-report[data-rid="${report.id}"]`).forEach(btn => {
-          btn.addEventListener('click', () => {
+        document.querySelectorAll('.btn-del-report').forEach(btn => {
+          if (btn.dataset.rid !== report.id) return;
+          btn.onclick = () => {
             if (marker._nbcCircle) this._reportLayer.removeLayer(marker._nbcCircle);
             this._reportLayer.removeLayer(marker);
             LocalStore.deleteReport(report.id);
             this._map.closePopup();
-          });
+          };
         });
       }, 40);
     });
@@ -905,7 +1031,7 @@ const MapCtrl = {
 
   toggleRangeRings(unitId, lat, lng) {
     if (this._rangeRings[unitId]) {
-      this._rangeRings[unitId].forEach(l => this._measureLayer.removeLayer(l));
+      this._rangeRings[unitId].forEach(l => this._rangeRingLayer.removeLayer(l));
       delete this._rangeRings[unitId];
       return false; // removed
     }
@@ -920,7 +1046,7 @@ const MapCtrl = {
         L.circle([lat, lng], {
           radius: r, color, fillOpacity: 0, weight: 1.5,
           dashArray: '4,6', interactive: false,
-        }).addTo(this._measureLayer)
+        }).addTo(this._rangeRingLayer)
       );
       const labelLat = lat + (r / 111320);
       layers.push(
@@ -932,7 +1058,7 @@ const MapCtrl = {
           }),
           interactive: false,
           zIndexOffset: -100,
-        }).addTo(this._measureLayer)
+        }).addTo(this._rangeRingLayer)
       );
     });
     this._rangeRings[unitId] = layers;
@@ -940,7 +1066,7 @@ const MapCtrl = {
   },
 
   clearRangeRings() {
-    Object.values(this._rangeRings).flat().forEach(c => this._measureLayer.removeLayer(c));
+    Object.values(this._rangeRings).flat().forEach(c => this._rangeRingLayer.removeLayer(c));
     this._rangeRings = {};
   },
 

@@ -5,15 +5,17 @@ const HHour = {
   _KEY:      'hhour_ms',
 
   init() {
-    const saved = localStorage.getItem(this._KEY);
-    if (saved) this._ms = parseInt(saved, 10);
+    try {
+      const saved = localStorage.getItem(this._KEY);
+      if (saved) this._ms = parseInt(saved, 10);
+    } catch {}
     this._start();
     this._tick();
   },
 
   set(ms) {
     this._ms = ms;
-    localStorage.setItem(this._KEY, String(ms));
+    try { localStorage.setItem(this._KEY, String(ms)); } catch {}
     this._tick();
   },
 
@@ -21,7 +23,7 @@ const HHour = {
 
   clear() {
     this._ms = null;
-    localStorage.removeItem(this._KEY);
+    try { localStorage.removeItem(this._KEY); } catch {}
     this._tick();
   },
 
