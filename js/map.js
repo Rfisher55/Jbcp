@@ -493,6 +493,7 @@ const MapCtrl = {
 
   _addUnitMarker(unit) {
     if (this._units[unit.id]) return;
+    if (!isFinite(unit.lat) || !isFinite(unit.lng)) return;
     const icon   = makeMilIcon(unit.sidc, this._getIconSize());
     const marker = L.marker([unit.lat, unit.lng], { icon, draggable: true })
       .addTo(this._unitLayer);
@@ -599,7 +600,7 @@ const MapCtrl = {
     }
     LocalStore.upsertUnit(entry.data);
     if (Mission.active) {
-      DB.upsertUnit(entry.data).catch(() => {});
+      DB.upsertUnit(entry.data).catch(() => UI.toast('Position save failed', 'error', 2000));
     }
   },
 

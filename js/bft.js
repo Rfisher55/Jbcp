@@ -28,7 +28,8 @@ const BFT = {
     });
 
     this._channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') UI.toast('BFT: Live tracking active', 'success', 2000);
+      if (status === 'SUBSCRIBED')    UI.toast('BFT: Live tracking active', 'success', 2000);
+      if (status === 'CHANNEL_ERROR') UI.toast('BFT: Connection lost', 'error', 3000);
     });
   },
 

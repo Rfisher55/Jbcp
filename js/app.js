@@ -16,8 +16,10 @@ const UI = {
     const el = document.createElement('div');
     el.className = `toast ${type}`;
     el.textContent = msg;
+    el.style.setProperty('--toast-delay', Math.max(0, duration - 250) + 'ms');
     document.getElementById('toasts').appendChild(el);
-    setTimeout(() => el.remove(), duration);
+    el.addEventListener('animationend', e => { if (e.animationName === 'toast-out') el.remove(); });
+    setTimeout(() => el.remove(), duration + 300);
   },
 
   showSheet(id)  { document.getElementById(id)?.classList.remove('hidden'); },
@@ -240,7 +242,7 @@ const UI = {
           const brgStr  = brg.toFixed(0) + '° (' + Math.round(brg * 6400 / 360) + ' mil)';
           return `<dt>From self</dt><dd>${distStr} at ${brgStr}</dd>`;
         })()}
-        <dt>Lat/Lng</dt><dd>${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}</dd>
+        <dt>Lat/Lng</dt><dd>${isFinite(unit.lat) && isFinite(unit.lng) ? `${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}` : '—'}</dd>
         <dt>Updated</dt><dd>${unit.updated_at ? _timeAgo(new Date(unit.updated_at)) : '—'}</dd>
       </dl>
       <div class="btn-row" style="margin-bottom:8px">
@@ -579,7 +581,7 @@ const UI = {
         setTimeout(() => {
           leaveStep = 0;
           const b = document.getElementById('btn-leave-mission');
-          if (b) b.textContent = 'Leave';
+          if (b) b.textContent = 'Leave Mission';
         }, 3000);
       } else {
         BFT.leaveMission();
@@ -801,7 +803,8 @@ const App = {
     // Mission chip
     document.getElementById('mission-chip').addEventListener('click', async () => {
       let missions = [];
-      try { missions = Auth.signedIn ? await DB.getUserMissions(Auth.user.id) : []; } catch {}
+      try { missions = Auth.signedIn ? await DB.getUserMissions(Auth.user.id) : []; }
+      catch { UI.toast('Failed to load missions', 'error', 2500); }
       UI.showMissionSheet(missions);
       UI.showSheet('sheet-mission');
     });
@@ -1740,7 +1743,10 @@ const App = {
     } catch {
       navigator.clipboard?.writeText(xml)
         .then(() => UI.toast('CoT XML copied to clipboard', 'success'))
-        .catch(() => UI.toast('Export failed — try again', 'error'));
+        .catch(() => {
+          try { window.open('data:text/xml;charset=utf-8,' + encodeURIComponent(xml)); }
+          catch { UI.toast('Export failed — try again', 'error'); }
+        });
     }
   },
 
@@ -1758,7 +1764,7 @@ const App = {
       return `${dd}${hh}${mm}Z${mon}${yr}`;
     })();
 
-    const msnName = Mission.active ? Mission.current.name : AO.name;
+    const msnName = Mission.active && Mission.current ? Mission.current.name : AO.name;
     const header = `UNIT SUMMARY — ${msnName.toUpperCase()} DTG ${dtg}\n` + '='.repeat(40) + '\n';
 
     const lines = units

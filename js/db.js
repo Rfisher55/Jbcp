@@ -179,7 +179,9 @@ const DB = {
       ch.on('presence', { event: 'leave' }, () => onPresence(ch.presenceState()));
     }
 
-    ch.subscribe();
+    ch.subscribe(status => {
+      if (status === 'CHANNEL_ERROR') UI.toast('Realtime sync lost — reconnecting', 'error', 3000);
+    });
     return () => _client.removeChannel(ch);
   },
 
