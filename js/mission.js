@@ -7,12 +7,14 @@ const Mission = {
   async create(name) {
     name = name.trim();
     if (!name) throw new Error('Mission name is required.');
+    if (!Auth.user) throw new Error('Not signed in.');
     const m = await DB.createMission(name, Auth.user.id);
     await DB.joinMission(m.id, Auth.user.id, Auth.callsign, 'commander');
     return this._activate(m);
   },
 
   async join(code) {
+    if (!Auth.user) throw new Error('Not signed in.');
     code = code.trim().replace(/-/g, '');
     // Short code (≤8 chars) is a join-code prefix; full UUID (>8) is used directly
     const m = code.length <= 8
