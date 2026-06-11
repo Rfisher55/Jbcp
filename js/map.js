@@ -220,7 +220,7 @@ const MapCtrl = {
     // Tap/click → popup with Copy and Delete actions (works on mobile)
     marker.on('click', e => {
       L.DomEvent.stopPropagation(e);
-      const popup = L.popup({ closeButton: false, offset: [0, -8], className: 'pin-popup' })
+      const popup = L.popup({ closeButton: true, offset: [0, -8], className: 'pin-popup' })
         .setLatLng(latlng)
         .setContent(
           `<div class="pin-popup-inner">
@@ -230,24 +230,26 @@ const MapCtrl = {
               <button class="pin-popup-del">🗑 Delete</button>
             </div>
           </div>`
-        )
-        .openOn(this._map);
-
-      // Wire buttons after popup is in DOM
-      setTimeout(() => {
-        popup.getElement()?.querySelector('.pin-popup-copy')?.addEventListener('click', e => {
-          e.stopPropagation();
+        );
+      popup.on('add', () => {
+        const el = popup.getElement();
+        if (!el) return;
+        const copyBtn = el.querySelector('.pin-popup-copy');
+        const delBtn  = el.querySelector('.pin-popup-del');
+        if (copyBtn) copyBtn.onclick = ev => {
+          ev.stopPropagation();
           navigator.clipboard?.writeText(mgrs)
             .then(() => UI.toast('Grid copied: ' + mgrs, 'success', 1800))
-            .catch(() => UI.toast('Grid: ' + mgrs, 'info', 1800));
-          this._map.closePopup(popup);
-        });
-        popup.getElement()?.querySelector('.pin-popup-del')?.addEventListener('click', e => {
-          e.stopPropagation();
-          this._map.closePopup(popup);
+            .catch(() => UI.toast(mgrs, 'info', 1800));
+          popup.remove();
+        };
+        if (delBtn) delBtn.onclick = ev => {
+          ev.stopPropagation();
+          popup.remove();
           removePin();
-        });
-      }, 0);
+        };
+      });
+      popup.openOn(this._map);
     });
 
     // Long-press / right-click also deletes (desktop convenience)
@@ -255,9 +257,7 @@ const MapCtrl = {
 
     marker.addTo(this._pinLayer);
     this._pins[id] = { marker, mgrs };
-    navigator.clipboard?.writeText(mgrs)
-      .then(() => UI.toast(`Pin dropped — Grid copied: ${mgrs}`, 'success'))
-      .catch(() => UI.toast(`Pin dropped — ${mgrs}`, 'info'));
+    UI.toast(`Pin dropped — tap to copy / delete`, 'info', 2000);
   },
 
   clearPins() {

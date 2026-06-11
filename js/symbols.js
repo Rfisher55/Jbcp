@@ -115,11 +115,19 @@ function makeMilIcon(sidc, size = 36) {
     const sym    = new ms.Symbol(sidc, { size, frame: true });
     const anchor = sym.getAnchor();
     const sz     = sym.getSize();
+    // milsymbol canvas can be much larger than `size` due to amplifiers/labels
+    // Cap display to size*2 in the largest dimension to keep icons proportional
+    const maxDim = size * 2;
+    const s = Math.min(1, maxDim / Math.max(sz.width, sz.height, 1));
+    const w  = Math.round(sz.width  * s);
+    const h  = Math.round(sz.height * s);
+    const ax = Math.round(anchor.x  * s);
+    const ay = Math.round(anchor.y  * s);
     return L.icon({
       iconUrl:    sym.toDataURL(),
-      iconSize:   [sz.width,  sz.height],
-      iconAnchor: [anchor.x,  anchor.y],
-      popupAnchor:[0, -anchor.y + 4],
+      iconSize:   [w,  h],
+      iconAnchor: [ax, ay],
+      popupAnchor:[0, -ay + 4],
     });
   } catch {
     return L.icon({

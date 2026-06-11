@@ -193,10 +193,23 @@ body.ui-night #disclaimer { opacity: 0.3; }
   overflow-y: auto; height: 100%;
   -webkit-overflow-scrolling: touch;
 }
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.panel-header h3 { margin-bottom: 0; }
 .panel-content h3 {
   font-size: 12px; font-weight: 700; color: var(--text-dim);
   text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px;
 }
+.btn-panel-close {
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+  background: none; border: 1px solid var(--border);
+  color: var(--text-dim); font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: manipulation; line-height: 1;
+}
+.btn-panel-close:hover, .btn-panel-close:active { color: var(--text); border-color: var(--text-dim); background: var(--bg-hover); }
 
 /* ── Bottom bar ──────────────────────────────────────── */
 #bottom-bar {
