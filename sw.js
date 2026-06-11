@@ -1,23 +1,24 @@
 // Service Worker — shell caching + offline fallback
-const CACHE = 'cop-v23';
+const CACHE = 'cop-v24';
 const BASE  = self.registration.scope;
+const V     = '?v=24';
 
 const SHELL = [
   BASE,
   BASE + 'index.html',
-  BASE + 'css/style.css',
-  BASE + 'js/config.js',
-  BASE + 'js/db.js',
-  BASE + 'js/auth.js',
-  BASE + 'js/mission.js',
-  BASE + 'js/mgrs-grid.js',
-  BASE + 'js/symbols.js',
-  BASE + 'js/bft.js',
-  BASE + 'js/chat.js',
-  BASE + 'js/reports.js',
-  BASE + 'js/map.js',
-  BASE + 'js/hhour.js',
-  BASE + 'js/app.js',
+  BASE + 'css/style.css' + V,
+  BASE + 'js/config.js'  + V,
+  BASE + 'js/db.js'      + V,
+  BASE + 'js/auth.js'    + V,
+  BASE + 'js/mission.js' + V,
+  BASE + 'js/mgrs-grid.js' + V,
+  BASE + 'js/symbols.js' + V,
+  BASE + 'js/bft.js'     + V,
+  BASE + 'js/chat.js'    + V,
+  BASE + 'js/reports.js' + V,
+  BASE + 'js/map.js'     + V,
+  BASE + 'js/hhour.js'   + V,
+  BASE + 'js/app.js'     + V,
 ];
 
 self.addEventListener('install', e => {
@@ -42,6 +43,19 @@ self.addEventListener('fetch', e => {
       url.hostname.includes('jsdelivr') || url.hostname.includes('cdnjs')) {
     e.respondWith(
       fetch(e.request).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // HTML (index.html): network-first so deployments reach users immediately
+  if (url.pathname.endsWith('/') || url.pathname.endsWith('.html')) {
+    e.respondWith(
+      fetch(e.request)
+        .then(res => {
+          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+          return res;
+        })
+        .catch(() => caches.match(e.request))
     );
     return;
   }

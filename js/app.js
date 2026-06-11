@@ -296,7 +296,7 @@ const UI = {
         badge.textContent       = `RC${curRC} — ${REDCON_LABELS[curRC]}`;
       }
       // Auto-save REDCON immediately — critical tactical status
-      onEdit({ redcon: curRC, callsign: document.getElementById('edit-callsign')?.value.trim() || unit.callsign,
+      onEdit({ redcon: curRC, callsign: document.getElementById('edit-callsign')?.value.trim() ?? unit.callsign,
                notes: document.getElementById('edit-notes')?.value.trim() ?? unit.notes, opstat: curOpStat });
     });
 
@@ -1369,7 +1369,8 @@ const App = {
       // Populate AO fields from saved or default
       const savedAO = App._loadSavedAO();
       document.getElementById('settings-ao-name').value = savedAO.name || AO.name || '';
-      const aoCenter = toMGRS(savedAO.center[0], savedAO.center[1], 5) || '';
+      const _c = Array.isArray(savedAO.center) ? savedAO.center : AO.center;
+      const aoCenter = toMGRS(_c[0], _c[1], 5) || '';
       document.getElementById('settings-ao-mgrs').value = aoCenter;
       UI.showSheet('sheet-settings');
     });

@@ -231,7 +231,9 @@ const MapCtrl = {
             </div>
           </div>`
         );
-      popup.on('add', () => {
+      popup.openOn(this._map);
+      // setTimeout gives Leaflet time to insert popup DOM before we wire buttons
+      setTimeout(() => {
         const el = popup.getElement();
         if (!el) return;
         const copyBtn = el.querySelector('.pin-popup-copy');
@@ -248,8 +250,7 @@ const MapCtrl = {
           popup.remove();
           removePin();
         };
-      });
-      popup.openOn(this._map);
+      }, 40);
     });
 
     // Long-press / right-click also deletes (desktop convenience)

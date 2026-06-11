@@ -184,9 +184,14 @@ body.ui-night #disclaimer { opacity: 0.3; }
   display: flex; align-items: center; justify-content: center;
   z-index: 1; touch-action: manipulation;
 }
-#panel-roster:not(.collapsed) .panel-toggle { color: var(--blue); }
+#panel-roster:not(.collapsed) .panel-toggle { color: var(--red); background: rgba(248,81,73,0.12); }
 .panel-toggle svg { width: 22px; height: 22px; }
 .panel-toggle:hover { color: var(--text); }
+/* People icon → ✕ when panel is open */
+.toggle-close-x { display: none; font-size: 20px; line-height: 1; font-weight: 300; }
+.toggle-people  { display: block; }
+#panel-roster:not(.collapsed) .toggle-close-x { display: block; color: var(--red); }
+#panel-roster:not(.collapsed) .toggle-people  { display: none; }
 
 .panel-content {
   padding: 12px 12px 12px 56px;
