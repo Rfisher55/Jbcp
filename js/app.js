@@ -225,13 +225,16 @@ const UI = {
       <div class="field-group" style="margin-bottom:6px">
         <label for="unit-move-mgrs" style="display:flex;justify-content:space-between;align-items:center">
           <span>Reposition Unit</span>
-          <button class="btn-secondary" id="btn-unit-move" style="font-size:10px;padding:2px 8px;margin:0">Move</button>
+          <div style="display:flex;gap:4px">
+            ${App._selfPos ? `<button class="btn-secondary" id="btn-unit-move-gps" style="font-size:10px;padding:2px 8px;margin:0">📍 GPS</button>` : ''}
+            <button class="btn-secondary" id="btn-unit-move" style="font-size:10px;padding:2px 8px;margin:0">Move</button>
+          </div>
         </label>
         <input id="unit-move-mgrs" type="text" value="${mgrsStr}" placeholder="Enter MGRS to move unit"
                autocomplete="off" autocapitalize="characters" spellcheck="false" style="font-family:'SF Mono',monospace">
       </div>
       <dl class="detail-dl">
-        <dt>MGRS</dt><dd class="mgrs-tap-link" data-mgrs="${mgrsStr}">${mgrsStr}</dd>
+        <dt>MGRS</dt><dd id="ud-mgrs-copy" style="cursor:pointer;text-decoration:underline dotted" title="Tap to copy">${mgrsStr}</dd>
         ${(() => {
           const selfPos = App._selfPos;
           if (!selfPos) return '';
@@ -266,6 +269,13 @@ const UI = {
 
     // Op Status selector
     let curOpStat = unit.opstat || 'FMC';
+    document.getElementById('ud-mgrs-copy')?.addEventListener('click', () => {
+      if (!mgrsStr || mgrsStr === '—') return;
+      navigator.clipboard?.writeText(mgrsStr)
+        .then(() => UI.toast('Grid copied: ' + mgrsStr, 'success', 1800))
+        .catch(() => UI.toast(mgrsStr, 'info', 2000));
+    });
+
     document.querySelector('.opstat-row')?.addEventListener('click', e => {
       const btn = e.target.closest('.opstat-btn');
       if (!btn) return;
@@ -361,6 +371,15 @@ const UI = {
 
     document.getElementById('unit-move-mgrs')?.addEventListener('keydown', e => {
       if (e.key === 'Enter') document.getElementById('btn-unit-move')?.click();
+    });
+
+    document.getElementById('btn-unit-move-gps')?.addEventListener('click', () => {
+      const pos = App._selfPos;
+      if (!pos) return;
+      onEdit({ lat: pos.lat, lng: pos.lng });
+      UI.closeSheet('sheet-unit');
+      MapCtrl.flyToGrid(pos.lat, pos.lng);
+      UI.toast('Unit moved to your GPS position', 'success', 2000);
     });
 
     document.getElementById('btn-unit-dupe').addEventListener('click', () => {
@@ -792,6 +811,25 @@ const App = {
           UI.toolBtn('select');
         }
       });
+    });
+
+    // Swipe-to-close: drag down on sheet handle to dismiss (triggers same logic as ✕ button)
+    document.querySelectorAll('.sheet:not(#sheet-auth) .sheet-handle').forEach(handle => {
+      const sheet = handle.closest('.sheet');
+      if (!sheet) return;
+      let startY = 0, dragging = false;
+      handle.addEventListener('touchstart', e => {
+        startY   = e.touches[0].clientY;
+        dragging = true;
+      }, { passive: true });
+      handle.addEventListener('touchmove', e => {
+        if (!dragging) return;
+        if (e.touches[0].clientY - startY > 60) {
+          dragging = false;
+          sheet.querySelector('.btn-close')?.click();
+        }
+      }, { passive: true });
+      handle.addEventListener('touchend', () => { dragging = false; }, { passive: true });
     });
 
     // Auth

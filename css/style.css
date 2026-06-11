@@ -963,8 +963,13 @@ body.fullmap #btn-exit-fullmap { display: flex; }
   outline: none; cursor: pointer;
 }
 .lace-slider::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 22px; height: 22px;
+  -webkit-appearance: none; width: 28px; height: 28px;
   border-radius: 50%; background: var(--blue); cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+.lace-slider::-moz-range-thumb {
+  width: 28px; height: 28px;
+  border: none; border-radius: 50%; background: var(--blue); cursor: pointer;
   box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
 .lace-pct {
