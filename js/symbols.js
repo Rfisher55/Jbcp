@@ -12,12 +12,12 @@ const CATALOG = [
   { id: 'ada',        name: 'Air Defense',      base: 'SFGPUCAA---', cat: 'F' },
   { id: 'engr',       name: 'Engineer',         base: 'SFGPUCE----', cat: 'F' },
   { id: 'recon',      name: 'Reconnaissance',   base: 'SFGPUCR----', cat: 'F' },
-  { id: 'airborne',   name: 'Airborne',         base: '10031000001211005200', cat: 'F' },
-  { id: 'airasslt',   name: 'Air Assault',      base: '10031000001211005300', cat: 'F' },
-  { id: 'sf',         name: 'Special Forces',   base: '10031000002300000000', cat: 'F' },
-  { id: 'ranger',     name: 'Ranger',           base: '10031000001211005400', cat: 'F' },
+  { id: 'airborne',   name: 'Airborne',         base: '10031000001211000001', cat: 'F' },
+  { id: 'airasslt',   name: 'Air Assault',      base: '10031000001201000000', cat: 'F' },
+  { id: 'sf',         name: 'Special Forces',   base: '10031000001217000000', cat: 'F' },
+  { id: 'ranger',     name: 'Ranger',           base: '10031000001220000000', cat: 'F' },
   { id: 'at',         name: 'Anti-Tank',        base: 'SFGPUCAT---', cat: 'F' },
-  { id: 'cbrn',       name: 'CBRN',             base: '10031000001900000000', cat: 'F' },
+  { id: 'cbrn',       name: 'CBRN',             base: '10031000001401000000', cat: 'F' },
   { id: 'mp',         name: 'Military Police',  base: 'SFGPUMP----', cat: 'F' },
   // ── C2 & Support — Friendly ──────────────────────────
   { id: 'hq',         name: 'Headquarters',     base: 'SFGPUH-----', cat: 'F' },
@@ -88,10 +88,11 @@ const ECHELONS = {
 };
 
 // 2525D two-character echelon codes (positions 8-9 of 20-char SIDC)
+// Per 2525D amplifier table: 11-18 = team..brigade, 21-23 = division/corps/army
 const ECHELONS_2525D = {
   '': '00', 'A': '11', 'B': '12', 'C': '13', 'D': '14',
-  'E': '15', 'F': '16', 'G': '17', 'H': '18', 'I': '19',
-  'J': '1A', 'K': '1B',
+  'E': '15', 'F': '16', 'G': '17', 'H': '18', 'I': '21',
+  'J': '22', 'K': '23',
 };
 
 function buildSIDC(base, echelon = '') {
