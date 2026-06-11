@@ -214,15 +214,45 @@ const MapCtrl = {
       className: '', iconSize: [8, 8], iconAnchor: [4, 4],
     });
     const marker = L.marker(latlng, { icon, zIndexOffset: 700, interactive: true });
-    marker.on('click', () => {
-      navigator.clipboard?.writeText(mgrs)
-        .then(() => UI.toast('Grid copied: ' + mgrs, 'success'))
-        .catch(() => UI.toast('Grid: ' + mgrs, 'info'));
+
+    const removePin = () => { this._pinLayer.removeLayer(marker); delete this._pins[id]; };
+
+    // Tap/click → popup with Copy and Delete actions (works on mobile)
+    marker.on('click', e => {
+      L.DomEvent.stopPropagation(e);
+      const popup = L.popup({ closeButton: false, offset: [0, -8], className: 'pin-popup' })
+        .setLatLng(latlng)
+        .setContent(
+          `<div class="pin-popup-inner">
+            <div class="pin-popup-mgrs">${_escH(mgrs)}</div>
+            <div class="pin-popup-btns">
+              <button class="pin-popup-copy">📋 Copy</button>
+              <button class="pin-popup-del">🗑 Delete</button>
+            </div>
+          </div>`
+        )
+        .openOn(this._map);
+
+      // Wire buttons after popup is in DOM
+      setTimeout(() => {
+        popup.getElement()?.querySelector('.pin-popup-copy')?.addEventListener('click', e => {
+          e.stopPropagation();
+          navigator.clipboard?.writeText(mgrs)
+            .then(() => UI.toast('Grid copied: ' + mgrs, 'success', 1800))
+            .catch(() => UI.toast('Grid: ' + mgrs, 'info', 1800));
+          this._map.closePopup(popup);
+        });
+        popup.getElement()?.querySelector('.pin-popup-del')?.addEventListener('click', e => {
+          e.stopPropagation();
+          this._map.closePopup(popup);
+          removePin();
+        });
+      }, 0);
     });
-    marker.on('contextmenu', () => {
-      this._pinLayer.removeLayer(marker);
-      delete this._pins[id];
-    });
+
+    // Long-press / right-click also deletes (desktop convenience)
+    marker.on('contextmenu', e => { L.DomEvent.stopPropagation(e); removePin(); });
+
     marker.addTo(this._pinLayer);
     this._pins[id] = { marker, mgrs };
     navigator.clipboard?.writeText(mgrs)
