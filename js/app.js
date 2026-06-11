@@ -988,6 +988,7 @@ const App = {
     _rosterBackdrop.addEventListener('touchend', e => {
       e.preventDefault(); _closeRoster();
     }, { passive: false });
+    document.getElementById('btn-roster-close').addEventListener('click', _closeRoster);
 
     // Measure clear
     document.getElementById('btn-measure-clear').addEventListener('click', () => MapCtrl.clearMeasure());
