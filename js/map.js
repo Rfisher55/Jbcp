@@ -79,7 +79,12 @@ const MapCtrl = {
 
     this._grid = createMGRSGrid().addTo(this._map);
 
-    // MGRS cursor readout + draw preview
+    // MGRS readout: cursor on desktop, map center on mobile
+    const _updateCenterMGRS = () => {
+      const c = this._map.getCenter();
+      const s = toMGRS(c.lat, c.lng, 4);
+      document.getElementById('mgrs-display').textContent = s || '──────────────';
+    };
     this._map.on('mousemove', e => {
       const s = toMGRS(e.latlng.lat, e.latlng.lng, 4);
       document.getElementById('mgrs-display').textContent = s || '──';
@@ -88,9 +93,10 @@ const MapCtrl = {
       }
     });
     this._map.on('mouseout', () => {
-      document.getElementById('mgrs-display').textContent = '──────────────';
+      _updateCenterMGRS();
       if (this._isDrawing()) this._updatePreview(null);
     });
+    this._map.on('moveend', _updateCenterMGRS);
 
     this._map.on('click',       e => this._onMapClick(e));
     this._map.on('dblclick',    e => this._onMapDblClick(e));
