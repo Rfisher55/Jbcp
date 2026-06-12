@@ -2290,7 +2290,7 @@ const App = {
         // Re-attach drag listener so it fires after next re-center
         if (App._followGPS) _attachDragHandler();
 
-        // Broadcast to BFT if mission active (max once per 15 seconds)
+        // Broadcast to BFT + update presence if mission active (max once per 15 seconds)
         if (Mission.active) {
           const now = Date.now();
           if (now - App._lastBFT > 15000) {
@@ -2302,6 +2302,7 @@ const App = {
               opstat:   myUnit.data.opstat || 'FMC'
             } : {};
             BFT.broadcast(lat, lng, heading, speed, status);
+            Mission.updatePresenceMGRS(toMGRS(lat, lng, 5) || '');
           }
         }
       },

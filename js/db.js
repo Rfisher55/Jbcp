@@ -156,7 +156,7 @@ const DB = {
 
   // ── Realtime ───────────────────────────────────────────
   subscribeMission(missionId, { onUnit, onGraphic, onPresence } = {}) {
-    if (!this.online) return () => {};
+    if (!this.online) return { unsub: () => {}, track: () => {} };
     const ch = _client.channel(`mission:${missionId}`, {
       config: { presence: { key: missionId } }
     });
@@ -180,9 +180,15 @@ const DB = {
     }
 
     ch.subscribe(status => {
+      if (status === 'SUBSCRIBED') {
+        ch.track({ callsign: Auth.callsign || 'Unknown', mgrs: '' }).catch(() => {});
+      }
       if (status === 'CHANNEL_ERROR') UI.toast('Realtime sync lost — reconnecting', 'error', 3000);
     });
-    return () => _client.removeChannel(ch);
+    return {
+      unsub: () => _client.removeChannel(ch),
+      track: data => ch.track(data).catch(() => {}),
+    };
   },
 
   async broadcastPresence(channel, data) {
