@@ -194,7 +194,12 @@ const Reports = {
       mgrs: d.location, data: d, created_at: new Date().toISOString()
     });
     if (Chat.isJoined()) {
-      Chat.send(`SITREP ${d.unit} ${d.dtg}: ${d.friendly.slice(0, 120)}`);
+      const parts = [];
+      if (d.location) parts.push(`Loc:${d.location}`);
+      if (d.friendly) parts.push(`F:${d.friendly.slice(0, 80)}`);
+      if (d.enemy)    parts.push(`E:${d.enemy.slice(0, 60)}`);
+      if (d.log)      parts.push(`L:${d.log.slice(0, 40)}`);
+      Chat.send(`SITREP ${d.unit} ${d.dtg}${parts.length ? ': ' + parts.join(' | ') : ''}`);
     }
     UI.closeSheet('sheet-sitrep');
     UI.toast('SITREP sent', 'success');
