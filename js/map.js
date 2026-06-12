@@ -781,6 +781,9 @@ const MapCtrl = {
           `<button class="btn-del-graphic" style="font-size:12px;padding:4px 12px;` +
           `background:rgba(248,81,73,0.2);color:#f85149;border:1px solid rgba(248,81,73,0.4);` +
           `border-radius:6px;cursor:pointer">Delete</button>` +
+          `<button class="btn-rename-graphic" style="font-size:12px;padding:4px 12px;` +
+          `background:rgba(88,166,255,0.15);color:#58a6ff;border:1px solid rgba(88,166,255,0.35);` +
+          `border-radius:6px;cursor:pointer">Rename</button>` +
           `<button class="btn-share-graphic" style="font-size:12px;padding:4px 12px;` +
           `background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.35);` +
           `border-radius:6px;cursor:pointer">Share</button>` +
@@ -794,12 +797,23 @@ const MapCtrl = {
         if (!el) return;
         const delBtn   = el.querySelector('.btn-del-graphic');
         const shareBtn = el.querySelector('.btn-share-graphic');
+        const renameBtn = el.querySelector('.btn-rename-graphic');
         if (delBtn) delBtn.onclick = () => {
           this._graphicLayer.removeLayer(group);
           delete this._graphics[g.id];
           LocalStore.deleteGraphic(g.id);
           if (Mission.active) DB.deleteGraphic(g.id).catch(() => {});
           this._map.closePopup();
+        };
+        if (renameBtn) renameBtn.onclick = () => {
+          this._map.closePopup();
+          App.promptLabel(gName || 'Graphic', name, newLabel => {
+            g.style.label = newLabel;
+            this._renderGraphic(g);
+            LocalStore.upsertGraphic(g);
+            if (Mission.active) DB.upsertGraphic(g).catch(() => {});
+            UI.toast('Graphic renamed', 'success', 1800);
+          });
         };
         if (shareBtn) shareBtn.onclick = () => {
           this._map.closePopup();
