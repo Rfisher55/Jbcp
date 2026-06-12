@@ -1251,6 +1251,13 @@ const App = {
     document.getElementById('force-status-list')?.addEventListener('click', e => {
       // mgrs-tap-link clicks are handled by the body delegate — don't double-handle
       if (e.target.closest('.mgrs-tap-link')) return;
+      // BFT track rows
+      const bftItem = e.target.closest('[data-bft-uid]');
+      if (bftItem) {
+        BFT._showCard(bftItem.dataset.bftUid);
+        UI.closeSheet('sheet-force-status');
+        return;
+      }
       const item = e.target.closest('[data-uid]');
       if (!item) return;
       const entry = MapCtrl._units[item.dataset.uid];
@@ -1507,20 +1514,46 @@ const App = {
       LocalStore.clearReports?.();
       UI.toast('Report markers cleared', 'info');
     });
+    let _clearUnitsStep = 0;
     document.getElementById('btn-clear-units')?.addEventListener('click', () => {
-      if (!confirm('Remove all local units from map? Cannot be undone.')) return;
-      MapCtrl.clearRangeRings();
-      MapCtrl._unitLayer?.clearLayers();
-      MapCtrl._units = {};
-      MapCtrl.updateUnitCount();
-      LocalStore._set('cop_units', []);
-      UI.toast('All units cleared', 'info');
+      _clearUnitsStep++;
+      const btn = document.getElementById('btn-clear-units');
+      if (_clearUnitsStep === 1) {
+        if (btn) btn.textContent = 'Tap again to confirm';
+        setTimeout(() => {
+          _clearUnitsStep = 0;
+          const b = document.getElementById('btn-clear-units');
+          if (b) b.textContent = 'Clear All Units (local)';
+        }, 3000);
+      } else {
+        _clearUnitsStep = 0;
+        if (btn) btn.textContent = 'Clear All Units (local)';
+        MapCtrl.clearRangeRings();
+        MapCtrl._unitLayer?.clearLayers();
+        MapCtrl._units = {};
+        MapCtrl.updateUnitCount();
+        LocalStore._set('cop_units', []);
+        UI.toast('All units cleared', 'info');
+      }
     });
+    let _clearDataStep = 0;
     document.getElementById('btn-clear-all-data')?.addEventListener('click', () => {
-      if (!confirm('Delete all local data? This cannot be undone.')) return;
-      localStorage.clear();
-      HHour.clear();
-      UI.toast('Local data cleared — reload to restart', 'info', 5000);
+      _clearDataStep++;
+      const btn = document.getElementById('btn-clear-all-data');
+      if (_clearDataStep === 1) {
+        if (btn) btn.textContent = 'Tap again — DELETES ALL DATA';
+        setTimeout(() => {
+          _clearDataStep = 0;
+          const b = document.getElementById('btn-clear-all-data');
+          if (b) b.textContent = 'Clear All Local Data';
+        }, 3000);
+      } else {
+        _clearDataStep = 0;
+        if (btn) btn.textContent = 'Clear All Local Data';
+        localStorage.clear();
+        HHour.clear();
+        UI.toast('Local data cleared — reload to restart', 'info', 5000);
+      }
     });
 
     // Restore BFT stale timeout from settings
@@ -1778,6 +1811,27 @@ const App = {
         <div class="fstat-opstat ${opst.toLowerCase()}">${opst}</div>
       </div>`;
     }).join('');
+
+    // Append live BFT tracks (if any) below the unit list
+    const bftTracks = Object.values(BFT._tracks);
+    if (bftTracks.length) {
+      const bftHtml = `<div class="section-label" style="margin:10px 0 4px;opacity:0.6;font-size:0.68rem">LIVE BFT TRACKS (${bftTracks.length})</div>` +
+        bftTracks.map(t => {
+          const agoSec = t.ts ? Math.round((Date.now() - t.ts) / 1000) : 0;
+          const agoStr = agoSec > 120 ? Math.floor(agoSec / 60) + 'm ago' : agoSec + 's ago';
+          const mgrs   = t.mgrs || (t.lat != null ? toMGRS(t.lat, t.lng, 5) : '—') || '—';
+          const opst   = t.opstat && ['FMC','PMC','NMC'].includes(t.opstat) ? t.opstat : null;
+          return `<div class="fstat-item${t.stale ? ' is-stale' : ''}" data-bft-uid="${_escH(t.uid)}">
+            <div class="fstat-callsign">${_escH(t.callsign || 'BFT')}</div>
+            <div class="fstat-grid mgrs-tap-link" data-mgrs="${_escH(mgrs)}">${_escH(mgrs)}</div>
+            ${t.fuel_pct != null ? `<div class="fstat-lace">L${t.fuel_pct}% A${t.ammo_pct ?? '?'}%</div>` : ''}
+            ${t.stale ? '<div class="fstat-stale-badge">STALE</div>' : `<div class="fstat-ago">${agoStr}</div>`}
+            ${opst ? `<div class="fstat-opstat ${opst.toLowerCase()}">${opst}</div>` : '<div class="fstat-ago">BFT</div>'}
+          </div>`;
+        }).join('');
+      list.innerHTML += bftHtml;
+    }
+
     UI.showSheet('sheet-force-status');
   },
 
