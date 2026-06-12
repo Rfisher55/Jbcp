@@ -527,6 +527,11 @@ const MapCtrl = {
       if (this._activeTool !== 'select') return;
       this._openUnitDetail(unit.id);
     });
+    marker.on('contextmenu', e => {
+      if (this._activeTool !== 'select') return;
+      L.DomEvent.stopPropagation(e);
+      this._showUnitContextMenu(unit.id, e.latlng);
+    });
     marker.on('dragend', e => this._onUnitDrag(unit.id, e));
 
     this._units[unit.id] = { data: unit, marker };
@@ -565,6 +570,43 @@ const MapCtrl = {
       onEdit:   updates => this._updateUnit(id, updates),
       onDelete: ()      => this._deleteUnit(id),
     });
+  },
+
+  _showUnitContextMenu(id, latlng) {
+    const u = this._units[id];
+    if (!u) return;
+    const cs = _escH(u.data.callsign || 'Unit');
+    const b  = (col) =>
+      `font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;white-space:nowrap;` +
+      `background:rgba(${col},0.15);color:rgb(${col});border:1px solid rgba(${col},0.35)`;
+    const popup = L.popup({ closeButton: true, autoPan: false })
+      .setLatLng(latlng)
+      .setContent(
+        `<div class="popup-body">` +
+        `<div style="font-weight:700;margin-bottom:8px;font-size:13px">${cs}</div>` +
+        `<div style="display:flex;gap:6px;flex-wrap:wrap">` +
+        `<button class="uctx-lace"   style="${b('88,166,255')}">LACE</button>` +
+        `<button class="uctx-ace"    style="${b('63,185,80')}">ACE</button>` +
+        `<button class="uctx-sitrep" style="${b('210,153,34')}">SITREP</button>` +
+        `<button class="uctx-goto"   style="${b('139,148,158')}">Fly To</button>` +
+        `</div></div>`
+      )
+      .addTo(this._map)
+      .openOn(this._map);
+
+    setTimeout(() => {
+      const el = popup.getElement();
+      if (!el) return;
+      const close = () => this._map.closePopup();
+      const laceBtn   = el.querySelector('.uctx-lace');
+      const aceBtn    = el.querySelector('.uctx-ace');
+      const sitrepBtn = el.querySelector('.uctx-sitrep');
+      const gotoBtn   = el.querySelector('.uctx-goto');
+      if (laceBtn)   laceBtn.onclick   = () => { close(); Reports.openLACE(id, null); };
+      if (aceBtn)    aceBtn.onclick    = () => { close(); Reports.openACE(id, null); };
+      if (sitrepBtn) sitrepBtn.onclick = () => { close(); Reports.openSITREP(); };
+      if (gotoBtn)   gotoBtn.onclick   = () => { close(); this.flyToGrid(u.data.lat, u.data.lng); };
+    }, 40);
   },
 
   _updateUnit(id, updates) {
@@ -784,6 +826,9 @@ const MapCtrl = {
           `<button class="btn-rename-graphic" style="font-size:12px;padding:4px 12px;` +
           `background:rgba(88,166,255,0.15);color:#58a6ff;border:1px solid rgba(88,166,255,0.35);` +
           `border-radius:6px;cursor:pointer">Rename</button>` +
+          `<button class="btn-color-graphic" style="font-size:12px;padding:4px 12px;` +
+          `background:rgba(210,153,34,0.15);color:#d29922;border:1px solid rgba(210,153,34,0.35);` +
+          `border-radius:6px;cursor:pointer">Color</button>` +
           `<button class="btn-share-graphic" style="font-size:12px;padding:4px 12px;` +
           `background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.35);` +
           `border-radius:6px;cursor:pointer">Share</button>` +
@@ -814,6 +859,28 @@ const MapCtrl = {
             if (Mission.active) DB.upsertGraphic(g).catch(() => {});
             UI.toast('Graphic renamed', 'success', 1800);
           });
+        };
+        const colorBtn = el.querySelector('.btn-color-graphic');
+        if (colorBtn) colorBtn.onclick = () => {
+          this._map.closePopup();
+          const inp = document.createElement('input');
+          inp.type  = 'color';
+          inp.value = (g.style.color || '#58a6ff');
+          inp.style.cssText = 'position:absolute;width:0;height:0;opacity:0;pointer-events:none';
+          document.body.appendChild(inp);
+          inp.click();
+          inp.oninput = () => {
+            g.style.color = inp.value;
+            this._renderGraphic(g);
+          };
+          inp.onchange = () => {
+            g.style.color = inp.value;
+            this._renderGraphic(g);
+            LocalStore.upsertGraphic(g);
+            if (Mission.active) DB.upsertGraphic(g).catch(() => {});
+            inp.remove();
+            UI.toast('Color updated', 'success', 1800);
+          };
         };
         if (shareBtn) shareBtn.onclick = () => {
           this._map.closePopup();
@@ -1023,6 +1090,16 @@ const MapCtrl = {
     });
 
     const marker = L.marker([report.lat, report.lng], { icon, zIndexOffset: 600, interactive: true });
+
+    // Tooltip for SPOTREP: show key SALUTE data at a glance
+    if (isHostile) {
+      const d   = report.data || {};
+      const tip = [d.size, d.activity].filter(Boolean).join(' ') || 'Enemy contact';
+      marker.bindTooltip(
+        `<div style="font-size:11px;max-width:120px"><strong>SPOTREP</strong><br>${_escH(tip)}</div>`,
+        { permanent: false, direction: 'top', offset: [0, -14], className: 'unit-label' }
+      );
+    }
 
     // NBC hazard circle
     if (isNBC) {

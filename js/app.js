@@ -622,6 +622,7 @@ const UI = {
         Mission.leave();
         MapCtrl.clearMission();
         UI.setMissionLabel(null);
+        App._stopMissionClock();
         UI.closeAllSheets();
         UI.toast('Left mission', 'info');
       }
@@ -761,14 +762,40 @@ const UI = {
 
 // ── App bootstrap ─────────────────────────────────────────
 const App = {
-  _symFilter:     'F',
-  _symEchelon:    '',
-  _graphicTab:    'LN',
-  _watchId:       null,
-  _labelCallback: null,
-  _lastBFT:       0,
-  _selfPos:       null,
-  _followGPS:     true,
+  _symFilter:            'F',
+  _symEchelon:           '',
+  _graphicTab:           'LN',
+  _watchId:              null,
+  _labelCallback:        null,
+  _lastBFT:              0,
+  _selfPos:              null,
+  _followGPS:            true,
+  _missionStart:         null,
+  _missionClockInterval: null,
+
+  _startMissionClock() {
+    this._missionStart = Date.now();
+    clearInterval(this._missionClockInterval);
+    this._missionClockInterval = setInterval(() => {
+      const el = document.getElementById('mission-elapsed');
+      if (!el) return;
+      if (!Mission.active) { el.textContent = ''; clearInterval(this._missionClockInterval); return; }
+      const ms = Date.now() - this._missionStart;
+      const h  = Math.floor(ms / 3600000);
+      const m  = Math.floor((ms % 3600000) / 60000);
+      const s  = Math.floor((ms % 60000) / 1000);
+      el.textContent = h > 0
+        ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+        : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }, 1000);
+  },
+
+  _stopMissionClock() {
+    clearInterval(this._missionClockInterval);
+    this._missionClockInterval = null;
+    const el = document.getElementById('mission-elapsed');
+    if (el) el.textContent = '';
+  },
 
   promptLabel(typeName, prefix, cb) {
     this._labelCallback = cb;
@@ -1813,6 +1840,7 @@ const App = {
       }
       BFT.joinMission(m.id);
       Chat.join(m.id);
+      this._startMissionClock();
       UI.toast(`Welcome back, ${Auth.callsign}`, 'success');
     } else {
       MapCtrl.loadLocalData();
@@ -1828,6 +1856,7 @@ const App = {
     });
     BFT.joinMission(m.id);
     Chat.join(m.id);
+    this._startMissionClock();
   },
 
   _savePACE() {

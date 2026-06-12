@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=49">
+  <link rel="stylesheet" href="css/style.css?v=50">
 </head>
 <body>
 
@@ -39,6 +39,7 @@
   <header id="top-bar">
     <div id="mission-chip" class="chip" role="button" tabindex="0" aria-label="Mission">
       <span id="mission-chip-label">No Mission</span>
+      <span id="mission-elapsed" style="font-size:9px;opacity:0.55;letter-spacing:0.03em;margin-left:3px"></span>
       <span class="chip-caret">▾</span>
     </div>
     <div id="mgrs-display">──────────────</div>
@@ -959,7 +960,7 @@
       </div>
 
       <div class="sheet-hint" style="margin-top:16px; text-align:center">
-        v49 · NOT FOR OPERATIONAL USE
+        v50 · NOT FOR OPERATIONAL USE
       </div>
     </div>
   </div>
@@ -992,18 +993,18 @@
   <script src="https://cdn.jsdelivr.net/npm/milsymbol@2.2.0/dist/milsymbol.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
-  <script src="js/config.js?v=49"></script>
-  <script src="js/db.js?v=49"></script>
-  <script src="js/auth.js?v=49"></script>
-  <script src="js/mission.js?v=49"></script>
-  <script src="js/mgrs-grid.js?v=49"></script>
-  <script src="js/symbols.js?v=49"></script>
-  <script src="js/bft.js?v=49"></script>
-  <script src="js/chat.js?v=49"></script>
-  <script src="js/reports.js?v=49"></script>
-  <script src="js/map.js?v=49"></script>
-  <script src="js/hhour.js?v=49"></script>
-  <script src="js/app.js?v=49"></script>
+  <script src="js/config.js?v=50"></script>
+  <script src="js/db.js?v=50"></script>
+  <script src="js/auth.js?v=50"></script>
+  <script src="js/mission.js?v=50"></script>
+  <script src="js/mgrs-grid.js?v=50"></script>
+  <script src="js/symbols.js?v=50"></script>
+  <script src="js/bft.js?v=50"></script>
+  <script src="js/chat.js?v=50"></script>
+  <script src="js/reports.js?v=50"></script>
+  <script src="js/map.js?v=50"></script>
+  <script src="js/hhour.js?v=50"></script>
+  <script src="js/app.js?v=50"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })

@@ -6,7 +6,7 @@ const BFT = {
   _histLayer: null,
 
   STALE_MS:    3 * 60 * 1000,
-  HISTORY_MAX: 8,
+  HISTORY_MAX: 20,
 
   init(map) {
     this._layer     = L.featureGroup().addTo(map);
@@ -87,12 +87,12 @@ const BFT = {
         if (ex.hist.length > this.HISTORY_MAX) ex.hist.shift();
         this._drawHistory(uid);
       }
-      Object.assign(ex, data, { hist: ex.hist, histPoly: ex.histPoly, stale: false });
+      Object.assign(ex, data, { hist: ex.hist, histPoly: ex.histPoly, histDots: ex.histDots, stale: false });
       ex.marker.setLatLng([data.lat, data.lng]);
       this._refreshIcon(uid, false);
     } else {
       const marker = this._makeMarker(data);
-      this._tracks[uid] = { ...data, hist: [], histPoly: null, stale: false, marker };
+      this._tracks[uid] = { ...data, hist: [], histPoly: null, histDots: [], stale: false, marker };
     }
   },
 
@@ -133,13 +133,30 @@ const BFT = {
     const t = this._tracks[uid];
     if (!t?.hist.length) return;
     if (t.histPoly) this._histLayer.removeLayer(t.histPoly);
-    t.histPoly = L.polyline(t.hist, {
+    if (t.histDots) t.histDots.forEach(d => this._histLayer.removeLayer(d));
+
+    // Trail includes current position so the line connects to the live dot
+    const pts = [...t.hist, [t.lat, t.lng]];
+    t.histPoly = L.polyline(pts, {
       color:       '#58a6ff',
       weight:      1.5,
-      opacity:     0.35,
-      dashArray:   '2,6',
+      opacity:     0.4,
+      dashArray:   '3,5',
       interactive: false,
     }).addTo(this._histLayer);
+
+    // Small breadcrumb dots at each historical waypoint (older = more faded)
+    t.histDots = t.hist.map((p, i) => {
+      const opacity = 0.15 + (i / t.hist.length) * 0.55;
+      return L.circleMarker(p, {
+        radius:      2.5,
+        color:       '#58a6ff',
+        fillColor:   '#58a6ff',
+        fillOpacity: opacity,
+        weight:      0,
+        interactive: false,
+      }).addTo(this._histLayer);
+    });
   },
 
   _checkStale() {
@@ -254,6 +271,7 @@ const BFT = {
     Object.values(this._tracks).forEach(t => {
       if (t.marker)   this._layer.removeLayer(t.marker);
       if (t.histPoly) this._histLayer.removeLayer(t.histPoly);
+      if (t.histDots) t.histDots.forEach(d => this._histLayer.removeLayer(d));
     });
     this._tracks = {};
   },
