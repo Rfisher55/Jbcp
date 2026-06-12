@@ -535,7 +535,7 @@ const UI = {
       <div class="field-group">
         <label for="new-mission-name">New Mission Name</label>
         <input id="new-mission-name" type="text" placeholder="e.g. Exercise IRON EAGLE"
-               autocomplete="off" autocapitalize="words" spellcheck="false">
+               autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false">
       </div>
       <button class="btn-primary btn-full" id="btn-create-mission" style="margin-bottom:12px">Create Mission</button>
       <div class="field-group">

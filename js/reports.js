@@ -323,6 +323,7 @@ const Reports = {
           <span class="rpt-log-meta">${_escH(r.reporter || '—')}${unitLabel} · ${dtLabel}</span>
           <div class="rpt-log-actions">
             ${hasLoc ? `<button class="rpt-log-fly" data-id="${_escH(r.id)}" title="Fly to location">⌖</button>` : ''}
+            <button class="rpt-log-chat" data-id="${_escH(r.id)}" title="Send to chat">▲</button>
             <button class="rpt-log-copy" data-id="${_escH(r.id)}">Copy</button>
             <button class="rpt-log-del" data-id="${_escH(r.id)}" title="Delete report">✕</button>
           </div>
@@ -330,6 +331,14 @@ const Reports = {
         <div class="rpt-log-preview">${preview}</div>
       </div>`;
     }).join('');
+
+    list.querySelectorAll('.rpt-log-chat').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!Chat.isJoined()) { UI.toast('Join a mission to use chat', 'info'); return; }
+        const r = reports.find(x => x.id === btn.dataset.id);
+        if (r) { Chat.send(this._reportChatSummary(r)); UI.toast('Sent to chat', 'success', 2000); }
+      });
+    });
 
     list.querySelectorAll('.rpt-log-copy').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -367,6 +376,17 @@ const Reports = {
     if (r.type === 'ACE')     return `A:${h(d.a)}% E:${h(d.e)}% KIA:${h(d.kia)} WIA:${h(d.wia)} MIA:${h(d.mia)}`;
     if (r.type === 'NBC')     return `${h(d.type)} — ${h(r.mgrs)} DTG ${h(d.dtg)}`;
     return '';
+  },
+
+  _reportChatSummary(r) {
+    const d = r.data || {};
+    if (r.type === 'SPOTREP') return `SPOTREP ${r.reporter}: ${d.size || ''} ${d.activity || ''} @ ${r.mgrs || ''} DTG ${d.time || ''}`.trim().replace(/\s+/g, ' ');
+    if (r.type === '9LINE')   return `9-LINE ${r.reporter}: L1 ${d.line1 || ''} L3 ${d.line3 || ''} L5 ${d.line5 || ''}`;
+    if (r.type === 'SITREP')  return `SITREP ${d.unit || r.reporter}: ${(d.friendly || 'NTR').slice(0, 100)}`;
+    if (r.type === 'LACE')    return `LACE ${r.reporter}: L:${d.l}% A:${d.a}% C:${d.c} E:${d.e}%`;
+    if (r.type === 'ACE')     return `ACE ${r.reporter}: A:${d.a}% E:${d.e}% KIA:${d.kia} WIA:${d.wia} MIA:${d.mia}`;
+    if (r.type === 'NBC')     return `⚠ NBC (${d.type}) ${r.reporter}: ${r.mgrs || ''} DTG ${d.dtg || ''}${d.hazard ? ' — ' + d.hazard : ''}`;
+    return `${r.type} ${r.reporter}`;
   },
 
   _copyReport(r) {
