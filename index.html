@@ -182,11 +182,13 @@
         <span class="echelon-label">Size:</span>
         <button class="ech-btn active" data-ech="">—</button>
         <button class="ech-btn" data-ech="B">Squad</button>
-        <button class="ech-btn" data-ech="D">Platoon</button>
-        <button class="ech-btn" data-ech="E">Company</button>
+        <button class="ech-btn" data-ech="D">Plt</button>
+        <button class="ech-btn" data-ech="E">Co</button>
         <button class="ech-btn" data-ech="F">Bn</button>
-        <button class="ech-btn" data-ech="H">Brigade</button>
+        <button class="ech-btn" data-ech="H">Bde</button>
         <button class="ech-btn" data-ech="I">Div</button>
+        <button class="ech-btn" data-ech="J">Corps</button>
+        <button class="ech-btn" data-ech="K">Army</button>
       </div>
       <div id="symbol-grid" class="symbol-grid"></div>
     </div>
@@ -863,9 +865,9 @@
         <button class="btn-rc-bulk" data-rc="5">5</button>
       </div>
       <div id="fstat-summary" style="margin-bottom:8px"></div>
-      <input id="fstat-filter" type="text" placeholder="Filter by callsign…"
+      <input id="fstat-filter" class="text-input" type="text" placeholder="Filter by callsign…"
              autocomplete="off" autocapitalize="characters" spellcheck="false"
-             style="width:100%;box-sizing:border-box;margin-bottom:8px">
+             style="margin-bottom:8px">
       <div id="force-status-list" class="force-status-list">
         <p class="empty-msg">No units placed</p>
       </div>
@@ -940,7 +942,7 @@
       </div>
 
       <div class="sheet-hint" style="margin-top:16px; text-align:center">
-        v20 · NOT FOR OPERATIONAL USE
+        v27 · NOT FOR OPERATIONAL USE
       </div>
     </div>
   </div>
