@@ -1049,9 +1049,12 @@ const MapCtrl = {
         if (d.actions) body += `<tr><td>Actions</td><td>${_escH(d.actions)}</td></tr>`;
         body += `</table>`;
       }
-      body += `<button class="btn-del-report" data-rid="${_escH(report.id)}" style="font-size:11px;margin-top:8px;padding:4px 12px;` +
+      body += `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">`;
+      body += `<button class="btn-share-report" data-rid="${_escH(report.id)}" style="font-size:11px;padding:4px 12px;` +
+              `background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.35);border-radius:6px;cursor:pointer">Share</button>`;
+      body += `<button class="btn-del-report" data-rid="${_escH(report.id)}" style="font-size:11px;padding:4px 12px;` +
               `background:rgba(248,81,73,0.2);color:#f85149;border:1px solid rgba(248,81,73,0.4);border-radius:6px;cursor:pointer">Remove</button>`;
-      body += `</div>`;
+      body += `</div></div>`;
 
       const rptPopup = L.popup({ closeButton: true, autoPan: false })
         .setLatLng([report.lat, report.lng])
@@ -1060,9 +1063,20 @@ const MapCtrl = {
         .openOn(this._map);
 
       setTimeout(() => {
-        const btn = rptPopup.getElement()?.querySelector('.btn-del-report');
-        if (!btn) return;
-        btn.onclick = () => {
+        const el = rptPopup.getElement();
+        if (!el) return;
+        const shareBtn = el.querySelector('.btn-share-report');
+        const delBtn   = el.querySelector('.btn-del-report');
+        if (shareBtn) shareBtn.onclick = () => {
+          this._map.closePopup();
+          if (typeof Chat !== 'undefined' && Chat.isJoined() && typeof Reports !== 'undefined') {
+            Chat.send(Reports._reportChatSummary(report));
+            UI.toast('Report shared to chat', 'success', 1800);
+          } else {
+            UI.toast('Join a mission to share', 'info', 2000);
+          }
+        };
+        if (delBtn) delBtn.onclick = () => {
           this.removeReportMarker(report.id);
           LocalStore.deleteReport(report.id);
           this._map.closePopup();

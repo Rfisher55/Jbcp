@@ -44,16 +44,21 @@ const UI = {
       list.innerHTML = '<p class="empty-msg">No members online</p>';
       return;
     }
-    list.innerHTML = members.map(m => `
+    list.innerHTML = members.map(m => {
+      const mgrs = m.mgrs || '';
+      const mgrsHtml = mgrs
+        ? `<div class="roster-pos mgrs-tap-link" data-mgrs="${_escH(mgrs)}" title="Fly to position">${_escH(mgrs)}</div>`
+        : `<div class="roster-pos" style="opacity:0.4">no position</div>`;
+      return `
       <div class="roster-item">
         <div class="roster-avatar">${_escH((m.callsign || '?').slice(0,2))}</div>
         <div class="roster-info">
           <div class="roster-callsign">${_escH(m.callsign || 'Unknown')}</div>
-          <div class="roster-pos">${_escH(m.mgrs || '')}</div>
+          ${mgrsHtml}
         </div>
         <div class="roster-dot online"></div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   },
 
   // ── Symbol picker ──────────────────────────────────────

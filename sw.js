@@ -1,7 +1,7 @@
 // Service Worker — shell caching + offline fallback
-const CACHE = 'cop-v41';
+const CACHE = 'cop-v42';
 const BASE  = self.registration.scope;
-const V     = '?v=41';
+const V     = '?v=42';
 
 const SHELL = [
   BASE,
