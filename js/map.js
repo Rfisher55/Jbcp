@@ -264,7 +264,10 @@ const MapCtrl = {
 
     marker.addTo(this._pinLayer);
     this._pins[id] = { marker, mgrs };
-    UI.toast(`Pin dropped — tap to copy / delete`, 'info', 2000);
+    // Auto-copy grid on drop (user gesture is still active from the click)
+    navigator.clipboard?.writeText(mgrs)
+      .then(() => UI.toast(`Pin: ${mgrs} — copied`, 'success', 2200))
+      .catch(() => UI.toast(`Pin: ${mgrs} — tap to copy`, 'info', 2200));
   },
 
   clearPins() {

@@ -215,12 +215,12 @@ const UI = {
       <div class="field-group">
         <label for="edit-callsign">Callsign / Designation</label>
         <input id="edit-callsign" type="text" value="${_escH(unit.callsign || '')}"
-               maxlength="24" autocapitalize="characters">
+               maxlength="24" autocapitalize="characters" autocorrect="off" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="edit-notes">Notes / Remarks</label>
         <input id="edit-notes" type="text" value="${_escH(unit.notes || '')}"
-               placeholder="Optional remarks">
+               placeholder="Optional remarks" spellcheck="false">
       </div>
       <div class="field-group" style="margin-bottom:6px">
         <label for="unit-move-mgrs" style="display:flex;justify-content:space-between;align-items:center">
@@ -231,7 +231,7 @@ const UI = {
           </div>
         </label>
         <input id="unit-move-mgrs" type="text" value="${mgrsStr}" placeholder="Enter MGRS to move unit"
-               autocomplete="off" autocapitalize="characters" spellcheck="false" style="font-family:'SF Mono',monospace">
+               autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" style="font-family:'SF Mono',monospace">
       </div>
       <dl class="detail-dl">
         <dt>MGRS</dt><dd id="ud-mgrs-copy" style="cursor:pointer;text-decoration:underline dotted" title="Tap to copy">${mgrsStr}</dd>
@@ -431,6 +431,7 @@ const UI = {
     });
 
     document.getElementById('btn-unit-save').addEventListener('click', () => {
+      document.activeElement?.blur();
       const cs    = document.getElementById('edit-callsign').value.trim();
       const notes = document.getElementById('edit-notes').value.trim();
       const updates = { notes, redcon: curRC, opstat: curOpStat };
@@ -443,6 +444,9 @@ const UI = {
     });
 
     document.getElementById('edit-callsign').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btn-unit-save').click();
+    });
+    document.getElementById('edit-notes').addEventListener('keydown', e => {
       if (e.key === 'Enter') document.getElementById('btn-unit-save').click();
     });
 
@@ -529,12 +533,14 @@ const UI = {
       <div class="or-divider">Create or Join</div>
       <div class="field-group">
         <label for="new-mission-name">New Mission Name</label>
-        <input id="new-mission-name" type="text" placeholder="e.g. Exercise IRON EAGLE">
+        <input id="new-mission-name" type="text" placeholder="e.g. Exercise IRON EAGLE"
+               autocomplete="off" autocapitalize="words" spellcheck="false">
       </div>
       <button class="btn-primary btn-full" id="btn-create-mission" style="margin-bottom:12px">Create Mission</button>
       <div class="field-group">
         <label for="join-code">Join Code</label>
-        <input id="join-code" type="text" placeholder="8-character code" autocapitalize="characters">
+        <input id="join-code" type="text" placeholder="8-character code"
+               autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false">
       </div>
       <button class="btn-secondary btn-full" id="btn-join-mission">Join Mission</button>
       <div id="mission-error" class="error-msg" hidden></div>
@@ -1578,7 +1584,8 @@ const App = {
         errEl.textContent = 'Magic link sent! Check your email.';
         errEl.style.color = 'var(--green)';
         errEl.hidden = false;
-        btn.textContent = 'Check email →';
+        btn.disabled = false;
+        btn.textContent = 'Resend →';
         return;
       }
       UI.closeSheet('sheet-auth');
