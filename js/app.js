@@ -966,6 +966,16 @@ const App = {
       const TOOLS = { 's': 'select', 'u': 'place-unit', 'm': 'measure', 'p': 'pin',
                       'l': 'draw-line', 'a': 'draw-area' };
 
+      if ((e.key === 'g' || e.key === 'G') && !e.ctrlKey && !e.metaKey) {
+        document.getElementById('goto-grid-input')?.select();
+        UI.showSheet('sheet-goto-grid');
+        return;
+      }
+      if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey) {
+        UI.showSheet('sheet-reports-menu');
+        return;
+      }
+
       if (e.key === 'Escape') {
         if (document.body.classList.contains('fullmap')) {
           document.body.classList.remove('fullmap');
@@ -1569,6 +1579,30 @@ const App = {
       MapCtrl._reportMarkers = {};
       LocalStore.clearReports?.();
       UI.toast('Report markers cleared', 'info');
+    });
+    let _clearGfxStep = 0;
+    document.getElementById('btn-clear-graphics')?.addEventListener('click', () => {
+      _clearGfxStep++;
+      const btn = document.getElementById('btn-clear-graphics');
+      if (_clearGfxStep === 1) {
+        if (btn) btn.textContent = 'Tap again to confirm';
+        setTimeout(() => {
+          _clearGfxStep = 0;
+          const b = document.getElementById('btn-clear-graphics');
+          if (b) b.textContent = 'Clear All Graphics';
+        }, 3000);
+      } else {
+        _clearGfxStep = 0;
+        if (btn) btn.textContent = 'Clear All Graphics';
+        MapCtrl._graphicLayer?.clearLayers();
+        const ids = Object.keys(MapCtrl._graphics || {});
+        MapCtrl._graphics = {};
+        ids.forEach(id => {
+          LocalStore.deleteGraphic(id);
+          if (Mission.active) DB.deleteGraphic(id).catch(() => {});
+        });
+        UI.toast(`${ids.length} graphic${ids.length !== 1 ? 's' : ''} cleared`, 'info');
+      }
     });
     let _clearUnitsStep = 0;
     document.getElementById('btn-clear-units')?.addEventListener('click', () => {
