@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=40">
+  <link rel="stylesheet" href="css/style.css?v=41">
 </head>
 <body>
 
@@ -937,6 +937,7 @@
       <div class="layers-section" style="margin-top:16px">
         <h4>Data Management</h4>
         <button class="btn-secondary btn-full" id="btn-clear-reports" style="margin-bottom:8px">Clear Report Markers</button>
+        <button class="btn-secondary btn-full" id="btn-clear-graphics" style="margin-bottom:8px">Clear All Graphics</button>
         <button class="btn-secondary btn-full" id="btn-clear-units" style="margin-bottom:8px">Clear All Units (local)</button>
         <button class="btn-secondary btn-danger btn-full" id="btn-clear-all-data">Clear All Local Data</button>
       </div>
@@ -951,12 +952,14 @@
           <tr><td><kbd>P</kbd></td><td>Pin drop tool</td></tr>
           <tr><td><kbd>L</kbd></td><td>Draw Line tool</td></tr>
           <tr><td><kbd>A</kbd></td><td>Draw Area tool</td></tr>
+          <tr><td><kbd>G</kbd></td><td>Go to Grid</td></tr>
+          <tr><td><kbd>R</kbd></td><td>Reports menu</td></tr>
           <tr><td><kbd>F</kbd></td><td>Toggle fullscreen map</td></tr>
         </table>
       </div>
 
       <div class="sheet-hint" style="margin-top:16px; text-align:center">
-        v40 · NOT FOR OPERATIONAL USE
+        v41 · NOT FOR OPERATIONAL USE
       </div>
     </div>
   </div>
@@ -989,18 +992,18 @@
   <script src="https://cdn.jsdelivr.net/npm/milsymbol@2.2.0/dist/milsymbol.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
-  <script src="js/config.js?v=40"></script>
-  <script src="js/db.js?v=40"></script>
-  <script src="js/auth.js?v=40"></script>
-  <script src="js/mission.js?v=40"></script>
-  <script src="js/mgrs-grid.js?v=40"></script>
-  <script src="js/symbols.js?v=40"></script>
-  <script src="js/bft.js?v=40"></script>
-  <script src="js/chat.js?v=40"></script>
-  <script src="js/reports.js?v=40"></script>
-  <script src="js/map.js?v=40"></script>
-  <script src="js/hhour.js?v=40"></script>
-  <script src="js/app.js?v=40"></script>
+  <script src="js/config.js?v=41"></script>
+  <script src="js/db.js?v=41"></script>
+  <script src="js/auth.js?v=41"></script>
+  <script src="js/mission.js?v=41"></script>
+  <script src="js/mgrs-grid.js?v=41"></script>
+  <script src="js/symbols.js?v=41"></script>
+  <script src="js/bft.js?v=41"></script>
+  <script src="js/chat.js?v=41"></script>
+  <script src="js/reports.js?v=41"></script>
+  <script src="js/map.js?v=41"></script>
+  <script src="js/hhour.js?v=41"></script>
+  <script src="js/app.js?v=41"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
