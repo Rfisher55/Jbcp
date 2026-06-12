@@ -1547,11 +1547,13 @@ const App = {
       t.setHours(h, m, 0, 0);
       if (t < Date.now()) t.setDate(t.getDate() + 1);
       HHour.set(t.getTime());
+      if (Mission.active) BFT.broadcastHHour(t.getTime());
       UI.closeSheet('sheet-hhour');
-      UI.toast(`H-Hour set: ${val}`, 'success');
+      UI.toast(`H-Hour set: ${val}${Mission.active ? ' — broadcast to team' : ''}`, 'success');
     });
     document.getElementById('btn-hhour-clear')?.addEventListener('click', () => {
       HHour.clear();
+      if (Mission.active) BFT.broadcastHHour(null);
       UI.closeSheet('sheet-hhour');
     });
     HHour.init();

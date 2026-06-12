@@ -27,6 +27,19 @@ const BFT = {
       this._updateTrack(payload);
     });
 
+    this._channel.on('broadcast', { event: 'hhour' }, ({ payload }) => {
+      if (!payload) return;
+      if (payload.ms == null) {
+        HHour.clear();
+        UI.toast(`H-Hour cleared by ${payload.callsign || 'unknown'}`, 'info', 3000);
+      } else {
+        HHour.set(payload.ms);
+        const t    = new Date(payload.ms);
+        const time = t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+        UI.toast(`H-Hour ${time} set by ${payload.callsign || 'unknown'}`, 'info', 4000);
+      }
+    });
+
     this._channel.subscribe((status) => {
       if (status === 'SUBSCRIBED')    UI.toast('BFT: Live tracking active', 'success', 2000);
       if (status === 'CHANNEL_ERROR') UI.toast('BFT: Connection lost', 'error', 3000);
@@ -243,6 +256,17 @@ const BFT = {
       if (t.histPoly) this._histLayer.removeLayer(t.histPoly);
     });
     this._tracks = {};
+  },
+
+  broadcastHHour(ms) {
+    if (!this._channel) return;
+    try {
+      this._channel.send({
+        type: 'broadcast',
+        event: 'hhour',
+        payload: { ms: ms ?? null, callsign: Auth.callsign || 'Unknown' }
+      });
+    } catch {}
   },
 
   count() { return Object.keys(this._tracks).length; }
