@@ -1046,6 +1046,18 @@ const App = {
     // Measure clear
     document.getElementById('btn-measure-clear').addEventListener('click', () => MapCtrl.clearMeasure());
 
+    // Measure share to chat
+    document.getElementById('btn-measure-chat')?.addEventListener('click', () => {
+      if (!Chat.isJoined()) { UI.toast('Join a mission to share', 'info'); return; }
+      const dist = document.getElementById('m-distance')?.textContent || '—';
+      const az   = document.getElementById('m-azimuth')?.textContent  || '—';
+      const from = document.getElementById('m-from')?.textContent     || '—';
+      const to   = document.getElementById('m-to')?.textContent       || '—';
+      if (dist === '—') { UI.toast('No measurement to share', 'info', 2000); return; }
+      Chat.send(`MEASURE: ${dist} az ${az} FROM ${from} TO ${to}`);
+      UI.toast('Measurement shared to chat', 'success', 2000);
+    });
+
     // Chat clear (two-tap confirm)
     let _chatClearStep = 0;
     document.getElementById('btn-chat-clear')?.addEventListener('click', () => {
@@ -1187,13 +1199,16 @@ const App = {
     });
     document.getElementById('btn-sitrep-autofill')?.addEventListener('click', () => {
       const units = Object.values(MapCtrl._units).map(u => u.data);
-      const friendly = units
+      const placedFriendly = units
         .filter(u => {
           const s = u.sidc || '';
           return s[1] === 'F' || s[1] === 'A' || (s.length >= 20 && s[3] === '3');
         })
-        .map(u => `${u.callsign || 'UNKNOWN'} RC${u.redcon || 5}/${u.opstat || 'FMC'}`)
-        .join(', ');
+        .map(u => `${u.callsign || 'UNKNOWN'} RC${u.redcon || 5}/${u.opstat || 'FMC'}`);
+      const bftFriendly = Object.values(BFT._tracks)
+        .filter(t => !t.stale)
+        .map(t => `${t.callsign || 'BFT'}(live${t.opstat ? '/' + t.opstat : ''})`);
+      const friendly = [...placedFriendly, ...bftFriendly].join(', ');
       const el = document.getElementById('sit-friendly');
       if (el && friendly) el.value = friendly;
 
@@ -1221,11 +1236,15 @@ const App = {
     document.getElementById('btn-fstat-share')?.addEventListener('click', () => {
       if (!Chat.isJoined()) { UI.toast('Join a mission to share', 'info'); return; }
       const safeCs = s => String(s || '?').replace(/[|\x00-\x1f]/g, '').slice(0, 16) || '?';
-      const units = Object.values(MapCtrl._units)
+      const unitParts = Object.values(MapCtrl._units)
         .sort((a, b) => (a.data.redcon || 5) - (b.data.redcon || 5))
-        .map(({ data: u }) => `${safeCs(u.callsign)} RC${u.redcon || 5}/${u.opstat || 'FMC'}`)
-        .join(' | ');
-      if (units) { Chat.send('FORCE STATUS: ' + units); UI.toast('Force status shared to chat', 'success'); }
+        .map(({ data: u }) => `${safeCs(u.callsign)} RC${u.redcon || 5}/${u.opstat || 'FMC'}`);
+      const bftParts = Object.values(BFT._tracks)
+        .filter(t => !t.stale)
+        .map(t => `${safeCs(t.callsign)}(live)`);
+      const allParts = [...unitParts, ...bftParts];
+      if (allParts.length) { Chat.send('FORCE STATUS: ' + allParts.join(' | ')); UI.toast('Force status shared to chat', 'success'); }
+      else { UI.toast('No units or tracks to share', 'info'); }
     });
     document.getElementById('btn-fstat-export')?.addEventListener('click', () => {
       App._exportUnitSummary();
