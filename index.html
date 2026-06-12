@@ -632,7 +632,7 @@
     <div class="sheet-inner">
       <div class="sheet-handle"></div>
       <button class="btn-close" id="btn-context-close">✕</button>
-      <div class="ctx-grid-label" id="ctx-mgrs">——</div>
+      <div class="ctx-grid-label" id="ctx-mgrs" style="cursor:pointer" title="Tap to copy">——</div>
       <div class="ctx-menu">
         <button class="ctx-btn hostile-btn" id="ctx-spotrep">
           <span class="ctx-icon">✕</span>
@@ -661,6 +661,10 @@
         <button class="ctx-btn" id="ctx-nbc">
           <span class="ctx-icon">☣</span>
           <span>NBC Report</span>
+        </button>
+        <button class="ctx-btn" id="ctx-pin-here">
+          <span class="ctx-icon">📌</span>
+          <span>Pin Here</span>
         </button>
       </div>
     </div>
@@ -777,26 +781,26 @@
 
       <div class="field-group">
         <label for="nbc-loc">Location (MGRS) <span class="req">*</span></label>
-        <input id="nbc-loc" type="text" placeholder="6-digit MGRS" autocapitalize="characters">
+        <input id="nbc-loc" type="text" placeholder="6-digit MGRS" autocomplete="off" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="nbc-dtg" style="display:flex;justify-content:space-between;align-items:center">
           <span>Date-Time Group</span>
           <button class="btn-secondary" id="btn-nbcdtg-now" style="font-size:10px;padding:2px 8px;margin:0">Now</button>
         </label>
-        <input id="nbc-dtg" type="text" autocapitalize="characters">
+        <input id="nbc-dtg" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="nbc-wind">Wind Direction (from)</label>
-        <input id="nbc-wind" type="text" placeholder="e.g. 270° W" autocapitalize="characters">
+        <input id="nbc-wind" type="text" placeholder="e.g. 270° W" autocomplete="off" autocapitalize="characters">
       </div>
       <div class="field-group">
         <label for="nbc-hazard">Hazard Area / Extent</label>
-        <input id="nbc-hazard" type="text" placeholder="e.g. 500m radius" autocapitalize="sentences">
+        <input id="nbc-hazard" type="text" placeholder="e.g. 500m radius" autocomplete="off" autocapitalize="sentences">
       </div>
       <div class="field-group">
         <label for="nbc-actions">Protective Actions</label>
-        <input id="nbc-actions" type="text" placeholder="e.g. MOPP 4, evacuate 1km" autocapitalize="sentences">
+        <input id="nbc-actions" type="text" placeholder="e.g. MOPP 4, evacuate 1km" autocomplete="off" autocapitalize="sentences">
       </div>
       <button class="btn-primary btn-full" id="btn-nbc-submit">Send NBC Warning</button>
     </div>
@@ -815,29 +819,29 @@
       <div class="pace-item">
         <div class="pace-letter pace-p">P</div>
         <div class="pace-fields">
-          <input id="pace-p-method" type="text" placeholder="Primary method (e.g. SINCGARS)" autocapitalize="words">
-          <input id="pace-p-freq" type="text" placeholder="Freq / net / channel" autocapitalize="characters">
+          <input id="pace-p-method" type="text" placeholder="Primary method (e.g. SINCGARS)" autocomplete="off" autocapitalize="words">
+          <input id="pace-p-freq" type="text" placeholder="Freq / net / channel" autocomplete="off" autocapitalize="characters" spellcheck="false">
         </div>
       </div>
       <div class="pace-item">
         <div class="pace-letter pace-a">A</div>
         <div class="pace-fields">
-          <input id="pace-a-method" type="text" placeholder="Alternate method" autocapitalize="words">
-          <input id="pace-a-freq" type="text" placeholder="Freq / net / channel" autocapitalize="characters">
+          <input id="pace-a-method" type="text" placeholder="Alternate method" autocomplete="off" autocapitalize="words">
+          <input id="pace-a-freq" type="text" placeholder="Freq / net / channel" autocomplete="off" autocapitalize="characters" spellcheck="false">
         </div>
       </div>
       <div class="pace-item">
         <div class="pace-letter pace-c">C</div>
         <div class="pace-fields">
-          <input id="pace-c-method" type="text" placeholder="Contingency method" autocapitalize="words">
-          <input id="pace-c-freq" type="text" placeholder="Freq / net / channel" autocapitalize="characters">
+          <input id="pace-c-method" type="text" placeholder="Contingency method" autocomplete="off" autocapitalize="words">
+          <input id="pace-c-freq" type="text" placeholder="Freq / net / channel" autocomplete="off" autocapitalize="characters" spellcheck="false">
         </div>
       </div>
       <div class="pace-item">
         <div class="pace-letter pace-e">E</div>
         <div class="pace-fields">
-          <input id="pace-e-method" type="text" placeholder="Emergency method" autocapitalize="words">
-          <input id="pace-e-freq" type="text" placeholder="Freq / net / channel" autocapitalize="characters">
+          <input id="pace-e-method" type="text" placeholder="Emergency method" autocomplete="off" autocapitalize="words">
+          <input id="pace-e-freq" type="text" placeholder="Freq / net / channel" autocomplete="off" autocapitalize="characters" spellcheck="false">
         </div>
       </div>
       <button class="btn-primary btn-full" id="btn-pace-save" style="margin-top:4px">Save PACE Plan</button>

@@ -1330,6 +1330,21 @@ const App = {
       if (ll) Reports.openNBC(ll.lat, ll.lng);
     });
 
+    document.getElementById('ctx-pin-here')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-context');
+      const ll = MapCtrl._ctxLatLng;
+      if (ll) MapCtrl._dropPin(ll);
+    });
+
+    // MGRS label in context menu — tap to copy
+    document.getElementById('ctx-mgrs')?.addEventListener('click', () => {
+      const mgrs = document.getElementById('ctx-mgrs')?.textContent;
+      if (!mgrs || mgrs === '——') return;
+      navigator.clipboard?.writeText(mgrs)
+        .then(() => UI.toast('Grid copied: ' + mgrs, 'success', 1800))
+        .catch(() => UI.toast(mgrs, 'info', 2000));
+    });
+
     document.getElementById('ctx-goto-grid')?.addEventListener('click', () => {
       UI.closeSheet('sheet-context');
       const input = document.getElementById('goto-grid-input');
