@@ -29,6 +29,7 @@ const MapCtrl = {
   _pinLayer:         null,
   _previewGroup:     null,
   _rangeRings:       {},   // unitId → array of Leaflet circle layers
+  _reportMarkers:    {},   // report.id → { marker, nbcCircle }
   _selfMarker:       null,
   _units:            {},
   _graphics:         {},
@@ -668,8 +669,9 @@ const MapCtrl = {
     this._graphicLayer.clearLayers();
     this._reportLayer.clearLayers();
     this.clearRangeRings();
-    this._units    = {};
-    this._graphics = {};
+    this._units         = {};
+    this._graphics      = {};
+    this._reportMarkers = {};
 
     const [units, graphics] = await Promise.all([
       DB.getUnits(missionId),
@@ -698,8 +700,9 @@ const MapCtrl = {
     this._graphicLayer.clearLayers();
     this._reportLayer.clearLayers();
     this.clearRangeRings();
-    this._units    = {};
-    this._graphics = {};
+    this._units         = {};
+    this._graphics      = {};
+    this._reportMarkers = {};
     BFT.leaveMission();
   },
 
@@ -910,8 +913,9 @@ const MapCtrl = {
     this._graphicLayer.clearLayers();
     this._reportLayer.clearLayers();
     this.clearRangeRings();
-    this._units    = {};
-    this._graphics = {};
+    this._units         = {};
+    this._graphics      = {};
+    this._reportMarkers = {};
     const units    = LocalStore.getUnits();
     const graphics = LocalStore.getGraphics();
     const reports  = LocalStore.getReports();
@@ -1026,8 +1030,7 @@ const MapCtrl = {
         const btn = rptPopup.getElement()?.querySelector('.btn-del-report');
         if (!btn) return;
         btn.onclick = () => {
-          if (marker._nbcCircle) this._reportLayer.removeLayer(marker._nbcCircle);
-          this._reportLayer.removeLayer(marker);
+          this.removeReportMarker(report.id);
           LocalStore.deleteReport(report.id);
           this._map.closePopup();
         };
@@ -1035,6 +1038,15 @@ const MapCtrl = {
     });
 
     marker.addTo(this._reportLayer);
+    this._reportMarkers[report.id] = { marker, nbcCircle: marker._nbcCircle || null };
+  },
+
+  removeReportMarker(id) {
+    const entry = this._reportMarkers[id];
+    if (!entry) return;
+    if (entry.nbcCircle) this._reportLayer.removeLayer(entry.nbcCircle);
+    this._reportLayer.removeLayer(entry.marker);
+    delete this._reportMarkers[id];
   },
 
   toggleRangeRings(unitId, lat, lng) {
