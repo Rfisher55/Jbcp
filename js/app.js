@@ -1250,6 +1250,22 @@ const App = {
           .map(r => `${r.data?.size || ''} ${r.data?.activity || ''} @ ${r.mgrs || ''}`.trim());
         if (rpts.length) enemyEl.value = rpts.join(' / ');
       }
+
+      // Auto-fill logistics from most recent LACE or ACE report
+      const logEl = document.getElementById('sit-log');
+      if (logEl && !logEl.value) {
+        const allRpts = LocalStore.getReports()
+          .filter(r => r.type === 'LACE' || r.type === 'ACE')
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        const latest = allRpts[0];
+        if (latest?.type === 'LACE' && latest.data) {
+          const d = latest.data;
+          logEl.value = `L:${d.l}% A:${d.a}% C:${d.c}cas E:${d.e}%`;
+        } else if (latest?.type === 'ACE' && latest.data) {
+          const d = latest.data;
+          logEl.value = `A:${d.a}% E:${d.e}% KIA:${d.kia} WIA:${d.wia}${d.mia ? ' MIA:' + d.mia : ''}`;
+        }
+      }
     });
 
     // PACE plan
