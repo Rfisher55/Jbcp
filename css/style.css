@@ -1351,14 +1351,16 @@ kbd {
   color: var(--text-dim); border-bottom: 1px solid var(--border); word-break: break-all;
 }
 .pin-popup-btns { display: flex; }
-.pin-popup-copy, .pin-popup-del {
+.pin-popup-copy, .pin-popup-share, .pin-popup-del {
   flex: 1; padding: 10px 8px; background: none; border: none;
   color: var(--text); font-size: 13px; cursor: pointer; font-weight: 600;
   touch-action: manipulation;
 }
-.pin-popup-copy:hover { background: rgba(88,166,255,0.1); color: var(--blue); }
-.pin-popup-del { border-left: 1px solid var(--border); }
-.pin-popup-del:hover { background: rgba(248,81,73,0.15); color: var(--red); }
+.pin-popup-copy:hover  { background: rgba(88,166,255,0.1); color: var(--blue); }
+.pin-popup-share { border-left: 1px solid var(--border); }
+.pin-popup-share:hover { background: rgba(63,185,80,0.12); color: var(--green); }
+.pin-popup-del   { border-left: 1px solid var(--border); }
+.pin-popup-del:hover   { background: rgba(248,81,73,0.15); color: var(--red); }
 
 /* ── Drop-pin marker ──────────────────────────────────── */
 .pin-wrap { display: flex; flex-direction: column; align-items: center; pointer-events: none; }
