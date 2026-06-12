@@ -1881,12 +1881,15 @@ const App = {
       const finiteNum = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
       const fuelVals = withLace.map(u => finiteNum(u.data.lace.l)).filter(v => v !== null);
       const ammoVals = withLace.map(u => finiteNum(u.data.lace.a)).filter(v => v !== null);
+      const casVals  = withLace.map(u => finiteNum(u.data.lace.c)).filter(v => v !== null);
       if (!fuelVals.length && !ammoVals.length) return '';
-      const avgFuel = fuelVals.length ? Math.round(fuelVals.reduce((s, v) => s + v, 0) / fuelVals.length) : '—';
-      const avgAmmo = ammoVals.length ? Math.round(ammoVals.reduce((s, v) => s + v, 0) / ammoVals.length) : '—';
-      const minFuel = fuelVals.length ? Math.min(...fuelVals) : '—';
-      const minAmmo = ammoVals.length ? Math.min(...ammoVals) : '—';
-      return `<div class="fstat-lace-agg">Avg L:${avgFuel}% A:${avgAmmo}% · Min L:${minFuel}% A:${minAmmo}%</div>`;
+      const avgFuel  = fuelVals.length ? Math.round(fuelVals.reduce((s, v) => s + v, 0) / fuelVals.length) : '—';
+      const avgAmmo  = ammoVals.length ? Math.round(ammoVals.reduce((s, v) => s + v, 0) / ammoVals.length) : '—';
+      const minFuel  = fuelVals.length ? Math.min(...fuelVals) : '—';
+      const minAmmo  = ammoVals.length ? Math.min(...ammoVals) : '—';
+      const totalCas = casVals.length ? casVals.reduce((s, v) => s + v, 0) : 0;
+      const casStr   = totalCas > 0 ? ` · Cas:${totalCas}` : '';
+      return `<div class="fstat-lace-agg">Avg L:${avgFuel}% A:${avgAmmo}% · Min L:${minFuel}% A:${minAmmo}%${casStr}</div>`;
     })() : '';
 
     const summaryEl = document.getElementById('fstat-summary');

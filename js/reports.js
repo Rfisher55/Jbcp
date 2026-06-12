@@ -109,7 +109,8 @@ const Reports = {
     if (hasLoc) MapCtrl.placeReportMarker(rpt);
 
     if (Chat.isJoined()) {
-      Chat.send(`SPOTREP: ${size} ${activity} at ${location} DTG ${dtg}`);
+      const equipStr = equip ? ` Eqp:${equip.slice(0, 30)}` : '';
+      Chat.send(`SPOTREP ${Auth.callsign}: ${size} ${activity} @ ${location} DTG ${dtg}${equipStr}`);
     }
     UI.closeSheet('sheet-spotrep');
     UI.toast(hasLoc ? 'SPOTREP filed — enemy marker placed' : 'SPOTREP filed', 'success');
