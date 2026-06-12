@@ -67,6 +67,7 @@ const UI = {
     });
 
     grid.innerHTML = '';
+    document.getElementById('sheet-symbols')?.querySelector('.sheet-inner')?.scrollTo(0, 0);
     if (!items.length) {
       grid.innerHTML = '<p class="empty-msg" style="padding:12px">No symbols match</p>';
       return;
@@ -1489,6 +1490,7 @@ const App = {
 
     document.getElementById('btn-clear-reports')?.addEventListener('click', () => {
       MapCtrl._reportLayer?.clearLayers();
+      MapCtrl._reportMarkers = {};
       LocalStore.clearReports?.();
       UI.toast('Report markers cleared', 'info');
     });

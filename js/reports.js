@@ -350,6 +350,7 @@ const Reports = {
 
     list.querySelectorAll('.rpt-log-del').forEach(btn => {
       btn.addEventListener('click', () => {
+        MapCtrl.removeReportMarker(btn.dataset.id);
         LocalStore.deleteReport(btn.dataset.id);
         this._renderLog();
       });
