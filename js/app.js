@@ -220,7 +220,7 @@ const UI = {
       <div class="field-group">
         <label for="edit-notes">Notes / Remarks</label>
         <input id="edit-notes" type="text" value="${_escH(unit.notes || '')}"
-               placeholder="Optional remarks" spellcheck="false">
+               placeholder="Optional remarks" autocorrect="off" spellcheck="false">
       </div>
       <div class="field-group" style="margin-bottom:6px">
         <label for="unit-move-mgrs" style="display:flex;justify-content:space-between;align-items:center">
@@ -1250,7 +1250,7 @@ const App = {
       if (!entry) return;
       UI.closeSheet('sheet-force-status');
       MapCtrl._openUnitDetail(item.dataset.uid);
-      MapCtrl.flyToGrid(entry.data.lat, entry.data.lng);
+      if (isFinite(entry.data.lat) && isFinite(entry.data.lng)) MapCtrl.flyToGrid(entry.data.lat, entry.data.lng);
     });
 
     // Symbol scale (only buttons with explicit data-scale; map filter + stale buttons share scale-btn class)
@@ -2088,8 +2088,10 @@ const App = {
       graphics.forEach(g => {
         if (!g.id || !g.type || !g.geometry) return;
         if (!MapCtrl._graphics[g.id]) {
-          MapCtrl._renderGraphic(g);
-          LocalStore.upsertGraphic(g);
+          const importedG = { ...g, mission_id: Mission.active ? Mission.current.id : null };
+          MapCtrl._renderGraphic(importedG);
+          LocalStore.upsertGraphic(importedG);
+          if (Mission.active) DB.upsertGraphic(importedG).catch(() => {});
           placedG++;
         }
       });
