@@ -25,6 +25,11 @@ const Reports = {
     }
     lace = lace || { l: 100, a: 100, c: 0, e: 100 };
     this._ctx = { type: 'LACE', unitId };
+    const laceTitleEl = document.getElementById('lace-title');
+    if (laceTitleEl) {
+      const cs = unitId ? MapCtrl._units[unitId]?.data?.callsign : null;
+      laceTitleEl.textContent = cs ? `LACE — ${cs}` : 'LACE Report';
+    }
     document.getElementById('lace-liquid').value = lace.l ?? 100;
     document.getElementById('lace-ammo').value   = lace.a ?? 100;
     document.getElementById('lace-cas').value    = lace.c ?? 0;
@@ -209,6 +214,11 @@ const Reports = {
   // ── ACE Report ────────────────────────────────────────────
   openACE(unitId) {
     this._ctx = { type: 'ACE', unitId };
+    const aceTitleEl = document.getElementById('ace-title');
+    if (aceTitleEl) {
+      const cs = unitId ? MapCtrl._units[unitId]?.data?.callsign : null;
+      aceTitleEl.textContent = cs ? `ACE — ${cs}` : 'ACE Report';
+    }
     const prev = unitId
       ? LocalStore.getReports()
           .filter(r => r.type === 'ACE' && r.unit_id === unitId)

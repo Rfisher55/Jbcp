@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=46">
+  <link rel="stylesheet" href="css/style.css?v=47">
 </head>
 <body>
 
@@ -377,7 +377,7 @@
     <div class="sheet-inner">
       <div class="sheet-handle"></div>
       <button class="btn-close" id="btn-lace-close">✕</button>
-      <h3>LACE Report</h3>
+      <h3 id="lace-title">LACE Report</h3>
       <p class="sheet-hint">Liquid · Ammo · Casualties · Equipment — all measured as % of basic load</p>
 
       <div class="lace-form-row">
@@ -679,7 +679,7 @@
       <div class="sheet-handle"></div>
       <button class="btn-close" id="btn-goto-close">✕</button>
       <h3>Go to Grid</h3>
-      <p class="sheet-hint">Enter MGRS, abbreviated grid, or unit callsign</p>
+      <p class="sheet-hint">Enter MGRS, abbreviated grid, unit callsign, or BFT track callsign</p>
       <input id="goto-grid-input" class="text-input" type="text" placeholder="38SMB12345678 or ALPHA-1"
              autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
              style="font-size:18px; letter-spacing:0.05em; margin-bottom:12px">
@@ -725,7 +725,7 @@
     <div class="sheet-inner">
       <div class="sheet-handle"></div>
       <button class="btn-close" id="btn-ace-close">✕</button>
-      <h3>ACE Report</h3>
+      <h3 id="ace-title">ACE Report</h3>
       <p class="sheet-hint">Ammunition · Casualties · Equipment</p>
 
       <div class="lace-form-row">
@@ -959,7 +959,7 @@
       </div>
 
       <div class="sheet-hint" style="margin-top:16px; text-align:center">
-        v46 · NOT FOR OPERATIONAL USE
+        v47 · NOT FOR OPERATIONAL USE
       </div>
     </div>
   </div>
@@ -992,18 +992,18 @@
   <script src="https://cdn.jsdelivr.net/npm/milsymbol@2.2.0/dist/milsymbol.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
-  <script src="js/config.js?v=46"></script>
-  <script src="js/db.js?v=46"></script>
-  <script src="js/auth.js?v=46"></script>
-  <script src="js/mission.js?v=46"></script>
-  <script src="js/mgrs-grid.js?v=46"></script>
-  <script src="js/symbols.js?v=46"></script>
-  <script src="js/bft.js?v=46"></script>
-  <script src="js/chat.js?v=46"></script>
-  <script src="js/reports.js?v=46"></script>
-  <script src="js/map.js?v=46"></script>
-  <script src="js/hhour.js?v=46"></script>
-  <script src="js/app.js?v=46"></script>
+  <script src="js/config.js?v=47"></script>
+  <script src="js/db.js?v=47"></script>
+  <script src="js/auth.js?v=47"></script>
+  <script src="js/mission.js?v=47"></script>
+  <script src="js/mgrs-grid.js?v=47"></script>
+  <script src="js/symbols.js?v=47"></script>
+  <script src="js/bft.js?v=47"></script>
+  <script src="js/chat.js?v=47"></script>
+  <script src="js/reports.js?v=47"></script>
+  <script src="js/map.js?v=47"></script>
+  <script src="js/hhour.js?v=47"></script>
+  <script src="js/app.js?v=47"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
