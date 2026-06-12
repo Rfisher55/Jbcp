@@ -1011,14 +1011,27 @@ const App = {
     // Locate / GPS
     document.getElementById('btn-locate').addEventListener('click', () => this._toggleTracking());
 
-    // Copy MGRS
-    document.getElementById('coord-chip').addEventListener('click', () => {
+    // Copy MGRS (tap) / Share position to chat (long-press)
+    const _coordChip = document.getElementById('coord-chip');
+    let _coordLpTimer;
+    _coordChip.addEventListener('click', () => {
       const txt = document.getElementById('coord-mgrs').textContent;
       if (!txt || txt === 'No position') { UI.toast('No GPS fix yet', 'info', 2000); return; }
       navigator.clipboard?.writeText(txt)
         .then(() => UI.toast('MGRS copied: ' + txt, 'success'))
         .catch(() => UI.toast(txt, 'info'));
     });
+    _coordChip.addEventListener('touchstart', () => {
+      _coordLpTimer = setTimeout(() => {
+        const txt = document.getElementById('coord-mgrs').textContent;
+        if (!txt || txt === 'No position') { UI.toast('No GPS fix yet', 'info', 2000); return; }
+        if (!Chat.isJoined()) { UI.toast('Join a mission to share', 'info', 2000); return; }
+        Chat.send(`MY POS: ${txt}`);
+        UI.toast('Position shared to chat', 'success', 2000);
+      }, 700);
+    }, { passive: true });
+    _coordChip.addEventListener('touchend',  () => clearTimeout(_coordLpTimer));
+    _coordChip.addEventListener('touchmove', () => clearTimeout(_coordLpTimer));
 
     // Layers
     document.getElementById('btn-layers').addEventListener('click', () => {
@@ -1765,7 +1778,7 @@ const App = {
     if (!list) return;
     const allUnits = Object.values(MapCtrl._units)
       .sort((a, b) => (a.data.redcon || 5) - (b.data.redcon || 5));
-    if (!allUnits.length) {
+    if (!allUnits.length && !Object.keys(BFT._tracks).length) {
       list.innerHTML = '<p class="empty-msg">No units placed</p>';
       const summaryEl = document.getElementById('fstat-summary');
       if (summaryEl) summaryEl.innerHTML = '';
@@ -1773,7 +1786,7 @@ const App = {
       return;
     }
 
-    // REDCON summary always reflects full force (not filtered)
+    // REDCON summary always reflects full placed force (not filtered)
     const units    = allUnits;
     const rcCounts = [1,2,3,4,5].map(r => units.filter(u => (u.data.redcon || 5) === r).length);
     const rcBar = `<div class="fstat-rc-summary">${
@@ -1805,8 +1818,16 @@ const App = {
       ? allUnits.filter(u => (u.data.callsign || '').toUpperCase().includes(query))
       : allUnits;
 
-    if (!displayUnits.length) {
-      list.innerHTML = '<p class="empty-msg">No units match filter</p>';
+    // Append live BFT tracks (filtered by query if set)
+    const allBft = Object.values(BFT._tracks);
+    const displayBft = query
+      ? allBft.filter(t => (t.callsign || '').toUpperCase().includes(query))
+      : allBft;
+
+    if (!displayUnits.length && !displayBft.length) {
+      list.innerHTML = query
+        ? '<p class="empty-msg">No units match filter</p>'
+        : '<p class="empty-msg">No units placed</p>';
       UI.showSheet('sheet-force-status');
       return;
     }
@@ -1831,11 +1852,9 @@ const App = {
       </div>`;
     }).join('');
 
-    // Append live BFT tracks (if any) below the unit list
-    const bftTracks = Object.values(BFT._tracks);
-    if (bftTracks.length) {
-      const bftHtml = `<div class="section-label" style="margin:10px 0 4px;opacity:0.6;font-size:0.68rem">LIVE BFT TRACKS (${bftTracks.length})</div>` +
-        bftTracks.map(t => {
+    if (displayBft.length) {
+      const bftHtml = `<div class="section-label" style="margin:10px 0 4px;opacity:0.6;font-size:0.68rem">LIVE BFT TRACKS (${displayBft.length})</div>` +
+        displayBft.map(t => {
           const agoSec = t.ts ? Math.round((Date.now() - t.ts) / 1000) : 0;
           const agoStr = agoSec > 120 ? Math.floor(agoSec / 60) + 'm ago' : agoSec + 's ago';
           const mgrs   = t.mgrs || (t.lat != null ? toMGRS(t.lat, t.lng, 5) : '—') || '—';
