@@ -617,7 +617,7 @@ const UI = {
         Mission.leave();
         MapCtrl.clearMission();
         UI.setMissionLabel(null);
-        UI.closeSheet('sheet-mission');
+        UI.closeAllSheets();
         UI.toast('Left mission', 'info');
       }
     });
@@ -629,6 +629,8 @@ const UI = {
     });
 
     document.getElementById('btn-force-status')?.addEventListener('click', () => {
+      const f = document.getElementById('fstat-filter');
+      if (f) f.value = '';
       App._showForceStatus();
       UI.closeSheet('sheet-mission');
     });
@@ -1228,6 +1230,10 @@ const App = {
     document.getElementById('btn-fstat-export')?.addEventListener('click', () => {
       App._exportUnitSummary();
     });
+    document.getElementById('btn-fstat-fit')?.addEventListener('click', () => {
+      UI.closeSheet('sheet-force-status');
+      MapCtrl.fitToUnits();
+    });
 
     document.querySelectorAll('.btn-rc-bulk').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1404,6 +1410,13 @@ const App = {
 
     document.getElementById('goto-grid-input')?.addEventListener('keydown', e => {
       if (e.key === 'Enter') document.getElementById('btn-goto-go')?.click();
+    });
+
+    document.getElementById('btn-goto-self')?.addEventListener('click', () => {
+      const pos = App._selfPos;
+      if (!pos) { UI.toast('No GPS fix yet', 'info', 2000); return; }
+      UI.closeSheet('sheet-goto-grid');
+      MapCtrl.flyToGrid(pos.lat, pos.lng);
     });
 
     document.getElementById('btn-goto-grid-toolbar')?.addEventListener('click', () => {

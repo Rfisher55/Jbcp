@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=30">
+  <link rel="stylesheet" href="css/style.css?v=31">
 </head>
 <body>
 
@@ -681,7 +681,10 @@
              autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
              style="font-size:18px; letter-spacing:0.05em; margin-bottom:12px">
       <div id="goto-grid-note" style="font-size:12px; color:var(--text-dim); min-height:16px; margin-bottom:12px"></div>
-      <button class="btn-primary btn-full" id="btn-goto-go">Navigate</button>
+      <div class="btn-row" style="margin-bottom:0">
+        <button class="btn-primary btn-full" id="btn-goto-go">Navigate</button>
+        <button class="btn-secondary" id="btn-goto-self" title="Fly to GPS position">📍 Self</button>
+      </div>
     </div>
   </div>
 
@@ -819,29 +822,29 @@
       <div class="pace-item">
         <div class="pace-letter pace-p">P</div>
         <div class="pace-fields">
-          <input id="pace-p-method" type="text" placeholder="Primary method (e.g. SINCGARS)" autocomplete="off" autocapitalize="words">
-          <input id="pace-p-freq" type="text" placeholder="Freq / net / channel" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <input id="pace-p-method" type="text" placeholder="Primary method (e.g. SINCGARS)" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false">
+          <input id="pace-p-freq" type="text" placeholder="Freq / net / channel" autocomplete="off" autocapitalize="characters" spellcheck="false" autocorrect="off">
         </div>
       </div>
       <div class="pace-item">
         <div class="pace-letter pace-a">A</div>
         <div class="pace-fields">
-          <input id="pace-a-method" type="text" placeholder="Alternate method" autocomplete="off" autocapitalize="words">
-          <input id="pace-a-freq" type="text" placeholder="Freq / net / channel" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <input id="pace-a-method" type="text" placeholder="Alternate method" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false">
+          <input id="pace-a-freq" type="text" placeholder="Freq / net / channel" autocomplete="off" autocapitalize="characters" spellcheck="false" autocorrect="off">
         </div>
       </div>
       <div class="pace-item">
         <div class="pace-letter pace-c">C</div>
         <div class="pace-fields">
-          <input id="pace-c-method" type="text" placeholder="Contingency method" autocomplete="off" autocapitalize="words">
-          <input id="pace-c-freq" type="text" placeholder="Freq / net / channel" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <input id="pace-c-method" type="text" placeholder="Contingency method" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false">
+          <input id="pace-c-freq" type="text" placeholder="Freq / net / channel" autocomplete="off" autocapitalize="characters" spellcheck="false" autocorrect="off">
         </div>
       </div>
       <div class="pace-item">
         <div class="pace-letter pace-e">E</div>
         <div class="pace-fields">
-          <input id="pace-e-method" type="text" placeholder="Emergency method" autocomplete="off" autocapitalize="words">
-          <input id="pace-e-freq" type="text" placeholder="Freq / net / channel" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <input id="pace-e-method" type="text" placeholder="Emergency method" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false">
+          <input id="pace-e-freq" type="text" placeholder="Freq / net / channel" autocomplete="off" autocapitalize="characters" spellcheck="false" autocorrect="off">
         </div>
       </div>
       <button class="btn-primary btn-full" id="btn-pace-save" style="margin-top:4px">Save PACE Plan</button>
@@ -859,6 +862,7 @@
       <div class="btn-row" style="margin-bottom:8px">
         <button class="btn-secondary btn-full" id="btn-fstat-share">Share to Chat</button>
         <button class="btn-secondary btn-full" id="btn-fstat-export">Copy Text</button>
+        <button class="btn-secondary" id="btn-fstat-fit" title="Fit map to all units">⌖ Fit</button>
       </div>
       <div class="fstat-bulk-row" style="margin-bottom:10px">
         <span class="fstat-bulk-label">Set all RC:</span>
@@ -870,7 +874,7 @@
       </div>
       <div id="fstat-summary" style="margin-bottom:8px"></div>
       <input id="fstat-filter" class="text-input" type="text" placeholder="Filter by callsign…"
-             autocomplete="off" autocapitalize="characters" spellcheck="false"
+             autocomplete="off" autocapitalize="characters" spellcheck="false" autocorrect="off"
              style="margin-bottom:8px">
       <div id="force-status-list" class="force-status-list">
         <p class="empty-msg">No units placed</p>
@@ -946,7 +950,7 @@
       </div>
 
       <div class="sheet-hint" style="margin-top:16px; text-align:center">
-        v30 · NOT FOR OPERATIONAL USE
+        v31 · NOT FOR OPERATIONAL USE
       </div>
     </div>
   </div>
@@ -979,18 +983,18 @@
   <script src="https://cdn.jsdelivr.net/npm/milsymbol@2.2.0/dist/milsymbol.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
-  <script src="js/config.js?v=30"></script>
-  <script src="js/db.js?v=30"></script>
-  <script src="js/auth.js?v=30"></script>
-  <script src="js/mission.js?v=30"></script>
-  <script src="js/mgrs-grid.js?v=30"></script>
-  <script src="js/symbols.js?v=30"></script>
-  <script src="js/bft.js?v=30"></script>
-  <script src="js/chat.js?v=30"></script>
-  <script src="js/reports.js?v=30"></script>
-  <script src="js/map.js?v=30"></script>
-  <script src="js/hhour.js?v=30"></script>
-  <script src="js/app.js?v=30"></script>
+  <script src="js/config.js?v=31"></script>
+  <script src="js/db.js?v=31"></script>
+  <script src="js/auth.js?v=31"></script>
+  <script src="js/mission.js?v=31"></script>
+  <script src="js/mgrs-grid.js?v=31"></script>
+  <script src="js/symbols.js?v=31"></script>
+  <script src="js/bft.js?v=31"></script>
+  <script src="js/chat.js?v=31"></script>
+  <script src="js/reports.js?v=31"></script>
+  <script src="js/map.js?v=31"></script>
+  <script src="js/hhour.js?v=31"></script>
+  <script src="js/app.js?v=31"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })

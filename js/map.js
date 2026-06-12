@@ -1090,5 +1090,15 @@ const MapCtrl = {
     this._rangeRings = {};
   },
 
+  fitToUnits() {
+    const pts = Object.values(this._units)
+      .filter(({ data: u }) => isFinite(u.lat) && isFinite(u.lng))
+      .map(({ data: u }) => [u.lat, u.lng]);
+    if (!pts.length) { UI.toast('No units with positions', 'info'); return; }
+    if (pts.length === 1) { this.flyToGrid(pts[0][0], pts[0][1]); return; }
+    const bounds = L.latLngBounds(pts);
+    this._map.fitBounds(bounds.pad(0.15), { animate: true });
+  },
+
   get map() { return this._map; },
 };
