@@ -152,7 +152,7 @@ const UI = {
   // ── Unit detail (with REDCON and LACE) ────────────────
   showUnitDetail(unit, { onEdit, onDelete }) {
     const sidc    = unit.sidc || 'SFGPUC-----';
-    const sym     = new ms.Symbol(sidc, { size: 50 });
+    const sym     = (typeof ms !== 'undefined') ? new ms.Symbol(sidc, { size: 50 }) : null;
     const mgrsStr = (isFinite(unit.lat) && isFinite(unit.lng))
       ? (toMGRS(unit.lat, unit.lng, 5) || `${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}`)
       : '—';
@@ -189,7 +189,7 @@ const UI = {
 
     document.getElementById('unit-detail-content').innerHTML = `
       <div class="unit-header">
-        <img src="${sym.toDataURL()}" alt="symbol">
+        <img src="${sym ? sym.toDataURL() : makeMilIcon(sidc, 50).options.iconUrl}" alt="symbol">
         <div class="unit-header-info">
           <div class="unit-title" id="ud-title">${_escH(unit.callsign || 'Unit')}</div>
           <div class="unit-meta">${_escH(unit.sidc)}</div>

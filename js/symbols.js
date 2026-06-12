@@ -12,12 +12,12 @@ const CATALOG = [
   { id: 'ada',        name: 'Air Defense',      base: 'SFGPUCAA---', cat: 'F' },
   { id: 'engr',       name: 'Engineer',         base: 'SFGPUCE----', cat: 'F' },
   { id: 'recon',      name: 'Reconnaissance',   base: 'SFGPUCR----', cat: 'F' },
-  { id: 'airborne',   name: 'Airborne',         base: '10031000001211000001', cat: 'F' },
-  { id: 'airasslt',   name: 'Air Assault',      base: '10031000001201000000', cat: 'F' },
-  { id: 'sf',         name: 'Special Forces',   base: '10031000001217000000', cat: 'F' },
-  { id: 'ranger',     name: 'Ranger',           base: '10031000001220000000', cat: 'F' },
+  { id: 'airborne',   name: 'Airborne',         base: 'SFGPUCIA---', cat: 'F' },
+  { id: 'airasslt',   name: 'Air Assault',      base: 'SFGPUCIAE--', cat: 'F' },
+  { id: 'sf',         name: 'Special Forces',   base: 'SFGPUSOS---', cat: 'F' },
+  { id: 'ranger',     name: 'Ranger',           base: 'SFGPUCIR---', cat: 'F' },
   { id: 'at',         name: 'Anti-Tank',        base: 'SFGPUCAT---', cat: 'F' },
-  { id: 'cbrn',       name: 'CBRN',             base: '10031000001401000000', cat: 'F' },
+  { id: 'cbrn',       name: 'CBRN',             base: 'SFGPUCDC---', cat: 'F' },
   { id: 'mp',         name: 'Military Police',  base: 'SFGPUMP----', cat: 'F' },
   // ── C2 & Support — Friendly ──────────────────────────
   { id: 'hq',         name: 'Headquarters',     base: 'SFGPUH-----', cat: 'F' },
@@ -116,13 +116,36 @@ function buildSIDC(base, echelon = '') {
   return arr.join('');
 }
 
+function _milFallbackIcon(sidc, size) {
+  // Derive affiliation from SIDC even if milsymbol fails
+  let aff = (sidc || '')[1] || '?';
+  if ((sidc || '')[0] === '1') {
+    // 2525D: identity at position 3
+    const id = sidc[3];
+    aff = id === '3' ? 'F' : id === '6' ? 'H' : id === '4' ? 'N' : 'U';
+  }
+  const col = { F: '#58a6ff', H: '#f85149', N: '#3fb950', U: '#d29922' }[aff] || '#8b949e';
+  const s   = size || 36;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}">` +
+              `<rect x="2" y="2" width="${s-4}" height="${s-4}" fill="${col}22" ` +
+              `rx="3" stroke="${col}" stroke-width="2"/>` +
+              `<text x="${s/2}" y="${s*0.65}" font-size="${Math.round(s*0.38)}" ` +
+              `text-anchor="middle" fill="${col}" font-family="monospace" font-weight="bold">${aff}</text>` +
+              `</svg>`;
+  return L.icon({
+    iconUrl:    'data:image/svg+xml,' + encodeURIComponent(svg),
+    iconSize:   [s, s],
+    iconAnchor: [s/2, s/2],
+  });
+}
+
 function makeMilIcon(sidc, size = 36) {
+  if (typeof ms === 'undefined') return _milFallbackIcon(sidc, size);
   try {
-    const sym    = new ms.Symbol(sidc, { size, frame: true });
+    const sym    = new ms.Symbol(sidc, { size });
     const anchor = sym.getAnchor();
     const sz     = sym.getSize();
-    // milsymbol canvas can be much larger than `size` due to amplifiers/labels
-    // Cap display to size*2 in the largest dimension to keep icons proportional
+    if (!sz.width || !sz.height) return _milFallbackIcon(sidc, size);
     const maxDim = size * 2;
     const s = Math.min(1, maxDim / Math.max(sz.width, sz.height, 1));
     const w  = Math.round(sz.width  * s);
@@ -136,27 +159,24 @@ function makeMilIcon(sidc, size = 36) {
       popupAnchor:[0, -ay + 4],
     });
   } catch {
-    return L.icon({
-      iconUrl: 'data:image/svg+xml,' + encodeURIComponent(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">' +
-        '<rect width="32" height="32" fill="#333" rx="4"/>' +
-        '<text x="16" y="22" font-size="18" text-anchor="middle" fill="#fff">?</text></svg>'
-      ),
-      iconSize: [32,32], iconAnchor: [16,16],
-    });
+    return _milFallbackIcon(sidc, size);
   }
 }
 
 function catalogIcon(sidc, size = 40) {
-  try {
-    const sym = new ms.Symbol(sidc, { size, frame: true });
-    const img = document.createElement('img');
-    img.src = sym.toDataURL();
+  const img = document.createElement('img');
+  if (typeof ms === 'undefined') {
+    img.src = _milFallbackIcon(sidc, size).options.iconUrl;
     img.width = size; img.height = size;
     return img;
-  } catch {
-    const img = document.createElement('img');
-    img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="%23333" rx="4"/></svg>';
-    return img;
   }
+  try {
+    const sym = new ms.Symbol(sidc, { size });
+    img.src = sym.toDataURL();
+    img.width = size; img.height = size;
+  } catch {
+    img.src = _milFallbackIcon(sidc, size).options.iconUrl;
+    img.width = size; img.height = size;
+  }
+  return img;
 }
