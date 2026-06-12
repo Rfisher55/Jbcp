@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=28">
+  <link rel="stylesheet" href="css/style.css?v=29">
 </head>
 <body>
 
@@ -145,7 +145,7 @@
       <div class="field-group">
         <label for="auth-callsign">Callsign <span class="req">*</span></label>
         <input id="auth-callsign" type="text" placeholder="e.g. ALPHA-6" maxlength="20"
-               autocomplete="off" autocapitalize="characters" spellcheck="false">
+               autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="auth-email">Email <span class="opt">(optional — for sync)</span></label>
@@ -171,7 +171,7 @@
       <div class="sheet-handle"></div>
       <button class="btn-close" id="btn-symbols-close">✕</button>
       <h3>Select Symbol</h3>
-      <input id="symbol-search" type="search" placeholder="Search symbols…" autocomplete="off">
+      <input id="symbol-search" type="search" placeholder="Search symbols…" autocomplete="off" autocorrect="off" spellcheck="false">
       <div class="symbol-filter-bar" id="symbol-filters">
         <button class="filter-btn active" data-filter="F">Friendly</button>
         <button class="filter-btn" data-filter="H">Hostile</button>
@@ -280,7 +280,7 @@
       <div class="field-group">
         <label for="label-input">Label text</label>
         <input id="label-input" type="text" placeholder="Optional label…"
-               autocomplete="off" autocapitalize="characters" spellcheck="false">
+               autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="btn-row">
         <button class="btn-primary" id="btn-label-done">Done ✓</button>
@@ -302,7 +302,7 @@
       <div id="chat-canned" class="chat-canned"></div>
       <div class="chat-input-row">
         <input id="chat-input" type="text" placeholder="Send message…"
-               autocomplete="off" autocapitalize="sentences" maxlength="500">
+               autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false" maxlength="500">
         <button class="btn-primary" id="btn-chat-send">Send</button>
       </div>
     </div>
@@ -448,22 +448,22 @@
       <div class="field-group">
         <label for="spot-size">S — Size <span class="req">*</span></label>
         <input id="spot-size" type="text" placeholder="e.g. 8-10 dismounts, 2 trucks"
-               autocomplete="off" autocapitalize="sentences">
+               autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="spot-activity">A — Activity <span class="req">*</span></label>
         <input id="spot-activity" type="text" placeholder="e.g. Moving east on MSR IRON"
-               autocomplete="off" autocapitalize="sentences">
+               autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="spot-location">L — Location (MGRS)</label>
         <input id="spot-location" type="text" placeholder="16TDL 123 456"
-               autocomplete="off" autocapitalize="characters">
+               autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="spot-unit-id">U — Unit / Description</label>
         <input id="spot-unit-id" type="text" placeholder="e.g. Irregular forces, dark uniforms"
-               autocomplete="off" autocapitalize="sentences">
+               autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="spot-dtg" style="display:flex;justify-content:space-between;align-items:center">
@@ -471,17 +471,17 @@
           <button class="btn-secondary" id="btn-spotdtg-now" style="font-size:10px;padding:2px 8px;margin:0">Now</button>
         </label>
         <input id="spot-dtg" type="text" placeholder="DDHHMM Z MON YY"
-               autocomplete="off" autocapitalize="characters">
+               autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="spot-equip">E — Equipment</label>
         <input id="spot-equip" type="text" placeholder="e.g. AK-74, PKM, RPG"
-               autocomplete="off" autocapitalize="sentences">
+               autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="spot-assessment">Assessment</label>
         <input id="spot-assessment" type="text" placeholder="Commander's assessment"
-               autocomplete="off" autocapitalize="sentences">
+               autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
       </div>
       <button class="btn-primary btn-full" id="btn-spotrep-submit">File SPOTREP</button>
     </div>
@@ -499,12 +499,12 @@
       <div class="field-group">
         <label for="m9-loc">Line 1 — Pickup site location <span class="req">*</span></label>
         <input id="m9-loc" type="text" placeholder="6-digit MGRS"
-               autocomplete="off" autocapitalize="characters">
+               autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="m9-freq">Line 2 — Radio freq / callsign</label>
         <input id="m9-freq" type="text" placeholder="e.g. 46.35 DUSTOFF"
-               autocomplete="off">
+               autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="m9-prec">Line 3 — Precedence</label>
@@ -587,18 +587,18 @@
 
       <div class="field-group">
         <label for="sit-unit">Unit / Callsign</label>
-        <input id="sit-unit" type="text" autocomplete="off" autocapitalize="characters">
+        <input id="sit-unit" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="sit-dtg" style="display:flex;justify-content:space-between;align-items:center">
           <span>Date-Time Group</span>
           <button class="btn-secondary" id="btn-dtg-now" style="font-size:10px;padding:2px 8px;margin:0">Now</button>
         </label>
-        <input id="sit-dtg" type="text" autocomplete="off" autocapitalize="characters">
+        <input id="sit-dtg" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="sit-loc">Present Location (MGRS)</label>
-        <input id="sit-loc" type="text" autocomplete="off" autocapitalize="characters">
+        <input id="sit-loc" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="sit-friendly" style="display:flex;justify-content:space-between;align-items:center">
@@ -606,22 +606,22 @@
           <button class="btn-secondary" id="btn-sitrep-autofill" style="font-size:10px;padding:2px 8px;margin:0">Auto-fill</button>
         </label>
         <input id="sit-friendly" type="text" placeholder="Current operations, position, status"
-               autocomplete="off" autocapitalize="sentences">
+               autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="sit-enemy">Enemy Situation</label>
         <input id="sit-enemy" type="text" placeholder="Known/suspected enemy activity"
-               autocomplete="off" autocapitalize="sentences">
+               autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="sit-log">Logistics Status</label>
         <input id="sit-log" type="text" placeholder="Brief LACE summary"
-               autocomplete="off" autocapitalize="sentences">
+               autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="sit-assess">Commander's Assessment</label>
         <input id="sit-assess" type="text" placeholder="Assessment and intent"
-               autocomplete="off" autocapitalize="sentences">
+               autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
       </div>
       <button class="btn-primary btn-full" id="btn-sitrep-submit">Send SITREP</button>
     </div>
@@ -678,7 +678,7 @@
       <h3>Go to Grid</h3>
       <p class="sheet-hint">Enter MGRS, abbreviated grid, or unit callsign</p>
       <input id="goto-grid-input" class="text-input" type="text" placeholder="38SMB12345678 or ALPHA-1"
-             autocomplete="off" autocorrect="off" autocapitalize="characters"
+             autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
              style="font-size:18px; letter-spacing:0.05em; margin-bottom:12px">
       <div id="goto-grid-note" style="font-size:12px; color:var(--text-dim); min-height:16px; margin-bottom:12px"></div>
       <button class="btn-primary btn-full" id="btn-goto-go">Navigate</button>
@@ -792,15 +792,15 @@
       </div>
       <div class="field-group">
         <label for="nbc-wind">Wind Direction (from)</label>
-        <input id="nbc-wind" type="text" placeholder="e.g. 270° W" autocomplete="off" autocapitalize="characters">
+        <input id="nbc-wind" type="text" placeholder="e.g. 270° W" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="nbc-hazard">Hazard Area / Extent</label>
-        <input id="nbc-hazard" type="text" placeholder="e.g. 500m radius" autocomplete="off" autocapitalize="sentences">
+        <input id="nbc-hazard" type="text" placeholder="e.g. 500m radius" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
       </div>
       <div class="field-group">
         <label for="nbc-actions">Protective Actions</label>
-        <input id="nbc-actions" type="text" placeholder="e.g. MOPP 4, evacuate 1km" autocomplete="off" autocapitalize="sentences">
+        <input id="nbc-actions" type="text" placeholder="e.g. MOPP 4, evacuate 1km" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
       </div>
       <button class="btn-primary btn-full" id="btn-nbc-submit">Send NBC Warning</button>
     </div>
@@ -890,7 +890,7 @@
       <div class="field-group">
         <label for="settings-callsign">Callsign</label>
         <input id="settings-callsign" type="text" placeholder="e.g. ALPHA-6"
-               maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false">
+               maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
       </div>
       <button class="btn-primary btn-full" id="btn-settings-callsign-save" style="margin-bottom:16px">Update Callsign</button>
 
@@ -910,7 +910,7 @@
         <div class="field-group" style="margin-bottom:6px">
           <label for="settings-ao-name">AO Name</label>
           <input id="settings-ao-name" type="text" placeholder="e.g. Camp Grayling"
-                 autocomplete="off" autocapitalize="words">
+                 autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
         </div>
         <div class="field-group" style="margin-bottom:6px">
           <label for="settings-ao-mgrs">Center (full MGRS)</label>
@@ -946,7 +946,7 @@
       </div>
 
       <div class="sheet-hint" style="margin-top:16px; text-align:center">
-        v28 · NOT FOR OPERATIONAL USE
+        v29 · NOT FOR OPERATIONAL USE
       </div>
     </div>
   </div>
@@ -979,18 +979,18 @@
   <script src="https://cdn.jsdelivr.net/npm/milsymbol@2.2.0/dist/milsymbol.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
-  <script src="js/config.js?v=28"></script>
-  <script src="js/db.js?v=28"></script>
-  <script src="js/auth.js?v=28"></script>
-  <script src="js/mission.js?v=28"></script>
-  <script src="js/mgrs-grid.js?v=28"></script>
-  <script src="js/symbols.js?v=28"></script>
-  <script src="js/bft.js?v=28"></script>
-  <script src="js/chat.js?v=28"></script>
-  <script src="js/reports.js?v=28"></script>
-  <script src="js/map.js?v=28"></script>
-  <script src="js/hhour.js?v=28"></script>
-  <script src="js/app.js?v=28"></script>
+  <script src="js/config.js?v=29"></script>
+  <script src="js/db.js?v=29"></script>
+  <script src="js/auth.js?v=29"></script>
+  <script src="js/mission.js?v=29"></script>
+  <script src="js/mgrs-grid.js?v=29"></script>
+  <script src="js/symbols.js?v=29"></script>
+  <script src="js/bft.js?v=29"></script>
+  <script src="js/chat.js?v=29"></script>
+  <script src="js/reports.js?v=29"></script>
+  <script src="js/map.js?v=29"></script>
+  <script src="js/hhour.js?v=29"></script>
+  <script src="js/app.js?v=29"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
