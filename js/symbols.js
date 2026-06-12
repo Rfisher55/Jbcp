@@ -27,7 +27,7 @@ const CATALOG = [
   { id: 'log',        name: 'Logistics',        base: 'SFGPUSS----', cat: 'F' },
   { id: 'trans',      name: 'Transportation',   base: 'SFGPUST----', cat: 'F' },
   { id: 'ord',        name: 'Ordnance',         base: 'SFGPUSO----', cat: 'F' },
-  { id: 'fa-cp',      name: 'FA Fire Direc.',   base: 'SFGPUCF----', cat: 'F' },
+  { id: 'fa-cp',      name: 'FA Fire Direc.',   base: 'SFGPUCFH---', cat: 'F' },
   // ── Aviation — Friendly ──────────────────────────────
   { id: 'atk-helo',   name: 'Attack Helo',      base: 'SFAPWMA----', cat: 'F' },
   { id: 'util-helo',  name: 'Utility Helo',     base: 'SFAPMF-----', cat: 'F' },
