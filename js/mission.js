@@ -1,6 +1,7 @@
 const Mission = {
-  current: null,
-  _unsub: null,
+  current:        null,
+  _unsub:         null,
+  _trackPresence: null,   // fn(data) → updates our presence state in the mission channel
 
   get active() { return !!this.current; },
 
@@ -46,8 +47,15 @@ const Mission = {
 
   leave() {
     if (this._unsub) { this._unsub(); this._unsub = null; }
+    this._trackPresence = null;
     this.current = null;
     try { localStorage.removeItem('cop_mission'); } catch {}
+  },
+
+  updatePresenceMGRS(mgrs) {
+    if (this._trackPresence) {
+      this._trackPresence({ callsign: Auth.callsign || 'Unknown', mgrs: mgrs || '' });
+    }
   },
 
   _activate(m, { silent = false } = {}) {
@@ -56,11 +64,13 @@ const Mission = {
 
     // Subscribe to live changes
     if (this._unsub) this._unsub();
-    this._unsub = DB.subscribeMission(m.id, {
-      onUnit:    p => MapCtrl.handleRemoteUnit(p),
-      onGraphic: p => MapCtrl.handleRemoteGraphic(p),
+    const sub = DB.subscribeMission(m.id, {
+      onUnit:     p => MapCtrl.handleRemoteUnit(p),
+      onGraphic:  p => MapCtrl.handleRemoteGraphic(p),
       onPresence: s => UI.updateRoster(s),
     });
+    this._unsub         = sub.unsub;
+    this._trackPresence = sub.track;
 
     if (!silent) App.onMissionActivated(m);
     return m;
