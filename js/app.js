@@ -417,7 +417,9 @@ const UI = {
     document.getElementById('btn-unit-share').addEventListener('click', () => {
       if (!Chat.isJoined()) { UI.toast('Join a mission to share', 'info'); return; }
       const cs   = String(unit.callsign || 'UNKNOWN').replace(/[|\x00-\x1f]/g, '').slice(0, 16) || 'UNKNOWN';
-      const grid = toMGRS(unit.lat, unit.lng, 5) || `${unit.lat.toFixed(4)},${unit.lng.toFixed(4)}`;
+      const grid = (isFinite(unit.lat) && isFinite(unit.lng))
+        ? (toMGRS(unit.lat, unit.lng, 5) || `${unit.lat.toFixed(4)},${unit.lng.toFixed(4)}`)
+        : 'NO POS';
       const rc   = unit.redcon || 5;
       const os   = ['FMC','PMC','NMC'].includes(unit.opstat) ? unit.opstat : 'FMC';
       const laceStr = unit.lace
@@ -1909,6 +1911,7 @@ const App = {
 
           const unit = {
             id:         uid,
+            mission_id: Mission.active ? Mission.current.id : null,
             sidc,
             callsign:   callsign.trim().slice(0, 24),
             lat, lng,
@@ -1929,6 +1932,7 @@ const App = {
             updated++;
           } else {
             MapCtrl._addUnitMarker(unit);
+            if (Mission.active) DB.upsertUnit(unit).catch(() => {});
             placed++;
           }
           LocalStore.upsertUnit(unit);
@@ -2028,6 +2032,7 @@ const App = {
           if (!u.id || !isFinite(u.lat) || !isFinite(u.lng)) return;
           const unit = {
             id:         u.id,
+            mission_id: Mission.active ? Mission.current.id : null,
             sidc:       u.sidc || 'SFGPUC-----',
             callsign:   String(u.callsign || 'IMPORTED').trim().slice(0, 24),
             lat:        u.lat,
@@ -2048,6 +2053,7 @@ const App = {
             updatedU++;
           } else {
             MapCtrl._addUnitMarker(unit);
+            if (Mission.active) DB.upsertUnit(unit).catch(e => UI.toast('Sync failed: ' + e.message, 'error', 2000));
             placed++;
           }
           LocalStore.upsertUnit(unit);

@@ -1013,22 +1013,21 @@ const MapCtrl = {
               `background:rgba(248,81,73,0.2);color:#f85149;border:1px solid rgba(248,81,73,0.4);border-radius:6px;cursor:pointer">Remove</button>`;
       body += `</div>`;
 
-      L.popup({ closeButton: true, autoPan: false })
+      const rptPopup = L.popup({ closeButton: true, autoPan: false })
         .setLatLng([report.lat, report.lng])
         .setContent(body)
         .addTo(this._map)
         .openOn(this._map);
 
       setTimeout(() => {
-        document.querySelectorAll('.btn-del-report').forEach(btn => {
-          if (btn.dataset.rid !== report.id) return;
-          btn.onclick = () => {
-            if (marker._nbcCircle) this._reportLayer.removeLayer(marker._nbcCircle);
-            this._reportLayer.removeLayer(marker);
-            LocalStore.deleteReport(report.id);
-            this._map.closePopup();
-          };
-        });
+        const btn = rptPopup.getElement()?.querySelector('.btn-del-report');
+        if (!btn) return;
+        btn.onclick = () => {
+          if (marker._nbcCircle) this._reportLayer.removeLayer(marker._nbcCircle);
+          this._reportLayer.removeLayer(marker);
+          LocalStore.deleteReport(report.id);
+          this._map.closePopup();
+        };
       }, 40);
     });
 
