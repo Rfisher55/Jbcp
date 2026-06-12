@@ -422,13 +422,13 @@ const MapCtrl = {
         const sty = gt
           ? { color: gt.color, weight: gt.weight, dashArray: gt.dash, fillOpacity: gt.fill }
           : { color: '#d29922', fillOpacity: 0.1 };
-        this._saveGraphic({ type: 'area', geometry: geo, style: { ...sty, label } });
+        this._saveGraphic({ type: 'area', geometry: geo, style: { ...sty, label, graphicName: gt?.name || '' } });
       } else {
         const geo = { type: 'LineString', coordinates: pts.map(p => [p.lng, p.lat]) };
         const sty = gt
           ? { color: gt.color, weight: gt.weight, dashArray: gt.dash }
           : { color: '#58a6ff', weight: 2 };
-        this._saveGraphic({ type: 'line', geometry: geo, style: { ...sty, label } });
+        this._saveGraphic({ type: 'line', geometry: geo, style: { ...sty, label, graphicName: gt?.name || '' } });
       }
     };
 
@@ -768,7 +768,9 @@ const MapCtrl = {
     group.on('click', e => {
       if (this._activeTool !== 'select') return;
       L.DomEvent.stopPropagation(e);
-      const nameHtml = name ? `<div style="font-weight:700;margin-bottom:8px;font-size:14px">${_escH(name)}</div>` : '';
+      const gName    = sty.graphicName || '';
+      const titleStr = name ? `${name}${gName ? ' (' + gName + ')' : ''}` : (gName || '');
+      const nameHtml = titleStr ? `<div style="font-weight:700;margin-bottom:8px;font-size:14px">${_escH(titleStr)}</div>` : '';
       const center   = this._geomCenter(g.geometry);
       const ctrMgrs  = center ? (toMGRS(center[0], center[1], 5) || '') : '';
       const gPopup = L.popup({ closeButton: true, autoPan: false })
@@ -802,10 +804,10 @@ const MapCtrl = {
         if (shareBtn) shareBtn.onclick = () => {
           this._map.closePopup();
           if (typeof Chat !== 'undefined' && Chat.isJoined()) {
-            const label  = name ? `"${name}" ` : '';
-            const type   = g.type === 'area' ? 'AREA' : 'LINE';
-            const locStr = ctrMgrs ? ` @ ${ctrMgrs}` : '';
-            Chat.send(`GRAPHIC ${type}: ${label}${locStr}`.trim());
+            const typeName = gName || (g.type === 'area' ? 'AREA' : 'LINE');
+            const label    = name ? ` "${name}"` : '';
+            const locStr   = ctrMgrs ? ` @ ${ctrMgrs}` : '';
+            Chat.send(`GRAPHIC ${typeName}:${label}${locStr}`.trim());
             UI.toast('Graphic shared to chat', 'success', 1800);
           } else {
             UI.toast('Join a mission to share', 'info', 2000);
