@@ -1499,6 +1499,24 @@ const App = {
         return;
       }
 
+      // Fall through to live BFT tracks
+      const bftMatches = Object.values(BFT._tracks)
+        .filter(t => (t.callsign || '').toUpperCase().includes(query) && t.lat != null);
+      bftMatches.sort((a, b) => {
+        const acs = (a.callsign || '').toUpperCase();
+        const bcs = (b.callsign || '').toUpperCase();
+        if (acs === query && bcs !== query) return -1;
+        if (bcs === query && acs !== query) return 1;
+        return acs.indexOf(query) - bcs.indexOf(query);
+      });
+      if (bftMatches.length > 0) {
+        const t = bftMatches[0];
+        UI.closeSheet('sheet-goto-grid');
+        MapCtrl.flyToGrid(t.lat, t.lng);
+        UI.toast(`Flying to BFT: ${t.callsign}`, 'info', 1800);
+        return;
+      }
+
       document.getElementById('goto-grid-note').textContent = 'No unit found — try full MGRS (e.g. 38SMB12345678)';
     });
 
@@ -1691,7 +1709,10 @@ const App = {
       t.setHours(h, m, 0, 0);
       if (t < Date.now()) t.setDate(t.getDate() + 1);
       HHour.set(t.getTime());
-      if (Mission.active) BFT.broadcastHHour(t.getTime());
+      if (Mission.active) {
+        BFT.broadcastHHour(t.getTime());
+        if (Chat.isJoined()) Chat.send(`H-HOUR SET: ${val} local (by ${Auth.callsign || '?'})`);
+      }
       UI.closeSheet('sheet-hhour');
       UI.toast(`H-Hour set: ${val}${Mission.active ? ' — broadcast to team' : ''}`, 'success');
     });
