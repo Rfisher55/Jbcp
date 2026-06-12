@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=37">
+  <link rel="stylesheet" href="css/style.css?v=38">
 </head>
 <body>
 
@@ -850,7 +850,10 @@
           <input id="pace-e-freq" type="text" placeholder="Freq / net / channel" autocomplete="off" autocapitalize="characters" spellcheck="false" autocorrect="off">
         </div>
       </div>
-      <button class="btn-primary btn-full" id="btn-pace-save" style="margin-top:4px">Save PACE Plan</button>
+      <div class="btn-row" style="margin-top:4px">
+        <button class="btn-primary btn-full" id="btn-pace-save">Save PACE Plan</button>
+        <button class="btn-secondary btn-full" id="btn-pace-share">Share to Chat</button>
+      </div>
     </div>
   </div>
 
@@ -953,7 +956,7 @@
       </div>
 
       <div class="sheet-hint" style="margin-top:16px; text-align:center">
-        v37 · NOT FOR OPERATIONAL USE
+        v38 · NOT FOR OPERATIONAL USE
       </div>
     </div>
   </div>
@@ -986,18 +989,18 @@
   <script src="https://cdn.jsdelivr.net/npm/milsymbol@2.2.0/dist/milsymbol.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
-  <script src="js/config.js?v=37"></script>
-  <script src="js/db.js?v=37"></script>
-  <script src="js/auth.js?v=37"></script>
-  <script src="js/mission.js?v=37"></script>
-  <script src="js/mgrs-grid.js?v=37"></script>
-  <script src="js/symbols.js?v=37"></script>
-  <script src="js/bft.js?v=37"></script>
-  <script src="js/chat.js?v=37"></script>
-  <script src="js/reports.js?v=37"></script>
-  <script src="js/map.js?v=37"></script>
-  <script src="js/hhour.js?v=37"></script>
-  <script src="js/app.js?v=37"></script>
+  <script src="js/config.js?v=38"></script>
+  <script src="js/db.js?v=38"></script>
+  <script src="js/auth.js?v=38"></script>
+  <script src="js/mission.js?v=38"></script>
+  <script src="js/mgrs-grid.js?v=38"></script>
+  <script src="js/symbols.js?v=38"></script>
+  <script src="js/bft.js?v=38"></script>
+  <script src="js/chat.js?v=38"></script>
+  <script src="js/reports.js?v=38"></script>
+  <script src="js/map.js?v=38"></script>
+  <script src="js/hhour.js?v=38"></script>
+  <script src="js/app.js?v=38"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })

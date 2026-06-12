@@ -1239,6 +1239,30 @@ const App = {
 
     // PACE plan
     document.getElementById('btn-pace-save')?.addEventListener('click', () => App._savePACE());
+    document.getElementById('btn-pace-share')?.addEventListener('click', () => {
+      if (!Chat.isJoined()) { UI.toast('Join a mission to share', 'info'); return; }
+      const fmt = (l, label) => {
+        const m = document.getElementById(`pace-${l}-method`)?.value.trim();
+        const f = document.getElementById(`pace-${l}-freq`)?.value.trim();
+        if (!m && !f) return null;
+        return `${label}:${m || '?'}${f ? ' ' + f : ''}`;
+      };
+      const parts = ['p','a','c','e'].map((l, i) => fmt(l, 'PACE'[i])).filter(Boolean);
+      if (!parts.length) { UI.toast('PACE plan is empty', 'info'); return; }
+      // Save without closing/toasting, then share
+      const pace = { p:{}, a:{}, c:{}, e:{} };
+      ['p','a','c','e'].forEach(l => {
+        pace[l] = {
+          method: document.getElementById(`pace-${l}-method`)?.value.trim() || '',
+          freq:   document.getElementById(`pace-${l}-freq`)?.value.trim()   || '',
+        };
+      });
+      const key = Mission.active ? `cop_pace_${Mission.current.id}` : 'cop_pace_offline';
+      try { localStorage.setItem(key, JSON.stringify(pace)); } catch {}
+      Chat.send('PACE PLAN: ' + parts.join(' | '));
+      UI.closeSheet('sheet-pace');
+      UI.toast('PACE plan shared to chat', 'success', 2000);
+    });
 
     // Force status — close + share + tap unit to fly
     document.getElementById('btn-force-status-close')?.addEventListener('click', () => {
