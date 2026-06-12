@@ -731,9 +731,9 @@ const UI = {
     document.getElementById('tog-graphics').addEventListener('change', e =>
       e.target.checked ? MapCtrl._graphicLayer.addTo(MapCtrl.map) : MapCtrl.map.removeLayer(MapCtrl._graphicLayer));
     document.getElementById('tog-bft').addEventListener('change', e => {
-      const bftLayer = BFT._layer;
-      if (!bftLayer) return;
-      e.target.checked ? bftLayer.addTo(MapCtrl.map) : MapCtrl.map.removeLayer(bftLayer);
+      const on = e.target.checked;
+      if (BFT._layer)     on ? BFT._layer.addTo(MapCtrl.map)     : MapCtrl.map.removeLayer(BFT._layer);
+      if (BFT._histLayer) on ? BFT._histLayer.addTo(MapCtrl.map) : MapCtrl.map.removeLayer(BFT._histLayer);
     });
     document.getElementById('tog-labels').addEventListener('change', e => {
       document.getElementById('map')?.classList.toggle('hide-unit-labels', !e.target.checked);

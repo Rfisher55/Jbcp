@@ -234,6 +234,7 @@ const MapCtrl = {
             <div class="pin-popup-mgrs">${_escH(mgrs)}</div>
             <div class="pin-popup-btns">
               <button class="pin-popup-copy">📋 Copy</button>
+              <button class="pin-popup-share">💬 Share</button>
               <button class="pin-popup-del">🗑 Delete</button>
             </div>
           </div>`
@@ -243,14 +244,25 @@ const MapCtrl = {
       setTimeout(() => {
         const el = popup.getElement();
         if (!el) return;
-        const copyBtn = el.querySelector('.pin-popup-copy');
-        const delBtn  = el.querySelector('.pin-popup-del');
+        const copyBtn  = el.querySelector('.pin-popup-copy');
+        const shareBtn = el.querySelector('.pin-popup-share');
+        const delBtn   = el.querySelector('.pin-popup-del');
         if (copyBtn) copyBtn.onclick = ev => {
           ev.stopPropagation();
           navigator.clipboard?.writeText(mgrs)
             .then(() => UI.toast('Grid copied: ' + mgrs, 'success', 1800))
             .catch(() => UI.toast(mgrs, 'info', 1800));
           popup.remove();
+        };
+        if (shareBtn) shareBtn.onclick = ev => {
+          ev.stopPropagation();
+          popup.remove();
+          if (typeof Chat !== 'undefined' && Chat.isJoined()) {
+            Chat.send(`PIN: ${mgrs}`);
+            UI.toast('Pin shared to chat', 'success', 1800);
+          } else {
+            UI.toast('Join a mission to share', 'info', 2000);
+          }
         };
         if (delBtn) delBtn.onclick = ev => {
           ev.stopPropagation();
@@ -752,31 +764,52 @@ const MapCtrl = {
       }
     }
 
-    // Click → select popup with delete
+    // Click → select popup with delete + share
     group.on('click', e => {
       if (this._activeTool !== 'select') return;
       L.DomEvent.stopPropagation(e);
       const nameHtml = name ? `<div style="font-weight:700;margin-bottom:8px;font-size:14px">${_escH(name)}</div>` : '';
+      const center   = this._geomCenter(g.geometry);
+      const ctrMgrs  = center ? (toMGRS(center[0], center[1], 5) || '') : '';
       const gPopup = L.popup({ closeButton: true, autoPan: false })
         .setLatLng(e.latlng)
         .setContent(
           `<div class="popup-body">${nameHtml}` +
+          `<div style="display:flex;gap:6px;flex-wrap:wrap">` +
           `<button class="btn-del-graphic" style="font-size:12px;padding:4px 12px;` +
           `background:rgba(248,81,73,0.2);color:#f85149;border:1px solid rgba(248,81,73,0.4);` +
-          `border-radius:6px;cursor:pointer">Delete</button></div>`
+          `border-radius:6px;cursor:pointer">Delete</button>` +
+          `<button class="btn-share-graphic" style="font-size:12px;padding:4px 12px;` +
+          `background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.35);` +
+          `border-radius:6px;cursor:pointer">Share</button>` +
+          `</div></div>`
         )
         .addTo(this._map)
         .openOn(this._map);
 
       setTimeout(() => {
-        const btn = gPopup.getElement()?.querySelector('.btn-del-graphic');
-        if (!btn) return;
-        btn.onclick = () => {
+        const el = gPopup.getElement();
+        if (!el) return;
+        const delBtn   = el.querySelector('.btn-del-graphic');
+        const shareBtn = el.querySelector('.btn-share-graphic');
+        if (delBtn) delBtn.onclick = () => {
           this._graphicLayer.removeLayer(group);
           delete this._graphics[g.id];
           LocalStore.deleteGraphic(g.id);
           if (Mission.active) DB.deleteGraphic(g.id).catch(() => {});
           this._map.closePopup();
+        };
+        if (shareBtn) shareBtn.onclick = () => {
+          this._map.closePopup();
+          if (typeof Chat !== 'undefined' && Chat.isJoined()) {
+            const label  = name ? `"${name}" ` : '';
+            const type   = g.type === 'area' ? 'AREA' : 'LINE';
+            const locStr = ctrMgrs ? ` @ ${ctrMgrs}` : '';
+            Chat.send(`GRAPHIC ${type}: ${label}${locStr}`.trim());
+            UI.toast('Graphic shared to chat', 'success', 1800);
+          } else {
+            UI.toast('Join a mission to share', 'info', 2000);
+          }
         };
       }, 40);
     });
