@@ -1003,6 +1003,7 @@ const App = {
     // Copy MGRS
     document.getElementById('coord-chip').addEventListener('click', () => {
       const txt = document.getElementById('coord-mgrs').textContent;
+      if (!txt || txt === 'No position') { UI.toast('No GPS fix yet', 'info', 2000); return; }
       navigator.clipboard?.writeText(txt)
         .then(() => UI.toast('MGRS copied: ' + txt, 'success'))
         .catch(() => UI.toast(txt, 'info'));
